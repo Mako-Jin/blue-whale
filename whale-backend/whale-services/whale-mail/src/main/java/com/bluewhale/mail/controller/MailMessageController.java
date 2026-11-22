@@ -26,7 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/mail/message")
+@RequestMapping(path = "/mail/v{version}/message", version = "1")
 @RequiredArgsConstructor
 public class MailMessageController {
 

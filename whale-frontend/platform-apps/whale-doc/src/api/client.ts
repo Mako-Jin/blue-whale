@@ -1,7 +1,7 @@
 // 文档子应用请求层：基于 @bluewhale/http，token 与用户从基座缓存读取
 //
 // 后端统一返回 `Result` 信封：{ code, message, data }，code === 0 表示成功。
-// 所有请求走相对路径（如 `/doc/meta`），由基座 / Nginx 经网关 8080 代理。
+// 所有请求走相对路径（如 `/doc/v1/meta`），由基座 / Nginx 经网关 8080 代理。
 
 import { ApiError, createHttpClient, type HttpOptions } from '@bluewhale/http';
 

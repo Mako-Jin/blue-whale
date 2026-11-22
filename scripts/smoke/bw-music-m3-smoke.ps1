@@ -148,7 +148,7 @@ Check '1.upload' $upload
 $fileId = [long]$upload.data.id
 
 # 2) 建歌手
-$artist = Invoke-MusicApi -Method 'Post' -Path '/music/artist' -Body @{ name = "M3冒烟歌手-$stamp"; region = 'CN' }
+$artist = Invoke-MusicApi -Method 'Post' -Path '/music/v1/artist' -Body @{ name = "M3冒烟歌手-$stamp"; region = 'CN' }
 Check '2.artistCreate' $artist
 $artistId = [long]$artist.data.id
 
@@ -163,15 +163,15 @@ $songBody = @{
     visibility  = 'PUBLIC'
     language    = 'ZH'
 }
-$song = Invoke-MusicApi -Method 'Post' -Path '/music/song' -Body $songBody
+$song = Invoke-MusicApi -Method 'Post' -Path '/music/v1/song' -Body $songBody
 Check '3.songCreate' $song
 $songId = [long]$song.data.id
-$published = Invoke-MusicApi -Method 'Post' -Path "/music/song/$songId/publish"
+$published = Invoke-MusicApi -Method 'Post' -Path "/music/v1/song/$songId/publish"
 Check '3.songPublish' $published
 Assert '3.songPlayable' ($published.data.publishState -eq 'PUBLISHED' -and $published.data.playable)
 
 # 4) 首页聚合（热门 / 新歌 / 官方歌单 / 标签）
-$homeView = Invoke-MusicApi -Method 'Get' -Path '/music/home'
+$homeView = Invoke-MusicApi -Method 'Get' -Path '/music/v1/home'
 Check '4.home' $homeView
 Assert '4.homeShape' ($null -ne $homeView.data.hotSongs -and $null -ne $homeView.data.newSongs -and
     $null -ne $homeView.data.officialPlaylists -and $null -ne $homeView.data.tags) `
@@ -179,86 +179,86 @@ Assert '4.homeShape' ($null -ne $homeView.data.hotSongs -and $null -ne $homeView
 Assert '4.homeNewSong' (@($homeView.data.newSongs | Where-Object { [long]$_.id -eq $songId }).Count -ge 1) `
     "songId=$songId"
 # 第二次命中缓存（序列化 / 反序列化链路可用）
-$homeAgain = Invoke-MusicApi -Method 'Get' -Path '/music/home'
+$homeAgain = Invoke-MusicApi -Method 'Get' -Path '/music/v1/home'
 Check '4.homeCached' $homeAgain
 
 # 5) 热门 / 新歌榜
-$hot = Invoke-MusicApi -Method 'Get' -Path '/music/chart/hot?current=1&size=10'
+$hot = Invoke-MusicApi -Method 'Get' -Path '/music/v1/chart/hot?current=1&size=10'
 Check '5.chartHot' $hot
 Assert '5.chartHotTotal' ([long]$hot.data.total -ge 1) "total=$($hot.data.total)"
-$new = Invoke-MusicApi -Method 'Get' -Path '/music/chart/new?current=1&size=10'
+$new = Invoke-MusicApi -Method 'Get' -Path '/music/v1/chart/new?current=1&size=10'
 Check '5.chartNew' $new
 Assert '5.chartNewSong' (@($new.data.records | Where-Object { [long]$_.id -eq $songId }).Count -ge 1) `
     "songId=$songId"
 
 # 6) 搜索：关键词命中 / 空关键词稳定空结果
-$search = Invoke-MusicApi -Method 'Get' -Path ("/music/search?keyword=" + [uri]::EscapeDataString($songTitle) + '&type=SONG')
+$search = Invoke-MusicApi -Method 'Get' -Path ("/music/v1/search?keyword=" + [uri]::EscapeDataString($songTitle) + '&type=SONG')
 Check '6.searchSong' $search
 Assert '6.searchHit' ([long]$search.data.songTotal -ge 1 -and
     @($search.data.songs | Where-Object { [long]$_.id -eq $songId }).Count -ge 1) `
     "total=$($search.data.songTotal)"
-$empty = Invoke-MusicApi -Method 'Get' -Path '/music/search?keyword=&type=ALL'
+$empty = Invoke-MusicApi -Method 'Get' -Path '/music/v1/search?keyword=&type=ALL'
 Check '6.searchEmpty' $empty
 Assert '6.searchEmptyShape' ([long]$empty.data.total -eq 0 -and $null -ne $empty.data.songs) `
     "total=$($empty.data.total)"
 
 # 7) 用户歌单：私有可见性 + 越权
-$playlist = Invoke-MusicApi -Method 'Post' -Path '/music/playlist' `
+$playlist = Invoke-MusicApi -Method 'Post' -Path '/music/v1/playlist' `
     -Body @{ title = "M3私有歌单-$stamp"; description = 'M3 冒烟'; visibility = 'PRIVATE' }
 Check '7.playlistCreate' $playlist
 $playlistId = [long]$playlist.data.id
 Assert '7.playlistPrivate' ($playlist.data.visibility -eq 'PRIVATE' -and [long]$playlist.data.ownerId -eq [long]$userId)
-$detail = Invoke-MusicApi -Method 'Get' -Path "/music/playlist/$playlistId"
+$detail = Invoke-MusicApi -Method 'Get' -Path "/music/v1/playlist/$playlistId"
 Check '7.playlistDetailOwner' $detail
-$otherDetail = Invoke-MusicApi -Method 'Get' -Path "/music/playlist/$playlistId" -Headers $readerHeaders
+$otherDetail = Invoke-MusicApi -Method 'Get' -Path "/music/v1/playlist/$playlistId" -Headers $readerHeaders
 Assert '7.playlistDetailOther' ($otherDetail.code -eq 40405) "code=$($otherDetail.code)"
-$mine = Invoke-MusicApi -Method 'Get' -Path '/music/playlist/page?current=1&size=10&mine=true' -Headers $readerHeaders
+$mine = Invoke-MusicApi -Method 'Get' -Path '/music/v1/playlist/page?current=1&size=10&mine=true' -Headers $readerHeaders
 Check '7.playlistPageMine' $mine
 
 # 8) 加歌幂等 / 重排 / 移除
-$added = Invoke-MusicApi -Method 'Post' -Path "/music/playlist/$playlistId/song" -Body @{ songId = $songId }
+$added = Invoke-MusicApi -Method 'Post' -Path "/music/v1/playlist/$playlistId/song" -Body @{ songId = $songId }
 Check '8.playlistAddSong' $added
 Assert '8.playlistAddCount' ([int]$added.data.songCount -eq 1 -and @($added.data.songs).Count -eq 1) `
     "songCount=$($added.data.songCount)"
-$addedAgain = Invoke-MusicApi -Method 'Post' -Path "/music/playlist/$playlistId/song" -Body @{ songId = $songId }
+$addedAgain = Invoke-MusicApi -Method 'Post' -Path "/music/v1/playlist/$playlistId/song" -Body @{ songId = $songId }
 Check '8.playlistAddIdempotent' $addedAgain
 Assert '8.playlistAddNoDup' ([int]$addedAgain.data.songCount -eq 1) "songCount=$($addedAgain.data.songCount)"
-$sorted = Invoke-MusicApi -Method 'Put' -Path "/music/playlist/$playlistId/sort" -Body @{ songIds = @($songId) }
+$sorted = Invoke-MusicApi -Method 'Put' -Path "/music/v1/playlist/$playlistId/sort" -Body @{ songIds = @($songId) }
 Check '8.playlistSort' $sorted
 Assert '8.playlistSortNo' (@($sorted.data.songs)[0].sortNo -eq 0) "sortNo=$(@($sorted.data.songs)[0].sortNo)"
-$removed = Invoke-MusicApi -Method 'Delete' -Path "/music/playlist/$playlistId/song/$songId"
+$removed = Invoke-MusicApi -Method 'Delete' -Path "/music/v1/playlist/$playlistId/song/$songId"
 Check '8.playlistRemoveSong' $removed
-$afterRemove = Invoke-MusicApi -Method 'Get' -Path "/music/playlist/$playlistId"
+$afterRemove = Invoke-MusicApi -Method 'Get' -Path "/music/v1/playlist/$playlistId"
 Assert '8.playlistRemoveCount' ([int]$afterRemove.data.songCount -eq 0) "songCount=$($afterRemove.data.songCount)"
 
 # 9) 官方歌单：运营可维护，普通用户只读
-$official = Invoke-MusicApi -Method 'Post' -Path '/music/playlist/official' `
+$official = Invoke-MusicApi -Method 'Post' -Path '/music/v1/playlist/official' `
     -Body @{ title = "M3官方歌单-$stamp"; description = 'M3 冒烟官方歌单' }
 Check '9.officialCreate' $official
 $officialId = [long]$official.data.id
 Assert '9.officialShape' ($official.data.playlistType -eq 'OFFICIAL' -and
     $official.data.visibility -eq 'PUBLIC' -and [long]$official.data.ownerId -eq 0)
-$officialAdd = Invoke-MusicApi -Method 'Post' -Path "/music/playlist/official/$officialId/song" -Body @{ songId = $songId }
+$officialAdd = Invoke-MusicApi -Method 'Post' -Path "/music/v1/playlist/official/$officialId/song" -Body @{ songId = $songId }
 Check '9.officialAddSong' $officialAdd
 Assert '9.officialAddCount' ([int]$officialAdd.data.songCount -eq 1) "songCount=$($officialAdd.data.songCount)"
-$officialDetail = Invoke-MusicApi -Method 'Get' -Path "/music/playlist/official/page?current=1&size=10"
+$officialDetail = Invoke-MusicApi -Method 'Get' -Path "/music/v1/playlist/official/page?current=1&size=10"
 Check '9.officialPage' $officialDetail
 # 普通用户（无 manage 权限）不能维护官方歌单曲目
-$forbidden = Send-Probe -Method 'Post' -Path "/music/playlist/official/$officialId/song" `
+$forbidden = Send-Probe -Method 'Post' -Path "/music/v1/playlist/official/$officialId/song" `
     -Body @{ songId = $songId } -Headers $readerHeaders
 Assert '9.officialForbidden' ($forbidden.Status -eq 403 -or $forbidden.BodyText -match '"code":403') `
     "status=$($forbidden.Status) body=$($forbidden.BodyText)"
-$userReadonly = Send-Probe -Method 'Post' -Path "/music/playlist/$officialId/song" `
+$userReadonly = Send-Probe -Method 'Post' -Path "/music/v1/playlist/$officialId/song" `
     -Body @{ songId = $songId } -Headers $readerHeaders
 Assert '9.officialReadonly' ($userReadonly.Status -eq 403 -or $userReadonly.BodyText -match '"code":40304') `
     "status=$($userReadonly.Status)"
 
 # 10) 清理：官方歌单 / 用户歌单 / 歌曲 / 文件
-$delOfficial = Invoke-MusicApi -Method 'Delete' -Path "/music/playlist/official/$officialId"
+$delOfficial = Invoke-MusicApi -Method 'Delete' -Path "/music/v1/playlist/official/$officialId"
 Check '10.deleteOfficial' $delOfficial
-$delPlaylist = Invoke-MusicApi -Method 'Delete' -Path "/music/playlist/$playlistId"
+$delPlaylist = Invoke-MusicApi -Method 'Delete' -Path "/music/v1/playlist/$playlistId"
 Check '10.deletePlaylist' $delPlaylist
-$delSong = Invoke-MusicApi -Method 'Delete' -Path "/music/song/$songId"
+$delSong = Invoke-MusicApi -Method 'Delete' -Path "/music/v1/song/$songId"
 Check '10.deleteSong' $delSong
 $delFile = Invoke-Api -Method 'Delete' -Uri "$fileBase/file/v1/$fileId" -Headers $h
 Assert '10.deleteFile' ($delFile.code -eq 0 -or $delFile.code -eq 404) "code=$($delFile.code)"

@@ -34,7 +34,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/music/playlist")
+@RequestMapping(path = "/music/v{version}/playlist", version = "1")
 @RequiredArgsConstructor
 public class PlaylistController {
 

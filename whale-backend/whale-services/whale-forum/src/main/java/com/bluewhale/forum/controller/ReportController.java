@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/forum/report")
+@RequestMapping(path = "/forum/v{version}/report", version = "1")
 @RequiredArgsConstructor
 public class ReportController {
 

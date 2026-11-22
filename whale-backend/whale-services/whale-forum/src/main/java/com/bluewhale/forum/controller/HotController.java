@@ -24,7 +24,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/forum/hot")
+@RequestMapping(path = "/forum/v{version}/hot", version = "1")
 @RequiredArgsConstructor
 public class HotController {
 

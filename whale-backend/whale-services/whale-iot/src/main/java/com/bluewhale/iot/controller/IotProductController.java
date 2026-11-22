@@ -28,7 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/iot/products")
+@RequestMapping(path = "/iot/v{version}/products", version = "1")
 @RequiredArgsConstructor
 public class IotProductController {
 

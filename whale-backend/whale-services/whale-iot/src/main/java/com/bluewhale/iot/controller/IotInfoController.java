@@ -19,7 +19,7 @@ import java.util.Map;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/iot")
+@RequestMapping(path = "/iot/v{version}", version = "1")
 public class IotInfoController {
 
     /**

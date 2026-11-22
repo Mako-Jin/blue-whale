@@ -36,7 +36,7 @@ import java.time.LocalDate;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/forum/search")
+@RequestMapping(path = "/forum/v{version}/search", version = "1")
 @RequiredArgsConstructor
 public class SearchController {
 

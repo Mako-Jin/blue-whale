@@ -25,18 +25,18 @@ export interface SpaceSavePayload {
 /** 空间与成员接口 */
 export const spaceApi = {
   page: (query: SpaceQuery) =>
-    http.get<PageResult<DocSpace>>('/doc/space/page', query as Record<string, unknown>),
-  my: () => http.get<DocSpace[]>('/doc/space/my'),
-  detail: (id: number) => http.get<DocSpace>(`/doc/space/${id}`),
-  create: (payload: SpaceSavePayload) => http.post<DocSpace>('/doc/space', payload),
+    http.get<PageResult<DocSpace>>('/doc/v1/space/page', query as Record<string, unknown>),
+  my: () => http.get<DocSpace[]>('/doc/v1/space/my'),
+  detail: (id: number) => http.get<DocSpace>(`/doc/v1/space/${id}`),
+  create: (payload: SpaceSavePayload) => http.post<DocSpace>('/doc/v1/space', payload),
   update: (id: number, payload: SpaceSavePayload) =>
-    http.put<DocSpace>(`/doc/space/${id}`, payload),
-  archive: (id: number) => http.del<void>(`/doc/space/${id}`),
-  members: (id: number) => http.get<DocMember[]>(`/doc/space/${id}/member`),
+    http.put<DocSpace>(`/doc/v1/space/${id}`, payload),
+  archive: (id: number) => http.del<void>(`/doc/v1/space/${id}`),
+  members: (id: number) => http.get<DocMember[]>(`/doc/v1/space/${id}/member`),
   addMembers: (id: number, userIds: number[], role: DocMemberRole) =>
-    http.post<DocMember[]>(`/doc/space/${id}/member`, { userIds, role }),
+    http.post<DocMember[]>(`/doc/v1/space/${id}/member`, { userIds, role }),
   updateMember: (spaceId: number, memberId: number, role: DocMemberRole) =>
-    http.put<DocMember>(`/doc/space/${spaceId}/member/${memberId}`, { role }),
+    http.put<DocMember>(`/doc/v1/space/${spaceId}/member/${memberId}`, { role }),
   removeMember: (spaceId: number, memberId: number) =>
-    http.del<void>(`/doc/space/${spaceId}/member/${memberId}`),
+    http.del<void>(`/doc/v1/space/${spaceId}/member/${memberId}`),
 };

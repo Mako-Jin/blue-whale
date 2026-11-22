@@ -13,7 +13,7 @@ export interface DocWsTicket {
 
 export const collabApi = {
   /** 申请页面协作一次性凭证 */
-  ticket: (pageId: number) => http.post<DocWsTicket>('/doc/ws-ticket', { pageId }),
+  ticket: (pageId: number) => http.post<DocWsTicket>('/doc/v1/ws-ticket', { pageId }),
 };
 
 /** 构造协作 WS 地址（与网关 /doc/ws 路由一致） */

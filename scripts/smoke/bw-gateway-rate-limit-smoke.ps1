@@ -3,9 +3,9 @@
 # 覆盖（均不携带 JWT：RateLimitGlobalFilter 的 Order = HIGHEST_PRECEDENCE + 10，
 #       先于鉴权执行，因此未登录请求同样进入限流计数）：
 #   1) /music/stream/**            120 次 / 60s → 第 121 次 429
-#   2) /music/song/*/comment        20 次 / 60s → 第  21 次 429
-#   3) /music/play/ticket           60 次 / 60s → 第  61 次 429
-#   4) /music/song/*/like           30 次 / 60s → 第  31 次 429
+#   2) /music/v1/song/*/comment        20 次 / 60s → 第  21 次 429
+#   3) /music/v1/play/ticket           60 次 / 60s → 第  61 次 429
+#   4) /music/v1/song/*/like           30 次 / 60s → 第  31 次 429
 # 断言要点：
 #   - 阈值内请求不得出现 429（不能误伤正常流量）；
 #   - 超阈值请求返回 HTTP 429，且响应体为 Result 同构 JSON：code=429、消息含「频繁」；
@@ -142,16 +142,16 @@ try {
 Test-RateRule -Label '1.stream' -Method 'Get' -Path '/music/stream/999999?ticket=invalid' -Limit 120 -ClientIp $streamClientIp
 
 # 2) 评论 20/60s
-Test-RateRule -Label '2.comment' -Method 'Post' -Path '/music/song/999999/comment' -Limit 20 -ClientIp $commentClientIp
+Test-RateRule -Label '2.comment' -Method 'Post' -Path '/music/v1/song/999999/comment' -Limit 20 -ClientIp $commentClientIp
 
 # 3) 播放票据 60/60s
-Test-RateRule -Label '3.ticket' -Method 'Post' -Path '/music/play/ticket' -Limit 60 -ClientIp $ticketClientIp
+Test-RateRule -Label '3.ticket' -Method 'Post' -Path '/music/v1/play/ticket' -Limit 60 -ClientIp $ticketClientIp
 
 # 4) 收藏 30/60s
-Test-RateRule -Label '4.like' -Method 'Post' -Path '/music/song/999999/like' -Limit 30 -ClientIp $likeClientIp
+Test-RateRule -Label '4.like' -Method 'Post' -Path '/music/v1/song/999999/like' -Limit 30 -ClientIp $likeClientIp
 
 # 5) 规则隔离：换一个全新客户端标识，票据规则不应受前面评论/收藏打满的影响
-$isolation = Send-Probe -Method 'Post' -Path '/music/play/ticket' -ClientIp $isolationClientIp
+$isolation = Send-Probe -Method 'Post' -Path '/music/v1/play/ticket' -ClientIp $isolationClientIp
 Assert '5.ruleIsolation' ($isolation.Status -ne 429) `
     "status=$($isolation.Status)（新客户端 + 独立规则键，不应被其他规则计数波及）"
 

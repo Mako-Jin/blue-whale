@@ -26,7 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/music/copyright/agreement")
+@RequestMapping(path = "/music/v{version}/copyright/agreement", version = "1")
 @RequiredArgsConstructor
 public class CopyrightAgreementController {
 

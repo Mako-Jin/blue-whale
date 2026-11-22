@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/forum/thread/{threadId}/post")
+@RequestMapping(path = "/forum/v{version}/thread/{threadId}/post", version = "1")
 @RequiredArgsConstructor
 public class PostController {
 

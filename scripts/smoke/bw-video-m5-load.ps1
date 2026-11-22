@@ -5,7 +5,7 @@
 #   0) 服务就绪（whale-video + whale-file）
 #   1) 造数：上传含 ftyp 的假 MP4 → 签署声明 → 建短视频 → 发布 → 申请播放票据
 #   2) 预热：顺序请求 + 每路径一轮并发（数据丢弃，避免首轮建链 / JIT 假象）
-#   3) 顺序时延 P95：/video/meta（200ms）、/video/home（300ms）、/video/content/{id}（250ms）
+#   3) 顺序时延 P95：/video/v1/meta（200ms）、/video/v1/home（300ms）、/video/v1/content/{id}（250ms）
 #   4) 50 并发：首页 / 详情 / 流式首字节 P95（300 / 250 / 400ms），无 5xx
 #   5) 指标直方图桶：四类 uri 可被 Prometheus 查询
 #   6) 清理：内容与文件
@@ -267,24 +267,24 @@ Write-Host "== M5 性能与容量冒烟 并发=$concurrency 顺序采样=$iterat
 Assert-VideoHealth -Label '0' -IncludeFile
 
 # 1) 造数：签署声明 → 上传 → 建短视频 → 发布 → 申请票据
-$declaration = Send-VideoProbe -Method 'Get' -Path '/video/declaration/current'
+$declaration = Send-VideoProbe -Method 'Get' -Path '/video/v1/declaration/current'
 $declarationView = Assert-VideoOk -Label '1.declarationCurrent' -Probe $declaration
-$accept = Send-VideoProbe -Method 'Post' -Path '/video/declaration/accept' `
+$accept = Send-VideoProbe -Method 'Post' -Path '/video/v1/declaration/accept' `
     -Body @{ version = $declarationView.version; contentSource = 'ORIGINAL' }
 $null = Assert-VideoOk -Label '1.declarationAccept' -Probe $accept
 $fileId = Send-VideoLoadUpload
-$create = Send-VideoProbe -Method 'Post' -Path '/video/user/shorts' -Body @{
+$create = Send-VideoProbe -Method 'Post' -Path '/video/v1/user/shorts' -Body @{
     title = "M5 压测短视频-$stamp"; videoFileId = $fileId; durationMs = 5000; width = 720; height = 1280;
     visibility = 'PUBLIC'; source = 'ORIGINAL'
 }
 $contentId = Assert-VideoOk -Label '1.contentCreate' -Probe $create
-$publish = Send-VideoProbe -Method 'Post' -Path "/video/user/shorts/$contentId/publish"
+$publish = Send-VideoProbe -Method 'Post' -Path "/video/v1/user/shorts/$contentId/publish"
 $null = Assert-VideoOk -Label '1.publish' -Probe $publish
-$ticket = Send-VideoProbe -Method 'Post' -Path '/video/play/ticket' -Body @{ contentId = $contentId }
+$ticket = Send-VideoProbe -Method 'Post' -Path '/video/v1/play/ticket' -Body @{ contentId = $contentId }
 $ticketView = Assert-VideoOk -Label '1.ticketIssue' -Probe $ticket
 
-$homePath = '/video/home'
-$detailPath = "/video/content/$contentId"
+$homePath = '/video/v1/home'
+$detailPath = "/video/v1/content/$contentId"
 $streamPath = [string]$ticketView.streamUrl
 $streamHeaders = @{ Range = 'bytes=0-1023' }
 
@@ -301,7 +301,7 @@ Assert '2.concurrentWarmup' (($warmHome.Errors + $warmDetail.Errors + $warmStrea
     "errors=$($warmHome.Errors + $warmDetail.Errors + $warmStream.Errors)"
 
 # 3) 顺序时延：meta / 首页 / 详情
-$metaSamples = Measure-VideoSequential -Path '/video/meta' -Count $iterations
+$metaSamples = Measure-VideoSequential -Path '/video/v1/meta' -Count $iterations
 $homeSamples = Measure-VideoSequential -Path $homePath -Count $iterations
 $detailSamples = Measure-VideoSequential -Path $detailPath -Count $iterations
 $metaP95 = Get-VideoPercentile -Values $metaSamples -P 0.95
@@ -361,7 +361,7 @@ Assert '4.streamTtfbP95' ($streamConcurrentP95 -le $streamThreshold) ('P95={0:N1
 # 5) 指标直方图（M5-5：SLO-9/10/11 数据来源）
 $metrics = Invoke-WebRequest -Uri ($videoBase + '/actuator/prometheus') -UseBasicParsing
 $metricLines = $metrics.Content -split "`n"
-foreach ($uriPattern in @('/video/meta', '/video/home', '/video/content/{id}', '/video/stream/{contentId}')) {
+foreach ($uriPattern in @('/video/v1/meta', '/video/v1/home', '/video/v1/content/{id}', '/video/stream/{contentId}')) {
     $escaped = [regex]::Escape($uriPattern)
     $buckets = $metricLines | Where-Object {
         $_ -match ('http_server_requests_seconds_bucket\{[^}]*uri="' + $escaped + '"')
@@ -372,7 +372,7 @@ foreach ($uriPattern in @('/video/meta', '/video/home', '/video/content/{id}', '
 [VideoConcurrentProbe]::Shutdown()
 
 # 6) 清理：内容 → 文件
-$deleted = Send-VideoProbe -Method 'Delete' -Path "/video/user/shorts/$contentId"
+$deleted = Send-VideoProbe -Method 'Delete' -Path "/video/v1/user/shorts/$contentId"
 $null = Assert-VideoOk -Label '6.deleteContent' -Probe $deleted
 $delFile = Send-VideoProbe -Method 'Delete' -Path "/file/v1/$fileId" -BaseUri $fileBase
 Assert '6.deleteFile' ($null -ne $delFile.Result -and

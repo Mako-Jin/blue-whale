@@ -30,7 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/iot/rules")
+@RequestMapping(path = "/iot/v{version}/rules", version = "1")
 @RequiredArgsConstructor
 public class IotRuleController {
 

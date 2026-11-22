@@ -135,7 +135,7 @@ class DocOverviewProviderTest {
         List<OverviewLink> links = provider.build(context()).links();
 
         assertThat(links).singleElement().satisfies(link -> {
-            assertThat(link.path()).isEqualTo("/doc/space/page");
+            assertThat(link.path()).isEqualTo("/doc/v1/space/page");
             assertThat(link.permission()).isEqualTo("sys:doc:space:list");
         });
     }

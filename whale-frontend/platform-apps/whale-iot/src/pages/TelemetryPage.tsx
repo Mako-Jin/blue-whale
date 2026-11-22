@@ -1,6 +1,6 @@
 // 遥测与影子：单设备实时流（SSE 手工分帧）+ 影子快照 + 指令下发与回执
 //
-// 实时流走 GET /iot/devices/{id}/stream（事件 ready/telemetry/event/command）；
+// 实时流走 GET /iot/v1/devices/{id}/stream（事件 ready/telemetry/event/command）；
 // EventSource 无法带 Authorization 头，这里用 fetch 读流，与基座 token 读取器配合。
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -115,7 +115,7 @@ export default function TelemetryPage() {
     setStreaming(true);
     try {
       await subscribeStream(
-        `/iot/devices/${deviceId}/stream`,
+        `/iot/v1/devices/${deviceId}/stream`,
         (event, data) => {
           appendLine(
             (event as StreamLine['kind']) ?? 'telemetry',

@@ -24,7 +24,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/forum/tag")
+@RequestMapping(path = "/forum/v{version}/tag", version = "1")
 @RequiredArgsConstructor
 public class TagController {
 

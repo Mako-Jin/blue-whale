@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/forum/profile")
+@RequestMapping(path = "/forum/v{version}/profile", version = "1")
 @RequiredArgsConstructor
 public class ProfileController {
 

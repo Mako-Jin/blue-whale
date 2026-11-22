@@ -37,7 +37,7 @@ import java.time.Duration;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/forum")
+@RequestMapping(path = "/forum/v{version}", version = "1")
 @RequiredArgsConstructor
 public class AppealController {
 

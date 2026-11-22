@@ -23,7 +23,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/mail/folder")
+@RequestMapping(path = "/mail/v{version}/folder", version = "1")
 @RequiredArgsConstructor
 public class MailFolderController {
 

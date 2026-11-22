@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/video/admin/comment")
+@RequestMapping(path = "/video/v{version}/admin/comment", version = "1")
 @RequiredArgsConstructor
 public class VideoCommentAuditController {
 

@@ -24,7 +24,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/iot/products/{productId}/thing-model")
+@RequestMapping(path = "/iot/v{version}/products/{productId}/thing-model", version = "1")
 @RequiredArgsConstructor
 public class IotThingModelController {
 

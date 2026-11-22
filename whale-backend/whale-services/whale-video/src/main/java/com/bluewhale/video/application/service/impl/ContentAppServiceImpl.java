@@ -232,7 +232,7 @@ public class ContentAppServiceImpl implements ContentAppService {
         view.setLiked(userId != null && contentLikeRepository.exists(userId, id));
         view.setFavorited(userId != null && contentFavoriteRepository.exists(userId, id));
         view.setProgressMs(progressOf(userId, id));
-        view.setTicketUrl("/video/play/ticket");
+        view.setTicketUrl("/video/v1/play/ticket");
         view.setCreatorName(creatorName(content.getCreatorId()));
         return view;
     }

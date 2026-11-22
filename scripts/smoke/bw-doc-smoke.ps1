@@ -15,8 +15,8 @@ $login = Invoke-RestMethod -Method Post -Uri "$base/auth/login" -ContentType 'ap
 $h = @{ Authorization = "Bearer $($login.data.accessToken)" }
 Assert '0.login' ($login.code -eq 0 -and $null -ne $login.data.accessToken)
 
-# 1) /doc/meta：服务连通性、租户上下文与功能开关
-$meta = Invoke-RestMethod -Method Get -Uri "$base/doc/meta" -Headers $h
+# 1) /doc/v1/meta：服务连通性、租户上下文与功能开关
+$meta = Invoke-RestMethod -Method Get -Uri "$base/doc/v1/meta" -Headers $h
 Assert '1.meta' ($meta.code -eq 0 -and $meta.data.service -eq 'whale-doc') "(code=$($meta.code))"
 Assert '2.tenant' ($null -ne $meta.data.tenantId) "(tenantId=$($meta.data.tenantId))"
 Assert '3.switches' ($meta.data.collabEnabled -eq $false -and $meta.data.approvalEnabled -eq $false) `
@@ -26,7 +26,7 @@ Assert '4.limits' ($meta.data.contentMaxBytes -eq 2097152 -and $meta.data.attach
 
 # 2) 内网通道：经网关统一 403（普通调用方不可达）
 try {
-    Invoke-RestMethod -Method Get -Uri "$base/doc/internal/page/changes" -Headers $h | Out-Null
+    Invoke-RestMethod -Method Get -Uri "$base/doc/v1/internal/page/changes" -Headers $h | Out-Null
     Assert '5.internalDeny' $false '(expected 403)'
 } catch {
     $status = $_.Exception.Response.StatusCode.value__
@@ -35,7 +35,7 @@ try {
 
 # 3) 未认证访问被网关拒绝（401/403）
 try {
-    Invoke-RestMethod -Method Get -Uri "$base/doc/meta" | Out-Null
+    Invoke-RestMethod -Method Get -Uri "$base/doc/v1/meta" | Out-Null
     Assert '6.unauthenticatedDenied' $false '(expected 401/403)'
 } catch {
     $status = $_.Exception.Response.StatusCode.value__

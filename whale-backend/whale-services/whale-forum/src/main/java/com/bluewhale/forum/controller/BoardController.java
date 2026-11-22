@@ -29,7 +29,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/forum/board")
+@RequestMapping(path = "/forum/v{version}/board", version = "1")
 @RequiredArgsConstructor
 public class BoardController {
 

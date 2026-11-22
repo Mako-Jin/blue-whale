@@ -16,7 +16,7 @@ import java.util.List;
 public final class ContentAssembler {
 
     /** 封面代理地址前缀 */
-    public static final String COVER_URL_PREFIX = "/video/content/";
+    public static final String COVER_URL_PREFIX = "/video/v1/content/";
 
     /** 封面代理地址后缀 */
     public static final String COVER_URL_SUFFIX = "/cover";

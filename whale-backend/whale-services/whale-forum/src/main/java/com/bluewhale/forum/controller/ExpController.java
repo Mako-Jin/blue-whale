@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/forum/exp")
+@RequestMapping(path = "/forum/v{version}/exp", version = "1")
 @RequiredArgsConstructor
 public class ExpController {
 

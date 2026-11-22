@@ -1,6 +1,6 @@
 // 论坛接口（M0 门面 meta + M1 版块/帖子/楼层）
 //
-// 路径一律相对（`/forum/xxx`）：网关不剥 `/forum` 一级前缀（REQ-ARCH-003），
+// 路径一律相对（`/forum/v1/xxx`）：网关不剥 `/forum` 一级前缀（REQ-ARCH-003），
 // 前端路径必须与后端「类前缀 + 方法映射」逐字一致，写错只在点击时 404。
 // `check-api-path-drift.py` 会扫这些字符串，改路径前先跑它。
 
@@ -144,12 +144,12 @@ export interface PostItem {
 
 /** 读取门面信息 */
 export function fetchForumMeta(): Promise<ForumMeta> {
-  return request<ForumMeta>('/forum/meta');
+  return request<ForumMeta>('/forum/v1/meta');
 }
 
 /** 可见版块列表 */
 export function fetchBoards(): Promise<BoardItem[]> {
-  return request<BoardItem[]>('/forum/board/page');
+  return request<BoardItem[]>('/forum/v1/board/page');
 }
 
 /** 帖子列表（boardId 为空表示全站：精华榜/标签页跨版块） */
@@ -195,12 +195,12 @@ export function fetchThreads(params: {
   }
   query.set('current', String(params.current ?? 1));
   query.set('size', String(params.size ?? 20));
-  return request<PageResult<ThreadListItem>>(`/forum/thread/page?${query.toString()}`);
+  return request<PageResult<ThreadListItem>>(`/forum/v1/thread/page?${query.toString()}`);
 }
 
 /** 帖子详情 */
 export function fetchThread(id: string): Promise<ThreadDetail> {
-  return request<ThreadDetail>(`/forum/thread/${id}`);
+  return request<ThreadDetail>(`/forum/v1/thread/${id}`);
 }
 
 /** 发帖 */
@@ -211,7 +211,7 @@ export function createThread(body: {
   content: string;
   tags?: string;
 }): Promise<ThreadDetail> {
-  return request<ThreadDetail>('/forum/thread', { method: 'POST', body });
+  return request<ThreadDetail>('/forum/v1/thread', { method: 'POST', body });
 }
 
 /**
@@ -226,7 +226,7 @@ export function fetchPosts(
   order: 'asc' | 'desc' = 'asc',
 ): Promise<PageResult<PostItem>> {
   return request<PageResult<PostItem>>(
-    `/forum/thread/${threadId}/post/page?current=${current}&size=${size}&order=${order}`,
+    `/forum/v1/thread/${threadId}/post/page?current=${current}&size=${size}&order=${order}`,
   );
 }
 
@@ -235,7 +235,7 @@ export function createPost(
   threadId: string,
   body: { content: string; replyToPostId?: string },
 ): Promise<PostItem> {
-  return request<PostItem>(`/forum/thread/${threadId}/post`, { method: 'POST', body });
+  return request<PostItem>(`/forum/v1/thread/${threadId}/post`, { method: 'POST', body });
 }
 
 // ---------------------------------------------------------------------------
@@ -290,7 +290,7 @@ export function fetchAuditPage(
   size = 20,
 ): Promise<PageResult<AuditItem>> {
   return request<PageResult<AuditItem>>(
-    `/forum/admin/audit/page?targetType=${targetType}&current=${current}&size=${size}`,
+    `/forum/v1/admin/audit/page?targetType=${targetType}&current=${current}&size=${size}`,
   );
 }
 
@@ -300,7 +300,7 @@ export function passAudit(body: {
   targetId: string;
   remark?: string;
 }): Promise<void> {
-  return request<void>('/forum/admin/audit/pass', { method: 'POST', body });
+  return request<void>('/forum/v1/admin/audit/pass', { method: 'POST', body });
 }
 
 /** 审核驳回（remark 必填，后端 30020） */
@@ -309,7 +309,7 @@ export function rejectAudit(body: {
   targetId: string;
   remark: string;
 }): Promise<void> {
-  return request<void>('/forum/admin/audit/reject', { method: 'POST', body });
+  return request<void>('/forum/v1/admin/audit/reject', { method: 'POST', body });
 }
 
 /** 举报工单分页 */
@@ -320,7 +320,7 @@ export function fetchReports(
 ): Promise<PageResult<ReportItem>> {
   const suffix = status ? `&status=${status}` : '';
   return request<PageResult<ReportItem>>(
-    `/forum/admin/report/page?current=${current}&size=${size}${suffix}`,
+    `/forum/v1/admin/report/page?current=${current}&size=${size}${suffix}`,
   );
 }
 
@@ -329,7 +329,7 @@ export function handleReport(
   id: string,
   body: { status: string; remark?: string; action?: string; muteDays?: number },
 ): Promise<void> {
-  return request<void>(`/forum/admin/report/${id}/handle`, { method: 'POST', body });
+  return request<void>(`/forum/v1/admin/report/${id}/handle`, { method: 'POST', body });
 }
 
 /** 提交举报（鸣鼓） */
@@ -339,7 +339,7 @@ export function submitReport(body: {
   reportType: string;
   description?: string;
 }): Promise<string> {
-  return request<string>('/forum/report', { method: 'POST', body });
+  return request<string>('/forum/v1/report', { method: 'POST', body });
 }
 
 /** 词库分页 */
@@ -350,7 +350,7 @@ export function fetchSensitiveWords(
 ): Promise<PageResult<SensitiveWordItem>> {
   const suffix = keyword ? `&keyword=${encodeURIComponent(keyword)}` : '';
   return request<PageResult<SensitiveWordItem>>(
-    `/forum/admin/sensitive/page?current=${current}&size=${size}${suffix}`,
+    `/forum/v1/admin/sensitive/page?current=${current}&size=${size}${suffix}`,
   );
 }
 
@@ -360,22 +360,22 @@ export function saveSensitiveWord(body: {
   action: string;
   category?: string;
 }): Promise<string> {
-  return request<string>('/forum/admin/sensitive', { method: 'POST', body });
+  return request<string>('/forum/v1/admin/sensitive', { method: 'POST', body });
 }
 
 /** 删除词条 */
 export function deleteSensitiveWord(id: string): Promise<void> {
-  return request<void>(`/forum/admin/sensitive/${id}`, { method: 'DELETE' });
+  return request<void>(`/forum/v1/admin/sensitive/${id}`, { method: 'DELETE' });
 }
 
 /** 重载词库缓存 */
 export function reloadSensitiveWords(): Promise<number> {
-  return request<number>('/forum/admin/sensitive/reload', { method: 'POST' });
+  return request<number>('/forum/v1/admin/sensitive/reload', { method: 'POST' });
 }
 
 /** 补偿投递待发通知 */
 export function flushNotify(): Promise<number> {
-  return request<number>('/forum/admin/notify/flush', { method: 'POST' });
+  return request<number>('/forum/v1/admin/notify/flush', { method: 'POST' });
 }
 
 // ---------------------------------------------------------------------------
@@ -385,43 +385,43 @@ export function flushNotify(): Promise<number> {
 
 /** 投花 / 收藏（type=LIKE 投花，COLLECT 藏帖） */
 export function addReaction(threadId: string, type: 'LIKE' | 'COLLECT'): Promise<ReactionState> {
-  return request<ReactionState>(`/forum/reaction/thread/${threadId}?type=${type}`, {
+  return request<ReactionState>(`/forum/v1/reaction/thread/${threadId}?type=${type}`, {
     method: 'PUT',
   });
 }
 
 /** 取消投花 / 取消收藏（DELETE 同路径，语义是置为未投） */
 export function cancelReaction(threadId: string, type: 'LIKE' | 'COLLECT'): Promise<ReactionState> {
-  return request<ReactionState>(`/forum/reaction/thread/${threadId}?type=${type}`, {
+  return request<ReactionState>(`/forum/v1/reaction/thread/${threadId}?type=${type}`, {
     method: 'DELETE',
   });
 }
 
 /** 当前用户对某帖的互动状态 */
 export function fetchMyReaction(threadId: string): Promise<ReactionState> {
-  return request<ReactionState>(`/forum/thread/${threadId}/reactions/my`);
+  return request<ReactionState>(`/forum/v1/thread/${threadId}/reactions/my`);
 }
 
 /** 我的收藏 */
 export function fetchMyCollections(current = 1, size = 20): Promise<PageResult<ThreadListItem>> {
   return request<PageResult<ThreadListItem>>(
-    `/forum/my/collections?current=${current}&size=${size}`,
+    `/forum/v1/my/collections?current=${current}&size=${size}`,
   );
 }
 
 /** 热榜（读快照；window=24h/7d，非法值后端按 7d） */
 export function fetchHot(window: '24h' | '7d' = '7d', limit = 20): Promise<HotItem[]> {
-  return request<HotItem[]>(`/forum/hot?window=${window}&limit=${limit}`);
+  return request<HotItem[]>(`/forum/v1/hot?window=${window}&limit=${limit}`);
 }
 
 /** 手工刷新热榜快照（需 sys:forum:hot:refresh） */
 export function refreshHot(): Promise<number> {
-  return request<number>('/forum/hot/refresh', { method: 'POST' });
+  return request<number>('/forum/v1/hot/refresh', { method: 'POST' });
 }
 
 // ---------------------------------------------------------------------------
 // M7：个人中心（F-07-01 个人主页 / F-07-02 我的内容 / F-07-03 鲸阶 / F-07-07 禁言）
-// `/forum/my/*` 一律以身份头用户为准，不接受 userId 入参（防越权读）
+// `/forum/v1/my/*` 一律以身份头用户为准，不接受 userId 入参（防越权读）
 // ---------------------------------------------------------------------------
 
 /** 个人主页（只含论坛服务可得字段：头像/部门待 auth 通讯录，勋章属 P2） */
@@ -453,17 +453,17 @@ export interface MyPost {
 
 /** 个人主页：不传 userId 走 `/me`，传了走公开统计 */
 export function fetchProfile(userId?: string): Promise<Profile> {
-  return request<Profile>(userId ? `/forum/profile/${userId}` : '/forum/profile/me');
+  return request<Profile>(userId ? `/forum/v1/profile/${userId}` : '/forum/v1/profile/me');
 }
 
 /** 我的帖子（含审核中/已处置，服务端不过滤状态） */
 export function fetchMyThreads(current = 1, size = 20): Promise<PageResult<ThreadListItem>> {
-  return request<PageResult<ThreadListItem>>(`/forum/my/threads?current=${current}&size=${size}`);
+  return request<PageResult<ThreadListItem>>(`/forum/v1/my/threads?current=${current}&size=${size}`);
 }
 
 /** 我的回复（已删帖的楼层不出现） */
 export function fetchMyPosts(current = 1, size = 20): Promise<PageResult<MyPost>> {
-  return request<PageResult<MyPost>>(`/forum/my/posts?current=${current}&size=${size}`);
+  return request<PageResult<MyPost>>(`/forum/v1/my/posts?current=${current}&size=${size}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -491,17 +491,17 @@ export function fetchFollowState(
   targetType: FollowTargetType,
   targetId: string,
 ): Promise<FollowState> {
-  return request<FollowState>(`/forum/follow/${targetType}/${targetId}`);
+  return request<FollowState>(`/forum/v1/follow/${targetType}/${targetId}`);
 }
 
 /** 关注作者 / 版块 */
 export function addFollow(targetType: FollowTargetType, targetId: string): Promise<FollowState> {
-  return request<FollowState>(`/forum/follow/${targetType}/${targetId}`, { method: 'PUT' });
+  return request<FollowState>(`/forum/v1/follow/${targetType}/${targetId}`, { method: 'PUT' });
 }
 
 /** 取关 */
 export function removeFollow(targetType: FollowTargetType, targetId: string): Promise<FollowState> {
-  return request<FollowState>(`/forum/follow/${targetType}/${targetId}`, { method: 'DELETE' });
+  return request<FollowState>(`/forum/v1/follow/${targetType}/${targetId}`, { method: 'DELETE' });
 }
 
 /** 我的关注 */
@@ -514,7 +514,7 @@ export function fetchMyFollows(
   if (targetType) {
     query.set('targetType', targetType);
   }
-  return request<PageResult<FollowItem>>(`/forum/my/follows?${query.toString()}`);
+  return request<PageResult<FollowItem>>(`/forum/v1/my/follows?${query.toString()}`);
 }
 
 /** 结契动态（关注作者 ∪ 关注版块的已发布帖，排除本人；boardId 可选） */
@@ -527,7 +527,7 @@ export function fetchMyFeed(
   if (boardId) {
     query.set('boardId', boardId);
   }
-  return request<PageResult<ThreadListItem>>(`/forum/my/feed?${query.toString()}`);
+  return request<PageResult<ThreadListItem>>(`/forum/v1/my/feed?${query.toString()}`);
 }
 
 /** 编辑帖子（审核版块会退回待审；tags 传空串表示清空，不传表示不改） */
@@ -535,7 +535,7 @@ export function updateThread(
   threadId: string,
   body: { title: string; content: string; tags?: string; reason?: string },
 ): Promise<ThreadDetail> {
-  return request<ThreadDetail>(`/forum/thread/${threadId}`, { method: 'PUT', body });
+  return request<ThreadDetail>(`/forum/v1/thread/${threadId}`, { method: 'PUT', body });
 }
 
 // ---------------------------------------------------------------------------
@@ -599,12 +599,12 @@ export function submitAppeal(body: {
   reason: string;
   materialFileIds?: string[];
 }): Promise<AppealItem> {
-  return request<AppealItem>('/forum/appeal', { method: 'POST', body });
+  return request<AppealItem>('/forum/v1/appeal', { method: 'POST', body });
 }
 
 /** 我的申诉 */
 export function fetchMyAppeals(current = 1, size = 20): Promise<PageResult<AppealItem>> {
-  return request<PageResult<AppealItem>>(`/forum/my/appeals?current=${current}&size=${size}`);
+  return request<PageResult<AppealItem>>(`/forum/v1/my/appeals?current=${current}&size=${size}`);
 }
 
 /** 管理端申诉工单列表 */
@@ -617,7 +617,7 @@ export function fetchAdminAppeals(
   if (status) {
     query.set('status', status);
   }
-  return request<PageResult<AppealItem>>(`/forum/admin/appeal/page?${query.toString()}`);
+  return request<PageResult<AppealItem>>(`/forum/v1/admin/appeal/page?${query.toString()}`);
 }
 
 /** 复核申诉：approved=true 通过（禁言申诉会同时解禁），false 驳回 */
@@ -626,7 +626,7 @@ export function handleAppeal(
   approved: boolean,
   remark?: string,
 ): Promise<AppealItem> {
-  return request<AppealItem>(`/forum/admin/appeal/${appealId}/handle`, {
+  return request<AppealItem>(`/forum/v1/admin/appeal/${appealId}/handle`, {
     method: 'POST',
     body: { approved, remark },
   });
@@ -640,7 +640,7 @@ export function handleAppeal(
  */
 export async function fetchAppealMaterialPreview(fileId: string): Promise<string> {
   const token = getToken();
-  const response = await fetch(`/forum/appeal/material/${fileId}/preview`, {
+  const response = await fetch(`/forum/v1/appeal/material/${fileId}/preview`, {
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
   });
   if (!response.ok) {
@@ -665,7 +665,7 @@ export interface ExpSummary {
 
 /** 我的论坛经验（只读，入账由发帖/投花/题金榜/金榜事件触发） */
 export function fetchMyExp(): Promise<ExpSummary> {
-  return request<ExpSummary>('/forum/exp/me');
+  return request<ExpSummary>('/forum/v1/exp/me');
 }
 
 // ---------------------------------------------------------------------------
@@ -739,7 +739,7 @@ export function searchThreads(params: {
   }
   query.set('current', String(params.current ?? 1));
   query.set('size', String(params.size ?? 20));
-  return request<PageResult<ThreadListItem>>(`/forum/search?${query.toString()}`);
+  return request<PageResult<ThreadListItem>>(`/forum/v1/search?${query.toString()}`);
 }
 
 /** 标签聚合条目（F-06-07 标签页） */
@@ -750,18 +750,18 @@ export interface TagStat {
 
 /** 标签聚合（按帖子数降序，只统计当前用户可见版块） */
 export function fetchTags(limit = 50): Promise<TagStat[]> {
-  return request<TagStat[]>(`/forum/tag/list?limit=${limit}`);
+  return request<TagStat[]>(`/forum/v1/tag/list?limit=${limit}`);
 }
 
 /** 检索状态（索引覆盖到哪、分词长度） */
 export function fetchSearchStatus(): Promise<SearchStatus> {
-  return request<SearchStatus>('/forum/search/status');
+  return request<SearchStatus>('/forum/v1/search/status');
 }
 
 /** 重建检索索引（回填纯文本，需 sys:forum:manage:ops） */
 export function reindexSearch(limit?: number): Promise<number> {
   const suffix = limit ? `?limit=${limit}` : '';
-  return request<number>(`/forum/search/reindex${suffix}`, { method: 'POST' });
+  return request<number>(`/forum/v1/search/reindex${suffix}`, { method: 'POST' });
 }
 
 /** 计数对账（fix=false 只报告，fix=true 按真实值修正） */
@@ -771,7 +771,7 @@ export function reconcileCounts(fix = false, limit?: number): Promise<ReconcileR
   if (limit) {
     query.set('limit', String(limit));
   }
-  return request<ReconcileReport>(`/forum/admin/count/reconcile?${query.toString()}`, {
+  return request<ReconcileReport>(`/forum/v1/admin/count/reconcile?${query.toString()}`, {
     method: 'POST',
   });
 }

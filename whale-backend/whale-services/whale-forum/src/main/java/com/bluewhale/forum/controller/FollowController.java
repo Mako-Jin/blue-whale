@@ -29,7 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/forum")
+@RequestMapping(path = "/forum/v{version}", version = "1")
 @RequiredArgsConstructor
 public class FollowController {
 

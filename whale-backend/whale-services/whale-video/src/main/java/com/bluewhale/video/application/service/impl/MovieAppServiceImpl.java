@@ -90,7 +90,7 @@ public class MovieAppServiceImpl implements MovieAppService {
     private static final int HEAD_BYTES = 12;
 
     /** 播放票据申请地址 */
-    private static final String TICKET_URL = "/video/play/ticket";
+    private static final String TICKET_URL = "/video/v1/play/ticket";
 
     /** 电影详情最多展示的片单条数 */
     private static final int RELATED_COLLECTION_LIMIT = 6;
@@ -520,7 +520,7 @@ public class MovieAppServiceImpl implements MovieAppService {
         view.setId(collection.getId());
         view.setTitle(collection.getTitle());
         view.setDescription(collection.getDescription());
-        view.setCoverUrl(collection.getId() == null ? null : "/video/collections/" + collection.getId() + "/cover");
+        view.setCoverUrl(collection.getId() == null ? null : "/video/v1/collections/" + collection.getId() + "/cover");
         view.setPublishState(collection.getPublishState() == null ? null : collection.getPublishState().name());
         view.setItemCount(collection.getItemCount() == null ? 0 : collection.getItemCount());
         view.setSortNo(collection.getSortNo());

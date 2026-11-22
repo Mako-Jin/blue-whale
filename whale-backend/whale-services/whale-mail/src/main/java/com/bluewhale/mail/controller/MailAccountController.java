@@ -31,7 +31,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/mail/account")
+@RequestMapping(path = "/mail/v{version}/account", version = "1")
 @RequiredArgsConstructor
 public class MailAccountController {
 

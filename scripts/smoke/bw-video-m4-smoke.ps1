@@ -137,7 +137,7 @@ function Assert-VideoMovieDetailShape {
 
     Assert "$Label.id" ([long]$Detail.id -eq $ExpectId) "expect=$ExpectId actual=$($Detail.id)"
     Assert "$Label.type" ($Detail.contentType -eq 'MOVIE') "type=$($Detail.contentType)"
-    Assert "$Label.ticket" ([string]$Detail.ticketUrl -eq '/video/play/ticket') `
+    Assert "$Label.ticket" ([string]$Detail.ticketUrl -eq '/video/v1/play/ticket') `
         "ticketUrl=$($Detail.ticketUrl)"
     $names = @($Detail.PSObject.Properties.Name)
     Assert "$Label.collections" ($names -contains 'collections') '详情缺少 collections'
@@ -205,19 +205,19 @@ Assert-VideoBaseline -Milestone 'm4' -IncludeFile
 Write-Host ''
 Write-Host '== 3 用户侧电影 / 片单 / 榜单 / 搜索 =='
 $moviePage = Assert-VideoOk '3.moviePage' `
-    (Send-VideoProbe -Path '/video/movies/page?pageNum=1&pageSize=5')
+    (Send-VideoProbe -Path '/video/v1/movies/page?pageNum=1&pageSize=5')
 Assert-VideoMoviePage '3.moviePage' $moviePage 5
 
 $collectionPage = Assert-VideoOk '3.collectionPage' `
-    (Send-VideoProbe -Path '/video/collections/page?pageNum=1&pageSize=5')
+    (Send-VideoProbe -Path '/video/v1/collections/page?pageNum=1&pageSize=5')
 Assert-VideoCollectionPage '3.collectionPage' $collectionPage 5
 
 # 跨类型搜索：空白关键词返回稳定空分页
 $emptySearch = Assert-VideoOk '3.searchEmpty' `
-    (Send-VideoProbe -Path '/video/search?keyword=&contentType=MOVIE&pageNum=1&pageSize=5')
+    (Send-VideoProbe -Path '/video/v1/search?keyword=&contentType=MOVIE&pageNum=1&pageSize=5')
 Assert '3.searchEmptyTotal' ([long]$emptySearch.total -eq 0) "total=$($emptySearch.total)"
 
-$rankings = Assert-VideoOk '3.rankings' (Send-VideoProbe -Path '/video/rankings?type=MOVIE&size=10')
+$rankings = Assert-VideoOk '3.rankings' (Send-VideoProbe -Path '/video/v1/rankings?type=MOVIE&size=10')
 Assert '3.rankingsHot' ($null -ne $rankings.hot) 'hot 缺失'
 Assert '3.rankingsLatest' ($null -ne $rankings.latest) 'latest 缺失'
 Assert '3.rankingsHotSize' (@($rankings.hot).Count -le 10) "count=$(@($rankings.hot).Count)"
@@ -234,26 +234,26 @@ foreach ($record in @($rankings.hot)) {
 
 # 榜单条数上限 50；非法类型按参数错误拒绝
 $bigRankings = Assert-VideoOk '3.rankingsClamp' `
-    (Send-VideoProbe -Path '/video/rankings?size=100')
+    (Send-VideoProbe -Path '/video/v1/rankings?size=100')
 Assert '3.rankingsClampHot' (@($bigRankings.hot).Count -le 50) `
     "count=$(@($bigRankings.hot).Count)"
 Assert '3.rankingsClampLatest' (@($bigRankings.latest).Count -le 50) `
     "count=$(@($bigRankings.latest).Count)"
 Assert-VideoBizError '3.rankingsInvalidType' `
-    (Send-VideoProbe -Path '/video/rankings?type=unknown&size=5') 400
+    (Send-VideoProbe -Path '/video/v1/rankings?type=unknown&size=5') 400
 
 # 浏览 / 运营权限隔离与不存在语义
 Assert-VideoBizError '3.moviePageDenied' `
-    (Send-VideoProbe -Path '/video/movies/page' `
+    (Send-VideoProbe -Path '/video/v1/movies/page' `
         -Headers (New-VideoHeaders -PermissionCodes 'sys:video:like')) 403
 Assert-VideoBizError '3.rankingsDenied' `
-    (Send-VideoProbe -Path '/video/rankings' `
+    (Send-VideoProbe -Path '/video/v1/rankings' `
         -Headers (New-VideoHeaders -PermissionCodes 'sys:video:like')) 403
-Assert-VideoBizError '3.movieUnknown' (Send-VideoProbe -Path '/video/movies/999999999') 40401
+Assert-VideoBizError '3.movieUnknown' (Send-VideoProbe -Path '/video/v1/movies/999999999') 40401
 Assert-VideoBizError '3.collectionUnknown' `
-    (Send-VideoProbe -Path '/video/collections/999999999') 40405
+    (Send-VideoProbe -Path '/video/v1/collections/999999999') 40405
 Assert-VideoBizError '3.adminMoviePageDenied' `
-    (Send-VideoProbe -Path '/video/admin/movies/page' `
+    (Send-VideoProbe -Path '/video/v1/admin/movies/page' `
         -Headers (New-VideoHeaders -PermissionCodes 'sys:video:browse')) 403
 
 # ---------------------------------------------------------------
@@ -283,7 +283,7 @@ if ($env:SMOKE_VIDEO_FILE_ID) {
         rating          = 8.2
     }
     $draftMovie = Assert-VideoOk '4.create' `
-        (Send-VideoProbe -Method 'Post' -Path '/video/admin/movies' -Body $createBody)
+        (Send-VideoProbe -Method 'Post' -Path '/video/v1/admin/movies' -Body $createBody)
     $movieId = [long]$draftMovie.id
     Assert '4.createId' ($movieId -gt 0) "id=$movieId"
     Assert '4.createState' ($draftMovie.publishState -eq 'DRAFT') `
@@ -304,42 +304,42 @@ if ($env:SMOKE_VIDEO_FILE_ID) {
     $invalidSourceBody['title'] = 'M4 冒烟电影 ' + $movieToken + ' X'
     $invalidSourceBody['licenseSource'] = 'UNKNOWN'
     Assert-VideoBizError '4.createInvalidSource' `
-        (Send-VideoProbe -Method 'Post' -Path '/video/admin/movies' -Body $invalidSourceBody) 40011
+        (Send-VideoProbe -Method 'Post' -Path '/video/v1/admin/movies' -Body $invalidSourceBody) 40011
     $expiredBody = $createBody.Clone()
     $expiredBody['title'] = 'M4 冒烟电影 ' + $movieToken + ' E'
     $expiredBody['licenseExpireAt'] = (Get-VideoIsoDateTime -AddMinutes -60)
     Assert-VideoBizError '4.createExpiredLicense' `
-        (Send-VideoProbe -Method 'Post' -Path '/video/admin/movies' -Body $expiredBody) 40011
+        (Send-VideoProbe -Method 'Post' -Path '/video/v1/admin/movies' -Body $expiredBody) 40011
 
     $adminMoviePage = Assert-VideoOk '4.adminPage' `
-        (Send-VideoProbe -Path ('/video/admin/movies/page?keyword=' + $movieToken + '&size=10'))
+        (Send-VideoProbe -Path ('/video/v1/admin/movies/page?keyword=' + $movieToken + '&size=10'))
     Assert-VideoPageShape '4.adminPage' $adminMoviePage 1 10
     Assert '4.adminPageContains' (Test-VideoPageContainsId $adminMoviePage $movieId) `
         '运营电影分页未包含本次草稿'
 
     # 草稿：用户侧列表 / 详情 / 搜索均不可见
     $draftHiddenPage = Assert-VideoOk '4.draftPageHidden' `
-        (Send-VideoProbe -Path ('/video/movies/page?keyword=' + $movieToken + '&pageNum=1&pageSize=10'))
+        (Send-VideoProbe -Path ('/video/v1/movies/page?keyword=' + $movieToken + '&pageNum=1&pageSize=10'))
     Assert-VideoMoviePage '4.draftPageHidden' $draftHiddenPage 10
     Assert '4.draftPageHiddenGone' (-not (Test-VideoPageContainsId $draftHiddenPage $movieId)) `
         '用户侧电影列表包含草稿'
     Assert-VideoBizError '4.draftDetailHidden' `
-        (Send-VideoProbe -Path ('/video/movies/' + $movieId)) 40401
+        (Send-VideoProbe -Path ('/video/v1/movies/' + $movieId)) 40401
 
     # 发布：授权有效即可上架
     $publishedMovie = Assert-VideoOk '4.publish' `
-        (Send-VideoProbe -Method 'Post' -Path ('/video/admin/movies/' + $movieId + '/publish'))
+        (Send-VideoProbe -Method 'Post' -Path ('/video/v1/admin/movies/' + $movieId + '/publish'))
     Assert '4.publishState' ($publishedMovie.publishState -eq 'PUBLISHED') `
         "state=$($publishedMovie.publishState)"
     Assert '4.publishAt' ($null -ne $publishedMovie.publishedAt) 'publishedAt 为空'
 
     $visiblePage = Assert-VideoOk '4.visiblePage' `
-        (Send-VideoProbe -Path ('/video/movies/page?keyword=' + $movieToken + '&pageNum=1&pageSize=10'))
+        (Send-VideoProbe -Path ('/video/v1/movies/page?keyword=' + $movieToken + '&pageNum=1&pageSize=10'))
     Assert-VideoMoviePage '4.visiblePage' $visiblePage 10
     Assert '4.visiblePageContains' (Test-VideoPageContainsId $visiblePage $movieId) `
         '用户侧电影列表未包含已发布电影'
 
-    $movieDetail = Assert-VideoOk '4.detail' (Send-VideoProbe -Path ('/video/movies/' + $movieId))
+    $movieDetail = Assert-VideoOk '4.detail' (Send-VideoProbe -Path ('/video/v1/movies/' + $movieId))
     Assert-VideoMovieDetailShape '4.detail' $movieDetail $movieId
     Assert '4.detailPlayable' ($movieDetail.playable -eq $true) "playable=$($movieDetail.playable)"
     Assert '4.detailRating' ([decimal]$movieDetail.rating -eq [decimal]8.2) `
@@ -351,11 +351,11 @@ if ($env:SMOKE_VIDEO_FILE_ID) {
 
     # 未设置海报：代理返回 404，不暴露文件服务内部错误
     Assert-VideoBizError '4.posterNoFile' `
-        (Send-VideoProbe -Path ('/video/movies/' + $movieId + '/poster')) 404
+        (Send-VideoProbe -Path ('/video/v1/movies/' + $movieId + '/poster')) 404
 
     # 跨类型搜索命中已发布电影
     $searchPage = Assert-VideoOk '4.searchHit' `
-        (Send-VideoProbe -Path ('/video/search?keyword=' + $movieToken + '&pageNum=1&pageSize=10'))
+        (Send-VideoProbe -Path ('/video/v1/search?keyword=' + $movieToken + '&pageNum=1&pageSize=10'))
     Assert-VideoPageShape '4.searchHit' $searchPage 1 10
     Assert '4.searchHitContains' (Test-VideoListContains @($searchPage.records) $movieId) `
         "搜索未命中 id=$movieId"
@@ -367,7 +367,7 @@ if ($env:SMOKE_VIDEO_FILE_ID) {
     Write-Host '== 5 片单闭环 =='
     $collectionToken = 'M4C' + (New-VideoRunToken)
     $draftCollection = Assert-VideoOk '5.create' `
-        (Send-VideoProbe -Method 'Post' -Path '/video/admin/collections' `
+        (Send-VideoProbe -Method 'Post' -Path '/video/v1/admin/collections' `
             -Body @{ title = 'M4 冒烟片单 ' + $collectionToken; description = 'M4 冒烟片单简介'; sortNo = 3 })
     $collectionId = [long]$draftCollection.id
     Assert '5.createId' ($collectionId -gt 0) "id=$collectionId"
@@ -377,13 +377,13 @@ if ($env:SMOKE_VIDEO_FILE_ID) {
         "itemCount=$($draftCollection.itemCount)"
 
     $collectionAdminPage = Assert-VideoOk '5.adminPage' `
-        (Send-VideoProbe -Path ('/video/admin/collections/page?keyword=' + $collectionToken + '&size=10'))
+        (Send-VideoProbe -Path ('/video/v1/admin/collections/page?keyword=' + $collectionToken + '&size=10'))
     Assert-VideoPageShape '5.adminPage' $collectionAdminPage 1 10
     Assert '5.adminPageContains' (Test-VideoPageContainsId $collectionAdminPage $collectionId) `
         '运营片单分页未包含本次草稿'
 
     $added = Assert-VideoOk '5.addItem' `
-        (Send-VideoProbe -Method 'Post' -Path ('/video/admin/collections/' + $collectionId + '/item') `
+        (Send-VideoProbe -Method 'Post' -Path ('/video/v1/admin/collections/' + $collectionId + '/item') `
             -Body @{ contentId = $movieId })
     Assert '5.addItemCount' ([int]$added.itemCount -eq 1) "itemCount=$($added.itemCount)"
     Assert '5.addItemContains' (Test-VideoListContains @($added.items) $movieId) `
@@ -391,7 +391,7 @@ if ($env:SMOKE_VIDEO_FILE_ID) {
 
     # 重复加片幂等：条目数不增长
     $addedAgain = Assert-VideoOk '5.addItemAgain' `
-        (Send-VideoProbe -Method 'Post' -Path ('/video/admin/collections/' + $collectionId + '/item') `
+        (Send-VideoProbe -Method 'Post' -Path ('/video/v1/admin/collections/' + $collectionId + '/item') `
             -Body @{ contentId = $movieId })
     Assert '5.addItemAgainCount' ([int]$addedAgain.itemCount -eq 1) `
         "itemCount=$($addedAgain.itemCount)"
@@ -402,7 +402,7 @@ if ($env:SMOKE_VIDEO_FILE_ID) {
     if ($env:SMOKE_VIDEO_CONTENT_ID) {
         $nonMovieId = [long]$env:SMOKE_VIDEO_CONTENT_ID
         Assert-VideoBizError '5.addNonMovie' `
-            (Send-VideoProbe -Method 'Post' -Path ('/video/admin/collections/' + $collectionId + '/item') `
+            (Send-VideoProbe -Method 'Post' -Path ('/video/v1/admin/collections/' + $collectionId + '/item') `
                 -Body @{ contentId = $nonMovieId }) 40401
     } else {
         Write-Host 'SKIP 5.addNonMovie（设置 SMOKE_VIDEO_CONTENT_ID 覆盖非电影加片反例）'
@@ -410,25 +410,25 @@ if ($env:SMOKE_VIDEO_FILE_ID) {
 
     # 草稿片单：用户侧详情按不存在处理
     Assert-VideoBizError '5.draftDetailHidden' `
-        (Send-VideoProbe -Path ('/video/collections/' + $collectionId)) 40405
+        (Send-VideoProbe -Path ('/video/v1/collections/' + $collectionId)) 40405
 
     # 上架片单：用户侧分页与详情立即可见，片单内电影按内容可见性过滤
     $null = Assert-VideoOk '5.publish' `
-        (Send-VideoProbe -Method 'Post' -Path ('/video/admin/collections/' + $collectionId + '/publish'))
+        (Send-VideoProbe -Method 'Post' -Path ('/video/v1/admin/collections/' + $collectionId + '/publish'))
     $visibleCollectionPage = Assert-VideoOk '5.visiblePage' `
-        (Send-VideoProbe -Path ('/video/collections/page?keyword=' + $collectionToken + '&pageNum=1&pageSize=10'))
+        (Send-VideoProbe -Path ('/video/v1/collections/page?keyword=' + $collectionToken + '&pageNum=1&pageSize=10'))
     Assert-VideoCollectionPage '5.visiblePage' $visibleCollectionPage 10
     Assert '5.visiblePageContains' (Test-VideoPageContainsId $visibleCollectionPage $collectionId) `
         '用户侧片单分页未包含已上架片单'
     $collectionDetail = Assert-VideoOk '5.detail' `
-        (Send-VideoProbe -Path ('/video/collections/' + $collectionId))
+        (Send-VideoProbe -Path ('/video/v1/collections/' + $collectionId))
     Assert-VideoCollectionDetail '5.detail' $collectionDetail 1
     Assert '5.detailContains' (Test-VideoListContains @($collectionDetail.items) $movieId) `
         '用户侧片单详情未包含电影'
 
     # 电影详情收录片单回填
     $detailWithCollection = Assert-VideoOk '5.movieDetailCollections' `
-        (Send-VideoProbe -Path ('/video/movies/' + $movieId))
+        (Send-VideoProbe -Path ('/video/v1/movies/' + $movieId))
     Assert '5.movieDetailCollectionHit' (Test-VideoListContains @($detailWithCollection.collections) $collectionId) `
         '电影详情未收录该片单'
 
@@ -438,69 +438,69 @@ if ($env:SMOKE_VIDEO_FILE_ID) {
     Write-Host ''
     Write-Host '== 6 下架 / 重新授权 / 版权下架 / 删除 =='
     $null = Assert-VideoOk '6.offline' `
-        (Send-VideoProbe -Method 'Post' -Path ('/video/admin/movies/' + $movieId + '/offline'))
+        (Send-VideoProbe -Method 'Post' -Path ('/video/v1/admin/movies/' + $movieId + '/offline'))
     Assert-VideoBizError '6.offlineDetailHidden' `
-        (Send-VideoProbe -Path ('/video/movies/' + $movieId)) 40401
+        (Send-VideoProbe -Path ('/video/v1/movies/' + $movieId)) 40401
     $offlinePage = Assert-VideoOk '6.offlinePageHidden' `
-        (Send-VideoProbe -Path ('/video/movies/page?keyword=' + $movieToken + '&pageNum=1&pageSize=10'))
+        (Send-VideoProbe -Path ('/video/v1/movies/page?keyword=' + $movieToken + '&pageNum=1&pageSize=10'))
     Assert '6.offlinePageGone' (-not (Test-VideoPageContainsId $offlinePage $movieId)) `
         '下架后用户侧电影列表仍包含该电影'
     $collectionAfterOffline = Assert-VideoOk '6.collectionAfterOffline' `
-        (Send-VideoProbe -Path ('/video/collections/' + $collectionId))
+        (Send-VideoProbe -Path ('/video/v1/collections/' + $collectionId))
     Assert-VideoCollectionDetail '6.collectionAfterOffline' $collectionAfterOffline 0
 
     # 重新授权：到期时间改为过去 → 40011；改为未来 → 可再次发布
     $expiredUpdateBody = $createBody.Clone()
     $expiredUpdateBody['licenseExpireAt'] = (Get-VideoIsoDateTime -AddMinutes -60)
     Assert-VideoBizError '6.updateExpiredLicense' `
-        (Send-VideoProbe -Method 'Put' -Path ('/video/admin/movies/' + $movieId) `
+        (Send-VideoProbe -Method 'Put' -Path ('/video/v1/admin/movies/' + $movieId) `
             -Body $expiredUpdateBody) 40011
 
     $renewedUpdateBody = $createBody.Clone()
     $renewedUpdateBody['licenseExpireAt'] = (Get-VideoIsoDateTime -AddMinutes 43200)
     $renewed = Assert-VideoOk '6.updateRenewed' `
-        (Send-VideoProbe -Method 'Put' -Path ('/video/admin/movies/' + $movieId) `
+        (Send-VideoProbe -Method 'Put' -Path ('/video/v1/admin/movies/' + $movieId) `
             -Body $renewedUpdateBody)
     Assert '6.updateRenewedState' ($renewed.publishState -eq 'OFFLINE') `
         "state=$($renewed.publishState)"
     $republished = Assert-VideoOk '6.republish' `
-        (Send-VideoProbe -Method 'Post' -Path ('/video/admin/movies/' + $movieId + '/publish'))
+        (Send-VideoProbe -Method 'Post' -Path ('/video/v1/admin/movies/' + $movieId + '/publish'))
     Assert '6.republishState' ($republished.publishState -eq 'PUBLISHED') `
         "state=$($republished.publishState)"
 
     # 版权下架：原因为空按参数错误拒绝；填写原因后立即对用户不可见
     Assert-VideoBizError '6.takedownBlankReason' `
-        (Send-VideoProbe -Method 'Post' -Path ('/video/admin/movies/' + $movieId + '/takedown') `
+        (Send-VideoProbe -Method 'Post' -Path ('/video/v1/admin/movies/' + $movieId + '/takedown') `
             -Body @{ reason = '' }) 400
     $takedown = Assert-VideoOk '6.takedown' `
-        (Send-VideoProbe -Method 'Post' -Path ('/video/admin/movies/' + $movieId + '/takedown') `
+        (Send-VideoProbe -Method 'Post' -Path ('/video/v1/admin/movies/' + $movieId + '/takedown') `
             -Body @{ reason = 'M4 冒烟版权下架' })
     Assert '6.takedownCopyright' ($takedown.copyrightState -eq 'TAKEDOWN') `
         "copyright=$($takedown.copyrightState)"
     Assert-VideoBizError '6.takedownDetailHidden' `
-        (Send-VideoProbe -Path ('/video/movies/' + $movieId)) 40401
+        (Send-VideoProbe -Path ('/video/v1/movies/' + $movieId)) 40401
     Assert-VideoBizError '6.takedownPosterHidden' `
-        (Send-VideoProbe -Path ('/video/movies/' + $movieId + '/poster')) 40401
+        (Send-VideoProbe -Path ('/video/v1/movies/' + $movieId + '/poster')) 40401
 
     # 清理：先移除片单内电影并删除片单，再删除电影
     $removed = Assert-VideoOk '6.removeItem' `
         (Send-VideoProbe -Method 'Delete' `
-            -Path ('/video/admin/collections/' + $collectionId + '/item/' + $movieId))
+            -Path ('/video/v1/admin/collections/' + $collectionId + '/item/' + $movieId))
     Assert '6.removeItemCount' ([int]$removed.itemCount -eq 0) "itemCount=$($removed.itemCount)"
     $null = Assert-VideoOk '6.deleteCollection' `
-        (Send-VideoProbe -Method 'Delete' -Path ('/video/admin/collections/' + $collectionId))
+        (Send-VideoProbe -Method 'Delete' -Path ('/video/v1/admin/collections/' + $collectionId))
     Assert-VideoBizError '6.deletedCollectionHidden' `
-        (Send-VideoProbe -Path ('/video/collections/' + $collectionId)) 40405
+        (Send-VideoProbe -Path ('/video/v1/collections/' + $collectionId)) 40405
     $null = Assert-VideoOk '6.deleteMovie' `
-        (Send-VideoProbe -Method 'Delete' -Path ('/video/admin/movies/' + $movieId))
+        (Send-VideoProbe -Method 'Delete' -Path ('/video/v1/admin/movies/' + $movieId))
     $adminAfterDelete = Assert-VideoOk '6.adminAfterDelete' `
-        (Send-VideoProbe -Path ('/video/admin/movies/page?keyword=' + $movieToken + '&size=10'))
+        (Send-VideoProbe -Path ('/video/v1/admin/movies/page?keyword=' + $movieToken + '&size=10'))
     Assert '6.adminAfterDeleteGone' (-not (Test-VideoPageContainsId $adminAfterDelete $movieId)) `
         '删除后运营电影分页仍包含该电影'
 
     # 电影运营权限隔离：缺少 content:add 时入库拒绝
     Assert-VideoBizError '6.createDenied' `
-        (Send-VideoProbe -Method 'Post' -Path '/video/admin/movies' -Body $createBody `
+        (Send-VideoProbe -Method 'Post' -Path '/video/v1/admin/movies' -Body $createBody `
             -Headers (New-VideoHeaders -PermissionCodes 'sys:video:browse')) 403
 } else {
     Write-Host 'SKIP 4-6 电影 / 片单运营闭环（设置 SMOKE_VIDEO_FILE_ID=<已上传视频文件ID> 后重跑可覆盖）'

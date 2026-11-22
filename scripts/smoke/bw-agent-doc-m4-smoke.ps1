@@ -24,7 +24,7 @@ $docService = 'http://127.0.0.1:8095'
 $failures = 0
 
 function Sync-Docs() {
-    return Invoke-Api Post "$base/agent/knowledge/doc/sync"
+    return Invoke-Api Post "$base/agent/knowledge/doc/v1/sync"
 }
 
 # 1) 登录与租户
@@ -34,7 +34,7 @@ $login = Invoke-RestMethod -Method Post -Uri "$base/auth/login" -ContentType 'ap
 Assert '1.login' ($login.code -eq 0 -and $null -ne $login.data.accessToken) "(code=$($login.code))"
 $script:h = @{ Authorization = "Bearer $($login.data.accessToken)" }
 
-$meta = Invoke-Api Get "$base/doc/meta"
+$meta = Invoke-Api Get "$base/doc/v1/meta"
 Assert '2.docMeta' ($meta.code -eq 0 -and $meta.data.service -eq 'whale-doc') "(service=$($meta.data.service))"
 $tenantId = $meta.data.tenantId
 if ($null -eq $tenantId) { $tenantId = 1 }
@@ -44,7 +44,7 @@ $internalHeaders = @{ 'X-Tenant-Id' = "$tenantId"; 'X-User-Id' = '1'; 'X-Usernam
 $stamp = [DateTime]::Now.ToString('yyyyMMddHHmmss')
 $keyword = "M4DOC$stamp"
 
-$space = Invoke-Api Post "$base/doc/space" @{
+$space = Invoke-Api Post "$base/doc/v1/space" @{
     name        = "M4 Doc Knowledge $stamp"
     description = 'M4 doc knowledge smoke space'
     icon        = 'book'
@@ -53,13 +53,13 @@ $space = Invoke-Api Post "$base/doc/space" @{
 Assert '3.spaceCreate' ($space.code -eq 0 -and $null -ne $space.data.id) "(code=$($space.code), msg=$($space.message))"
 $spaceId = $space.data.id
 
-$page = Invoke-Api Post "$base/doc/page" @{
+$page = Invoke-Api Post "$base/doc/v1/page" @{
     spaceId  = $spaceId; parentId = 0; title = "M4 Knowledge Page $stamp"; pageType = 'PAGE'
 }
 Assert '4.pageCreate' ($page.code -eq 0 -and $null -ne $page.data.id) "(code=$($page.code))"
 $pageId = $page.data.id
 
-$save = Invoke-Api Put "$base/doc/page/$pageId" @{
+$save = Invoke-Api Put "$base/doc/v1/page/$pageId" @{
     baseRevision = 0
     title        = "M4 Knowledge Page $stamp"
     contentJson  = @{
@@ -72,12 +72,12 @@ $save = Invoke-Api Put "$base/doc/page/$pageId" @{
 }
 Assert '5.pageSave' ($save.code -eq 0 -and $save.data.revision -eq 1) "(revision=$($save.data.revision))"
 
-$publish = Invoke-Api Post "$base/doc/page/$pageId/publish"
+$publish = Invoke-Api Post "$base/doc/v1/page/$pageId/publish"
 Assert '6.publish' ($publish.code -eq 0 -and $publish.data.status -eq 'PUBLISHED') "(status=$($publish.data.status))"
 
 # 3) 变更流：公开已发布页面可采集
 $changes = Invoke-RestMethod -Method Get -Uri `
-    "$docService/doc/internal/page/changes?current=1&size=200" -Headers $internalHeaders
+    "$docService/doc/v1/internal/page/changes?current=1&size=200" -Headers $internalHeaders
 $change = @($changes.data.records | Where-Object { [long]$_.pageId -eq [long]$pageId })[0]
 Assert '7.changeCollectable' ($changes.code -eq 0 -and $null -ne $change -and $change.status -eq 'PUBLISHED' `
         -and $change.deleted -eq $false -and $change.spaceVisibility -eq 'PUBLIC' -and $change.spaceActive -eq $true) `
@@ -87,7 +87,7 @@ Assert '7.changeCollectable' ($changes.code -eq 0 -and $null -ne $change -and $c
 $sync = Sync-Docs
 Assert '8.docSync' ($sync.code -eq 0 -and $null -ne $sync.data) "(indexed=$($sync.data.indexed), failed=$($sync.data.failed))"
 
-$ledger = Invoke-Api Get "$base/agent/knowledge/doc/page?keyword=$stamp&current=1&size=20"
+$ledger = Invoke-Api Get "$base/agent/knowledge/doc/v1/page?keyword=$stamp&current=1&size=20"
 $row = @($ledger.data.records | Where-Object { [long]$_.pageId -eq [long]$pageId })[0]
 Assert '9.ledgerIndexed' ($ledger.code -eq 0 -and $null -ne $row -and $row.indexStatus -eq 'INDEXED' `
         -and [int]$row.chunkCount -gt 0) `
@@ -102,11 +102,11 @@ Assert '12.searchUrl' ($hit.url -eq $expectedUrl) "(url=$($hit.url))"
 Assert '13.searchKind' ($hit.kind -eq 'doc_page') "(kind=$($hit.kind))"
 
 # 5) 归档（不再可采集）→ 同步后索引下线
-$archive = Invoke-Api Post "$base/doc/page/$pageId/archive"
+$archive = Invoke-Api Post "$base/doc/v1/page/$pageId/archive"
 Assert '14.archive' ($archive.code -eq 0 -and $archive.data.status -eq 'ARCHIVED') "(status=$($archive.data.status))"
 $syncArchived = Sync-Docs
 Assert '15.syncArchived' ($syncArchived.code -eq 0) "(code=$($syncArchived.code))"
-$ledgerArchived = @((Invoke-Api Get "$base/agent/knowledge/doc/page?keyword=$stamp&current=1&size=20").data.records `
+$ledgerArchived = @((Invoke-Api Get "$base/agent/knowledge/doc/v1/page?keyword=$stamp&current=1&size=20").data.records `
         | Where-Object { [long]$_.pageId -eq [long]$pageId })[0]
 Assert '16.ledgerSkipped' ($ledgerArchived.indexStatus -eq 'SKIPPED' -and [int]$ledgerArchived.chunkCount -eq 0) `
     "(status=$($ledgerArchived.indexStatus), chunks=$($ledgerArchived.chunkCount))"
@@ -115,40 +115,40 @@ Assert '17.searchRemovedAfterArchive' (@($hitsArchived.data | Where-Object { $_.
     "(hits=$(@($hitsArchived.data).Count))"
 
 # 6) 恢复 → 重新发布 → 同步重建；停用/启用
-$restore = Invoke-Api Post "$base/doc/page/$pageId/restore"
+$restore = Invoke-Api Post "$base/doc/v1/page/$pageId/restore"
 Assert '18.restore' ($restore.code -eq 0 -and $restore.data.status -eq 'DRAFT') "(status=$($restore.data.status))"
-$publishAgain = Invoke-Api Post "$base/doc/page/$pageId/publish"
+$publishAgain = Invoke-Api Post "$base/doc/v1/page/$pageId/publish"
 Assert '19.publishAgain' ($publishAgain.code -eq 0) "(code=$($publishAgain.code))"
 Sync-Docs | Out-Null
 $hitsAgain = Invoke-Api Get "$base/agent/search?q=$keyword&kind=doc_page&topK=10"
 Assert '20.searchBackAfterRepublish' (@($hitsAgain.data | Where-Object { $_.path -eq "docpage:$pageId" }).Count -ge 1) `
     "(hits=$(@($hitsAgain.data).Count))"
 
-$disable = Invoke-Api Put "$base/agent/knowledge/doc/$pageId/enabled?enabled=false"
+$disable = Invoke-Api Put "$base/agent/knowledge/doc/v1/$pageId/enabled?enabled=false"
 Assert '21.disable' ($disable.code -eq 0) "(code=$($disable.code))"
 $hitsDisabled = Invoke-Api Get "$base/agent/search?q=$keyword&kind=doc_page&topK=10"
 Assert '22.searchEmptyWhenDisabled' (@($hitsDisabled.data | Where-Object { $_.path -eq "docpage:$pageId" }).Count -eq 0)
 
-$enable = Invoke-Api Put "$base/agent/knowledge/doc/$pageId/enabled?enabled=true"
+$enable = Invoke-Api Put "$base/agent/knowledge/doc/v1/$pageId/enabled?enabled=true"
 Assert '23.enable' ($enable.code -eq 0) "(code=$($enable.code))"
 $hitsEnabled = Invoke-Api Get "$base/agent/search?q=$keyword&kind=doc_page&topK=10"
 Assert '24.searchBackWhenEnabled' (@($hitsEnabled.data | Where-Object { $_.path -eq "docpage:$pageId" }).Count -ge 1) `
     "(hits=$(@($hitsEnabled.data).Count))"
 
 # 7) 私有空间页面不可采集
-$privateSpace = Invoke-Api Post "$base/doc/space" @{
+$privateSpace = Invoke-Api Post "$base/doc/v1/space" @{
     name        = "M4 Private $stamp"
     description = 'M4 private space should not be collected'
     icon        = 'lock'
     visibility  = 'MEMBER'
 }
 $privateSpaceId = $privateSpace.data.id
-$privatePage = Invoke-Api Post "$base/doc/page" @{
+$privatePage = Invoke-Api Post "$base/doc/v1/page" @{
     spaceId  = $privateSpaceId; parentId = 0; title = "M4 Private Page $stamp"; pageType = 'PAGE'
 }
 $privatePageId = $privatePage.data.id
 $privateKeyword = "M4PRIV$stamp"
-Invoke-Api Put "$base/doc/page/$privatePageId" @{
+Invoke-Api Put "$base/doc/v1/page/$privatePageId" @{
     baseRevision = 0
     title        = "M4 Private Page $stamp"
     contentJson  = @{
@@ -156,7 +156,7 @@ Invoke-Api Put "$base/doc/page/$privatePageId" @{
         content = @(@{ type = 'paragraph'; content = @(@{ type = 'text'; text = "私有内容 $privateKeyword" }) })
     }
 } | Out-Null
-$privatePublish = Invoke-Api Post "$base/doc/page/$privatePageId/publish"
+$privatePublish = Invoke-Api Post "$base/doc/v1/page/$privatePageId/publish"
 Assert '25.privatePublish' ($privatePublish.code -eq 0) "(code=$($privatePublish.code))"
 
 $privateSync = Sync-Docs
@@ -165,7 +165,7 @@ $privateHits = Invoke-Api Get "$base/agent/search?q=$privateKeyword&kind=doc_pag
 Assert '27.privateNotIndexed' (@($privateHits.data | Where-Object { $_.path -eq "docpage:$privatePageId" }).Count -eq 0) `
     "(hits=$(@($privateHits.data).Count))"
 $privateChanges = Invoke-RestMethod -Method Get -Uri `
-    "$docService/doc/internal/page/changes?current=1&size=200" -Headers $internalHeaders
+    "$docService/doc/v1/internal/page/changes?current=1&size=200" -Headers $internalHeaders
 $privateChange = @($privateChanges.data.records | Where-Object { [long]$_.pageId -eq [long]$privatePageId })[0]
 Assert '28.privateChangeMarked' ($null -ne $privateChange -and $privateChange.spaceVisibility -eq 'MEMBER') `
     "(visibility=$($privateChange.spaceVisibility))"
@@ -179,10 +179,10 @@ Assert '30.statsLastRun' ($null -ne $stats.data.docLastRunAt -and $null -ne $sta
     "(lastRunAt=$($stats.data.docLastRunAt), result=$($stats.data.docLastResult))"
 
 # 9) 收尾：删除页面并归档空间（数据保留便于排查）
-Invoke-Api Delete "$base/doc/page/$pageId" | Out-Null
-Invoke-Api Delete "$base/doc/page/$privatePageId" | Out-Null
-Invoke-Api Delete "$base/doc/space/$privateSpaceId" | Out-Null
-Invoke-Api Delete "$base/doc/space/$spaceId" | Out-Null
+Invoke-Api Delete "$base/doc/v1/page/$pageId" | Out-Null
+Invoke-Api Delete "$base/doc/v1/page/$privatePageId" | Out-Null
+Invoke-Api Delete "$base/doc/v1/space/$privateSpaceId" | Out-Null
+Invoke-Api Delete "$base/doc/v1/space/$spaceId" | Out-Null
 
 if ($failures -gt 0) {
     Write-Host "RESULT: FAILED ($failures assertions)"

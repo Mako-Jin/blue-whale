@@ -34,7 +34,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/video/admin/collections")
+@RequestMapping(path = "/video/v{version}/admin/collections", version = "1")
 @RequiredArgsConstructor
 public class VideoAdminCollectionController {
 

@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/video/admin/stat")
+@RequestMapping(path = "/video/v{version}/admin/stat", version = "1")
 @RequiredArgsConstructor
 public class VideoAdminStatController {
 

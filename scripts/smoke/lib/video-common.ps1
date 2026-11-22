@@ -228,7 +228,7 @@ function Get-VideoHeaderValue {
 .SYNOPSIS
 按字节读取视频流响应，返回状态码、Range 响应头与已读字节数。
 .DESCRIPTION
-/video/stream 返回二进制（200 / 206 / 416），Send-VideoProbe 的文本解析无法判断分段语义，
+/video/v1/stream 返回二进制（200 / 206 / 416），Send-VideoProbe 的文本解析无法判断分段语义，
 且票据无效时服务端返回的是 Result JSON 信封而非二进制，因此两者分工：
 - 合法票据的分段 / 越界断言用本函数；
 - 无票据 / 伪票据 / 跨用户断言仍用 Send-VideoProbe + Assert-VideoBizError。
@@ -339,12 +339,12 @@ function Assert-VideoHealth {
 
 <#
 .SYNOPSIS
-断言 GET /video/meta 与前端 VideoMeta 契约一致，且不暴露任何文件 ID。
+断言 GET /video/v1/meta 与前端 VideoMeta 契约一致，且不暴露任何文件 ID。
 #>
 function Assert-VideoMetaContract {
     param([string]$Label = '1')
 
-    $probe = Send-VideoProbe -Method 'Get' -Path '/video/meta'
+    $probe = Send-VideoProbe -Method 'Get' -Path '/video/v1/meta'
     if ($null -eq $probe.Result) {
         Assert "$Label.meta" $false "HTTP $($probe.Status) body=$($probe.BodyText)"
         return
@@ -375,7 +375,7 @@ function Assert-VideoMetaContract {
 
 <#
 .SYNOPSIS
-断言缺少 sys:video:browse 时 /video/meta 返回业务码 403（服务侧 fail-closed）。
+断言缺少 sys:video:browse 时 /video/v1/meta 返回业务码 403（服务侧 fail-closed）。
 #>
 function Assert-VideoPermissionDenied {
     param([string]$Label = '2')
@@ -385,7 +385,7 @@ function Assert-VideoPermissionDenied {
         'X-Tenant-Id'        = Get-VideoTenantId
         'X-Permission-Codes' = 'sys:file:upload'
     }
-    $probe = Send-VideoProbe -Method 'Get' -Path '/video/meta' -Headers $headers
+    $probe = Send-VideoProbe -Method 'Get' -Path '/video/v1/meta' -Headers $headers
     Assert "$Label.permissionDenied" ($null -ne $probe.Result -and [int]$probe.Result.code -eq 403) `
         "HTTP $($probe.Status) code=$($probe.Result.code)"
 }
@@ -512,7 +512,7 @@ function Assert-VideoPageShape {
 .SYNOPSIS
 断言短视频 feed 键集响应形状：records / hasMore / nextCursor。
 .DESCRIPTION
-M2 起 /video/shorts/feed 改为游标分页：首屏无 nextCursor，
+M2 起 /video/v1/shorts/feed 改为游标分页：首屏无 nextCursor，
 有下一页时 nextCursor 必须为合法的「锚点|内容ID」。
 .PARAMETER Label
 断言标签。

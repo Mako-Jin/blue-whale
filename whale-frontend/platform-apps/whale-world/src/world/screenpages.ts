@@ -991,7 +991,7 @@ export const DEVICE_STATUS_STYLE: Record<string, ScreenStatusStyle> = {
  * 默默忽略的参数，"点了没反应"是这类问题里最难查的一种。要看禁用设备，
  * 走 2D 设备管理页。</p>
  *
- * <p><b>不配 detailPath。</b>`/iot/devices/page` 返回的 `DeviceVO` 已经含产品名、
+ * <p><b>不配 detailPath。</b>`/iot/v1/devices/page` 返回的 `DeviceVO` 已经含产品名、
  * 最近在线/上报时间与状态，列表行就是详情；详情接口 `/{id}` 返回同一份 VO，
  * 再请求一次只是多一次往返。</p>
  *
@@ -1001,7 +1001,7 @@ export const DEVICE_STATUS_STYLE: Record<string, ScreenStatusStyle> = {
 export const DEVICE_PAGE: ScreenListPageSpec = {
   key: 'devices',
   title: '设备台账',
-  listPath: '/iot/devices/page',
+  listPath: '/iot/v1/devices/page',
   permission: 'sys:iot:device',
   idKey: 'id',
   keywordParam: 'keyword',
@@ -1414,7 +1414,7 @@ export const DOC_SPACE_VISIBILITY_STYLE: Record<string, ScreenStatusStyle> = {
 export const SPACE_PAGE: ScreenListPageSpec = {
   key: 'spaces',
   title: '空间台账',
-  listPath: '/doc/space/page',
+  listPath: '/doc/v1/space/page',
   permission: 'sys:doc:space:list',
   idKey: 'id',
   keywordParam: 'keyword',
@@ -1446,6 +1446,78 @@ export const SPACE_PAGE: ScreenListPageSpec = {
     { key: 'updateTime', label: '更新时间', format: 'datetime' },
   ],
   titleKey: 'name',
+};
+
+/**
+ * 订单状态：与后端 {@code OrderStatus} 七态一一对应，页面级字典。
+ *
+ * <p>退款两态单列（退款中黄、已退款灰），不并进取消——钱卡在支付侧与
+ * 「没成交」是两回事，混译会让退款积压在屏风上隐形。</p>
+ */
+export const MALL_ORDER_STATUS_STYLE: Record<string, ScreenStatusStyle> = {
+  PENDING_PAYMENT: { label: '待支付', tone: 'flat' },
+  PAID: { label: '待发货', tone: 'warn' },
+  SHIPPED: { label: '已发货', tone: 'flat' },
+  COMPLETED: { label: '已完成', tone: 'good' },
+  CANCELLED: { label: '已取消', tone: 'flat' },
+  REFUNDING: { label: '退款中', tone: 'warn' },
+  REFUNDED: { label: '已退款', tone: 'flat' },
+};
+
+/**
+ * 市舶坊（MALL）订单台账页（S6 / T6.34）。
+ *
+ * <p><b>这一屏讲什么。</b>市舶司掌通商，订单是主账：哪几单钱收了没发货、
+ * 哪几单退款卡着，是运营在屏风上要先看的东西。</p>
+ *
+ * <p><b>有搜索框</b>：订单查询有合并 keyword（订单号与买家名一起模糊匹配），
+ * 状态筛选用独立的 {@code status} 参数。</p>
+ *
+ * <p><b>不配 `detailPath`</b>：列表行已带回金额、件数、渠道、付款时间等
+ * 全部台账字段；订单详情在 2D 里还要按到订单实体上点，屏风里摆行内字段
+ * 就够看。</p>
+ */
+export const ORDER_PAGE: ScreenListPageSpec = {
+  key: 'orders',
+  title: '订单台账',
+  listPath: '/mall/v1/order/page',
+  permission: 'sys:mall:order:list',
+  idKey: 'id',
+  keywordParam: 'keyword',
+  searchPlaceholder: '搜索订单号 / 买家…',
+  statusParam: 'status',
+  statuses: [
+    { value: '', label: '全部状态' },
+    { value: 'PENDING_PAYMENT', label: '待支付' },
+    { value: 'PAID', label: '待发货' },
+    { value: 'SHIPPED', label: '已发货' },
+    { value: 'COMPLETED', label: '已完成' },
+    { value: 'REFUNDING', label: '退款中' },
+  ],
+  statusMap: MALL_ORDER_STATUS_STYLE,
+  /* 6 行/页：大屏 620px 里 KPI + 状态柱图 + 工具栏之后只剩约 230px */
+  pageSize: 6,
+  columns: [
+    { key: 'orderNo', label: '订单号', width: '20%' },
+    { key: 'buyerName', label: '买家', width: '14%' },
+    { key: 'status', label: '状态', width: '12%', format: 'status' },
+    { key: 'totalAmount', label: '金额', width: '14%', format: 'money' },
+    { key: 'totalQuantity', label: '件数', width: '10%' },
+    { key: 'createTime', label: '下单时间', width: '16%', format: 'datetime' },
+    { key: 'channelCode', label: '渠道', width: '14%' },
+  ],
+  detailFields: [
+    { key: 'orderNo', label: '订单号' },
+    { key: 'buyerName', label: '买家' },
+    { key: 'status', label: '状态', format: 'status' },
+    { key: 'totalAmount', label: '金额', format: 'money' },
+    { key: 'totalQuantity', label: '件数' },
+    { key: 'channelCode', label: '渠道' },
+    { key: 'payTime', label: '支付时间', format: 'datetime' },
+    { key: 'shipTime', label: '发货时间', format: 'datetime' },
+    { key: 'createTime', label: '下单时间', format: 'datetime' },
+  ],
+  titleKey: 'orderNo',
 };
 
 /**
@@ -1539,4 +1611,5 @@ export const SCREEN_PAGES: Record<string, ScreenListPageSpec> = {
   [MEMBER_PAGE.key]: MEMBER_PAGE,
   [PROJECT_PAGE.key]: PROJECT_PAGE,
   [SPACE_PAGE.key]: SPACE_PAGE,
+  [ORDER_PAGE.key]: ORDER_PAGE,
 };

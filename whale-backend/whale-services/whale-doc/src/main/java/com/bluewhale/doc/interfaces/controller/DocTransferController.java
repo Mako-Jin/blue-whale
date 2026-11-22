@@ -30,7 +30,7 @@ import java.nio.charset.StandardCharsets;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/doc/page/{id}")
+@RequestMapping(path = "/doc/v{version}/page/{id}", version = "1")
 @RequiredArgsConstructor
 public class DocTransferController {
 

@@ -29,24 +29,24 @@ Assert '1.login' ($login.code -eq 0 -and $null -ne $login.data.accessToken) "(co
 $script:h = @{ Authorization = "Bearer $($login.data.accessToken)" }
 $token = $login.data.accessToken
 
-$meta = Invoke-Api Get "$base/doc/meta"
+$meta = Invoke-Api Get "$base/doc/v1/meta"
 Assert '2.meta' ($meta.code -eq 0 -and $meta.data.service -eq 'whale-doc') "(service=$($meta.data.service))"
 $tenantId = $meta.data.tenantId
 
 $stamp = [DateTime]::Now.ToString('yyyyMMddHHmmss')
-$space = Invoke-Api Post "$base/doc/space" @{
+$space = Invoke-Api Post "$base/doc/v1/space" @{
     name = "M5 Hardening $stamp"; description = 'M5 hardening smoke space'; icon = 'book'; visibility = 'PUBLIC'
 }
 Assert '3.spaceCreate' ($space.code -eq 0 -and $space.data.id) "(code=$($space.code), msg=$($space.message))"
 $spaceId = $space.data.id
 
-$pageA = Invoke-Api Post "$base/doc/page" @{
+$pageA = Invoke-Api Post "$base/doc/v1/page" @{
     spaceId = $spaceId; parentId = 0; title = "M5 Page A $stamp"; pageType = 'PAGE'
 }
 Assert '4.pageACreate' ($pageA.code -eq 0 -and $pageA.data.id) "(code=$($pageA.code))"
 $pageAId = $pageA.data.id
 
-$pageB = Invoke-Api Post "$base/doc/page" @{
+$pageB = Invoke-Api Post "$base/doc/v1/page" @{
     spaceId = $spaceId; parentId = 0; title = "M5 Page B $stamp"; pageType = 'PAGE'
 }
 Assert '5.pageBCreate' ($pageB.code -eq 0 -and $pageB.data.id) "(code=$($pageB.code))"
@@ -55,7 +55,7 @@ $pageBId = $pageB.data.id
 # 2) 正文含脚本文本与 javascript: 链接，验证导出不产生可执行内容
 $keyword = "M5SEARCH$stamp"
 $maliciousText = "<script>alert('xss')</script> $keyword"
-$saveA = Invoke-Api Put "$base/doc/page/$pageAId" @{
+$saveA = Invoke-Api Put "$base/doc/v1/page/$pageAId" @{
     baseRevision = $pageA.data.revision
     title = "M5 Page A $stamp"
     contentJson = @{
@@ -83,41 +83,41 @@ $saveA = Invoke-Api Put "$base/doc/page/$pageAId" @{
 Assert '6.pageSaveXss' ($saveA.code -eq 0 -and $saveA.data.revision -eq 1) "(revision=$($saveA.data.revision))"
 $revisionAfterSave = $saveA.data.revision
 
-$exportHtml = Invoke-WebRequest -Uri "$base/doc/page/$pageAId/export?format=html" -Headers $script:h
+$exportHtml = Invoke-WebRequest -Uri "$base/doc/v1/page/$pageAId/export?format=html" -Headers $script:h
 $html = [string]$exportHtml.Content
 Assert '7.exportHtmlEscapesScript' ($html -notmatch '<script>' -and $html -match '&lt;script&gt;') "(len=$($html.Length))"
 Assert '8.exportHtmlDropsJavascriptHref' ($html -notmatch 'javascript:') ''
-$exportMd = Invoke-WebRequest -Uri "$base/doc/page/$pageAId/export?format=md" -Headers $script:h
+$exportMd = Invoke-WebRequest -Uri "$base/doc/v1/page/$pageAId/export?format=md" -Headers $script:h
 $markdown = [string]$exportMd.Content
 Assert '9.exportMarkdownDropsJavascriptHref' ($markdown -notmatch 'javascript:') ''
 
 # 3) SVG 附件：禁止 inline、nosniff、跨页 IDOR 拒绝
 $svgPath = Join-Path $env:TEMP "m5-smoke-$stamp.svg"
 Set-Content -LiteralPath $svgPath -Value '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"></svg>' -Encoding UTF8
-$upload = Invoke-RestMethod -Method Post -Uri "$base/doc/page/$pageAId/attachment" -Headers $script:h `
+$upload = Invoke-RestMethod -Method Post -Uri "$base/doc/v1/page/$pageAId/attachment" -Headers $script:h `
     -Form @{ file = Get-Item -LiteralPath $svgPath; usageType = 'ATTACHMENT' }
 Assert '10.attachmentUpload' ($upload.code -eq 0 -and $upload.data.id) "(code=$($upload.code), msg=$($upload.message))"
 $attachmentId = $upload.data.id
 Remove-Item -LiteralPath $svgPath -ErrorAction SilentlyContinue
 
-$download = Invoke-WebRequest -Uri "$base/doc/page/$pageAId/attachment/$attachmentId/content" -Headers $script:h
+$download = Invoke-WebRequest -Uri "$base/doc/v1/page/$pageAId/attachment/$attachmentId/content" -Headers $script:h
 Assert '11.attachmentDisposition' ([string]$download.Headers['Content-Disposition'] -match 'attachment') `
     "($($download.Headers['Content-Disposition']))"
 Assert '12.attachmentNosniff' ([string]$download.Headers['X-Content-Type-Options'] -eq 'nosniff') ''
 Assert '13.attachmentSvgNotInline' ([string]$download.Headers['Content-Type'] -notmatch 'inline') `
     "($($download.Headers['Content-Type']))"
 
-$idor = Invoke-WebRequest -SkipHttpErrorCheck -Uri "$base/doc/page/$pageBId/attachment/$attachmentId/content" -Headers $script:h
+$idor = Invoke-WebRequest -SkipHttpErrorCheck -Uri "$base/doc/v1/page/$pageBId/attachment/$attachmentId/content" -Headers $script:h
 $idorBody = $null
 try { $idorBody = $idor.Content | ConvertFrom-Json } catch { }
 Assert '14.crossPageAttachmentDenied' ($null -ne $idorBody -and [int]$idorBody.code -ne 0) `
     "(status=$($idor.StatusCode), code=$($idorBody.code))"
 
 # 4) 乐观锁：陈旧 baseRevision 拒绝
-$stale = Invoke-Api Put "$base/doc/page/$pageAId" @{ baseRevision = 0; title = "M5 stale $stamp" }
+$stale = Invoke-Api Put "$base/doc/v1/page/$pageAId" @{ baseRevision = 0; title = "M5 stale $stamp" }
 Assert '15.staleSaveConflict' ($stale.code -eq 40901) "(code=$($stale.code))"
 
-$detail = Invoke-Api Get "$base/doc/page/$pageAId"
+$detail = Invoke-Api Get "$base/doc/v1/page/$pageAId"
 Assert '16.detailRevision' ($detail.code -eq 0 -and $detail.data.revision -eq $revisionAfterSave) `
     "(revision=$($detail.data.revision))"
 $baseRevision = $detail.data.revision
@@ -145,7 +145,7 @@ $runs = @()
 for ($i = 0; $i -lt $jobs; $i++) {
     $ps = [powershell]::Create()
     $ps.RunspacePool = $pool
-    [void]$ps.AddScript($worker).AddArgument("$base/doc/page/$pageAId").AddArgument($token).AddArgument($baseRevision).AddArgument("M5 concurrent $i $stamp")
+    [void]$ps.AddScript($worker).AddArgument("$base/doc/v1/page/$pageAId").AddArgument($token).AddArgument($baseRevision).AddArgument("M5 concurrent $i $stamp")
     $runs += @{ P = $ps; H = $ps.BeginInvoke() }
 }
 $codes = @()
@@ -160,26 +160,26 @@ $success = @($codes | Where-Object { $_ -eq 0 }).Count
 $conflict = @($codes | Where-Object { $_ -eq 40901 }).Count
 Assert '17.concurrentSaveSingleWinner' ($success -eq 1) "(success=$success, total=$jobs)"
 Assert '18.concurrentSaveConflicts' ($conflict -eq $jobs - 1) "(conflict=$conflict, codes=$($codes -join ','))"
-$afterConcurrent = Invoke-Api Get "$base/doc/page/$pageAId"
+$afterConcurrent = Invoke-Api Get "$base/doc/v1/page/$pageAId"
 Assert '19.concurrentRevisionPlusOne' (([long]$afterConcurrent.data.revision) -eq ([long]$baseRevision + 1)) `
     "(revision=$($afterConcurrent.data.revision))"
 
 # 6) 发布后检查树 / 详情 / 搜索时延与全文检索
-$publish = Invoke-Api Post "$base/doc/page/$pageAId/publish"
+$publish = Invoke-Api Post "$base/doc/v1/page/$pageAId/publish"
 Assert '20.publish' ($publish.code -eq 0) "(code=$($publish.code))"
 
 $sw = [System.Diagnostics.Stopwatch]::StartNew()
-$tree = Invoke-Api Get "$base/doc/space/$spaceId/tree"
+$tree = Invoke-Api Get "$base/doc/v1/space/$spaceId/tree"
 $sw.Stop()
 Assert '21.treeLatency' ($tree.code -eq 0 -and $sw.ElapsedMilliseconds -lt 1500) "($($sw.ElapsedMilliseconds)ms)"
 
 $sw = [System.Diagnostics.Stopwatch]::StartNew()
-$pageDetail = Invoke-Api Get "$base/doc/page/$pageAId"
+$pageDetail = Invoke-Api Get "$base/doc/v1/page/$pageAId"
 $sw.Stop()
 Assert '22.detailLatency' ($pageDetail.code -eq 0 -and $sw.ElapsedMilliseconds -lt 1000) "($($sw.ElapsedMilliseconds)ms)"
 
 $sw = [System.Diagnostics.Stopwatch]::StartNew()
-$search = Invoke-Api Get "$base/doc/search?keyword=$keyword&spaceId=$spaceId&current=1&size=20"
+$search = Invoke-Api Get "$base/doc/v1/search?keyword=$keyword&spaceId=$spaceId&current=1&size=20"
 $sw.Stop()
 Assert '23.searchLatency' ($search.code -eq 0 -and $sw.ElapsedMilliseconds -lt 1500) "($($sw.ElapsedMilliseconds)ms)"
 Assert '24.searchFulltextHit' ($search.code -eq 0 -and [int]$search.data.total -ge 1) "(total=$($search.data.total))"
@@ -204,7 +204,7 @@ if ($env:MYSQL_PASSWORD -and (Test-Path $mysqlBin)) {
     $orphanId = [long]$stamp
     $orphanFileId = $orphanId + 100000000
     Invoke-Sql "INSERT INTO doc_page_attachment (id, tenant_id, page_id, file_id, original_name, content_type, file_size, usage_type, sort_no, create_time, update_time, deleted) VALUES ($orphanId, $tenantId, 777777777, $orphanFileId, 'orphan.svg', 'image/svg+xml', 10, 'ATTACHMENT', 0, NOW() - INTERVAL 2 DAY, NOW() - INTERVAL 2 DAY, 0);" | Out-Null
-    $cleanup = Invoke-RestMethod -Method Post -Uri "$docService/doc/internal/ops/orphan-attachment-cleanup"
+    $cleanup = Invoke-RestMethod -Method Post -Uri "$docService/doc/v1/internal/ops/orphan-attachment-cleanup"
     Assert '29.orphanCleanupTrigger' ($cleanup.code -eq 0 -and [int]$cleanup.data.removed -ge 1) `
         "(removed=$($cleanup.data.removed))"
     $orphanLeft = Invoke-Sql "SELECT COUNT(*) FROM doc_page_attachment WHERE id=$orphanId;"

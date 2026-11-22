@@ -218,11 +218,11 @@ function New-PublishedSong {
         language    = 'ZH'
     }
     if ($Source) { $body['source'] = $Source }
-    $song = Invoke-MusicApi -Method 'Post' -Path '/music/song' -Body $body -Headers $Headers
+    $song = Invoke-MusicApi -Method 'Post' -Path '/music/v1/song' -Body $body -Headers $Headers
     Check "songCreate[$Title]" $song
     $createdSongs.Add([long]$song.data.id)
     if ($Headers -eq $h) {
-        $published = Invoke-MusicApi -Method 'Post' -Path "/music/song/$($song.data.id)/publish"
+        $published = Invoke-MusicApi -Method 'Post' -Path "/music/v1/song/$($song.data.id)/publish"
         Check "songPublish[$Title]" $published
     }
     return [long]$song.data.id
@@ -247,38 +247,38 @@ foreach ($pair in @(@{ n = 'music'; u = "$musicBase/actuator/health" },
 
 # 1) 运营闭环：上传音频 → 建歌手 → 建歌（source=ORIGINAL）→ 上架
 $audioFileId = Send-TrackedUpload -Path $audioPath -ContentType 'audio/mpeg'
-$artist = Invoke-MusicApi -Method 'Post' -Path '/music/artist' -Body @{ name = "M5冒烟歌手-$stamp"; region = 'CN' }
+$artist = Invoke-MusicApi -Method 'Post' -Path '/music/v1/artist' -Body @{ name = "M5冒烟歌手-$stamp"; region = 'CN' }
 Check '1.artistCreate' $artist
 $artistId = [long]$artist.data.id
 $adminSongId = New-PublishedSong -ArtistId $artistId -AudioFileId $audioFileId `
     -Title "M5运营歌曲-$stamp" -Source 'ORIGINAL'
-$adminDetail = Invoke-MusicApi -Method 'Get' -Path "/music/song/$adminSongId"
+$adminDetail = Invoke-MusicApi -Method 'Get' -Path "/music/v1/song/$adminSongId"
 Check '1.adminDetail' $adminDetail
 Assert '1.sourcePersisted' ("$($adminDetail.data.source)" -eq 'ORIGINAL') "source=$($adminDetail.data.source)"
-$publicDetail = Invoke-MusicApi -Method 'Get' -Path "/music/public/song/$adminSongId" -Headers $readerHeaders
+$publicDetail = Invoke-MusicApi -Method 'Get' -Path "/music/v1/public/song/$adminSongId" -Headers $readerHeaders
 Check '1.publicDetail' $publicDetail
 Assert '1.noAudioFileId' ($null -eq $publicDetail.data.audioFileId -and $null -eq $publicDetail.data.lyricFileId) `
     "audioFileId=$($publicDetail.data.audioFileId) lyricFileId=$($publicDetail.data.lyricFileId)"
 
 # 2) 上传白名单：非法音频 / 非法封面 / 文件不存在 / 超限（可选）
 $wavFileId = Send-TrackedUpload -Path $wavPath -ContentType 'audio/wav'
-$wavSong = Invoke-MusicApi -Method 'Post' -Path '/music/song' -Body @{
+$wavSong = Invoke-MusicApi -Method 'Post' -Path '/music/v1/song' -Body @{
     artistId = $artistId; title = "M5非法音频-$stamp"; audioFileId = $wavFileId; durationMs = 30000
 }
 Assert-Code '2.audioFormatRejected' $wavSong 40016
 $txtFileId = Send-TrackedUpload -Path $txtPath -ContentType 'text/plain'
-$coverSong = Invoke-MusicApi -Method 'Post' -Path '/music/song' -Body @{
+$coverSong = Invoke-MusicApi -Method 'Post' -Path '/music/v1/song' -Body @{
     artistId = $artistId; title = "M5非法封面-$stamp"; audioFileId = $audioFileId;
     coverFileId = $txtFileId; durationMs = 30000
 }
 Assert-Code '2.coverFormatRejected' $coverSong 40017
-$missingFileSong = Invoke-MusicApi -Method 'Post' -Path '/music/song' -Body @{
+$missingFileSong = Invoke-MusicApi -Method 'Post' -Path '/music/v1/song' -Body @{
     artistId = $artistId; title = "M5文件不存在-$stamp"; audioFileId = 999999999; durationMs = 30000
 }
 Assert-Code '2.fileMissingRejected' $missingFileSong 40019
 if ($uploadLimit -gt 0 -and $uploadLimit -lt $oversizeBytes) {
     $bigFileId = Send-TrackedUpload -Path $bigPath -ContentType 'audio/mpeg'
-    $bigSong = Invoke-MusicApi -Method 'Post' -Path '/music/song' -Body @{
+    $bigSong = Invoke-MusicApi -Method 'Post' -Path '/music/v1/song' -Body @{
         artistId = $artistId; title = "M5超限-$stamp"; audioFileId = $bigFileId; durationMs = 30000
     }
     Assert-Code '2.uploadTooLarge' $bigSong 40018
@@ -293,11 +293,11 @@ $gateHeaders = @{
     'X-Tenant-Id'        = $tenantId
     'X-Permission-Codes' = 'sys:file:upload,sys:file:delete,sys:music:upload,sys:music:browse'
 }
-$agreement = Invoke-MusicApi -Method 'Get' -Path '/music/copyright/agreement/current' -Headers $gateHeaders
+$agreement = Invoke-MusicApi -Method 'Get' -Path '/music/v1/copyright/agreement/current' -Headers $gateHeaders
 Check '3.agreementCurrent' $agreement
 if ($agreement.data.accepted -eq $false) {
     $gateAudioId = Send-TrackedUpload -Path $audioPath -ContentType 'audio/mpeg' -Headers $gateHeaders
-    $noAgreement = Invoke-MusicApi -Method 'Post' -Path '/music/user/song' -Headers $gateHeaders -Body @{
+    $noAgreement = Invoke-MusicApi -Method 'Post' -Path '/music/v1/user/song' -Headers $gateHeaders -Body @{
         artistId = $artistId; title = "M5未签协议-$stamp"; audioFileId = $gateAudioId; durationMs = 30000;
         source = 'ORIGINAL'
     }
@@ -305,31 +305,31 @@ if ($agreement.data.accepted -eq $false) {
 } else {
     Write-Host 'SKIP 3.agreementRequired（用户 4 历史上已签署，本轮只验证签署通过路径）'
 }
-$accepted = Invoke-MusicApi -Method 'Post' -Path '/music/copyright/agreement/accept' -Headers $gateHeaders `
+$accepted = Invoke-MusicApi -Method 'Post' -Path '/music/v1/copyright/agreement/accept' -Headers $gateHeaders `
     -Body @{ agreementVersion = $agreement.data.agreementVersion; agreed = $true }
 Check '3.agreementAccept' $accepted
 Assert '3.agreementAccepted' ($accepted.data.accepted -eq $true -and $null -ne $accepted.data.acceptedAt -and
     $accepted.data.agreementVersion -eq $agreement.data.agreementVersion) `
     "version=$($accepted.data.agreementVersion) acceptedAt=$($accepted.data.acceptedAt)"
-$creatorAgreement = Invoke-MusicApi -Method 'Get' -Path '/music/copyright/agreement/current' -Headers $creatorHeaders
+$creatorAgreement = Invoke-MusicApi -Method 'Get' -Path '/music/v1/copyright/agreement/current' -Headers $creatorHeaders
 Check '3.creatorAgreementCurrent' $creatorAgreement
 if ($creatorAgreement.data.accepted -eq $false) {
-    $creatorAccepted = Invoke-MusicApi -Method 'Post' -Path '/music/copyright/agreement/accept' -Headers $creatorHeaders `
+    $creatorAccepted = Invoke-MusicApi -Method 'Post' -Path '/music/v1/copyright/agreement/accept' -Headers $creatorHeaders `
         -Body @{ agreementVersion = $creatorAgreement.data.agreementVersion; agreed = $true }
     Check '3.creatorAgreementAccept' $creatorAccepted
 }
 $creatorAudioId = Send-TrackedUpload -Path $audioPath -ContentType 'audio/mpeg' -Headers $creatorHeaders
-$withoutSource = Invoke-MusicApi -Method 'Post' -Path '/music/user/song' -Headers $creatorHeaders -Body @{
+$withoutSource = Invoke-MusicApi -Method 'Post' -Path '/music/v1/user/song' -Headers $creatorHeaders -Body @{
     artistId = $artistId; title = "M5缺来源-$stamp"; audioFileId = $creatorAudioId; durationMs = 30000
 }
 Assert-Code '3.sourceRequired' $withoutSource 40020
-$badSource = Invoke-MusicApi -Method 'Post' -Path '/music/user/song' -Headers $creatorHeaders -Body @{
+$badSource = Invoke-MusicApi -Method 'Post' -Path '/music/v1/user/song' -Headers $creatorHeaders -Body @{
     artistId = $artistId; title = "M5来源非法-$stamp"; audioFileId = $creatorAudioId; durationMs = 30000;
     source = 'BOUGHT'
 }
 Assert-Code '3.sourceInvalid' $badSource 40021
 $creatorAudio2 = Send-TrackedUpload -Path $audioPath -ContentType 'audio/mpeg' -Headers $creatorHeaders
-$creatorSong = Invoke-MusicApi -Method 'Post' -Path '/music/user/song' -Headers $creatorHeaders -Body @{
+$creatorSong = Invoke-MusicApi -Method 'Post' -Path '/music/v1/user/song' -Headers $creatorHeaders -Body @{
     artistId = $artistId; title = "M5创作者公开-$stamp"; audioFileId = $creatorAudio2; durationMs = 30000;
     visibility = 'PUBLIC'; source = 'AUTHORIZED'
 }
@@ -340,7 +340,7 @@ Assert '3.creatorPublished' ($creatorSong.data.playable -eq $true -and $null -ne
     $creatorSong.data.visibility -eq 'PUBLIC') `
     "visibility=$($creatorSong.data.visibility) playable=$($creatorSong.data.playable) publishedAt=$($creatorSong.data.publishedAt)"
 $creatorAudio3 = Send-TrackedUpload -Path $audioPath -ContentType 'audio/mpeg' -Headers $creatorHeaders
-$privateSong = Invoke-MusicApi -Method 'Post' -Path '/music/user/song' -Headers $creatorHeaders -Body @{
+$privateSong = Invoke-MusicApi -Method 'Post' -Path '/music/v1/user/song' -Headers $creatorHeaders -Body @{
     artistId = $artistId; title = "M5创作者自听-$stamp"; audioFileId = $creatorAudio3; durationMs = 30000;
     visibility = 'PRIVATE'; source = 'ROYALTY_FREE'
 }
@@ -349,39 +349,39 @@ $privateSongId = [long]$privateSong.data.id
 $createdSongs.Add($privateSongId)
 
 # 4) 越权矩阵：跨租户 / 自听作品 / 私有歌单 / 评论 / 作品编辑
-$selfDetail = Invoke-MusicApi -Method 'Get' -Path "/music/public/song/$privateSongId" -Headers $creatorHeaders
+$selfDetail = Invoke-MusicApi -Method 'Get' -Path "/music/v1/public/song/$privateSongId" -Headers $creatorHeaders
 Check '4.privateDetailOwner' $selfDetail
-$otherPrivate = Invoke-MusicApi -Method 'Get' -Path "/music/public/song/$privateSongId" -Headers $readerHeaders
+$otherPrivate = Invoke-MusicApi -Method 'Get' -Path "/music/v1/public/song/$privateSongId" -Headers $readerHeaders
 Assert-Code '4.privateDetailOther' $otherPrivate 40403
-$otherComment = Invoke-MusicApi -Method 'Post' -Path "/music/song/$privateSongId/comment" `
+$otherComment = Invoke-MusicApi -Method 'Post' -Path "/music/v1/song/$privateSongId/comment" `
     -Headers $readerHeaders -Body @{ content = '越权评论'; parentId = 0 }
 Assert-Code '4.privateCommentOther' $otherComment 40403
-$otherUpdate = Invoke-MusicApi -Method 'Put' -Path "/music/user/song/$privateSongId" `
+$otherUpdate = Invoke-MusicApi -Method 'Put' -Path "/music/v1/user/song/$privateSongId" `
     -Headers $readerHeaders -Body @{ artistId = $artistId; title = '越权改名'; audioFileId = $creatorAudio3; durationMs = 30000 }
 Assert-Code '4.privateUpdateOther' $otherUpdate 40403
-$publicUpdateOther = Invoke-MusicApi -Method 'Put' -Path "/music/user/song/$creatorSongId" `
+$publicUpdateOther = Invoke-MusicApi -Method 'Put' -Path "/music/v1/user/song/$creatorSongId" `
     -Headers $readerHeaders -Body @{ artistId = $artistId; title = '越权改名'; audioFileId = $creatorAudio2; durationMs = 30000 }
 Assert-Code '4.publicUpdateOther' $publicUpdateOther 40301
-$crossTenantDetail = Invoke-MusicApi -Method 'Get' -Path "/music/public/song/$creatorSongId" -Headers $otherTenantHeaders
+$crossTenantDetail = Invoke-MusicApi -Method 'Get' -Path "/music/v1/public/song/$creatorSongId" -Headers $otherTenantHeaders
 Assert-Code '4.crossTenantDetail' $crossTenantDetail 40403
-$crossTenantTicket = Invoke-MusicApi -Method 'Post' -Path '/music/play/ticket' -Headers $otherTenantHeaders `
+$crossTenantTicket = Invoke-MusicApi -Method 'Post' -Path '/music/v1/play/ticket' -Headers $otherTenantHeaders `
     -Body @{ songId = $creatorSongId }
 Assert-Code '4.crossTenantTicket' $crossTenantTicket 40403
-$crossTenantLike = Invoke-MusicApi -Method 'Post' -Path "/music/song/$creatorSongId/like" -Headers $otherTenantHeaders
+$crossTenantLike = Invoke-MusicApi -Method 'Post' -Path "/music/v1/song/$creatorSongId/like" -Headers $otherTenantHeaders
 Assert-Code '4.crossTenantLike' $crossTenantLike 40403
 
-$playlist = Invoke-MusicApi -Method 'Post' -Path '/music/playlist' -Headers $creatorHeaders `
+$playlist = Invoke-MusicApi -Method 'Post' -Path '/music/v1/playlist' -Headers $creatorHeaders `
     -Body @{ title = "M5私有歌单-$stamp"; description = 'M5 越权冒烟'; visibility = 'PRIVATE' }
 Check '4.playlistCreate' $playlist
 $playlistId = [long]$playlist.data.id
-$ownerPlaylist = Invoke-MusicApi -Method 'Get' -Path "/music/playlist/$playlistId" -Headers $creatorHeaders
+$ownerPlaylist = Invoke-MusicApi -Method 'Get' -Path "/music/v1/playlist/$playlistId" -Headers $creatorHeaders
 Check '4.playlistOwnerDetail' $ownerPlaylist
-$otherPlaylist = Invoke-MusicApi -Method 'Get' -Path "/music/playlist/$playlistId" -Headers $readerHeaders
+$otherPlaylist = Invoke-MusicApi -Method 'Get' -Path "/music/v1/playlist/$playlistId" -Headers $readerHeaders
 Assert-Code '4.privatePlaylistDetail' $otherPlaylist 40405
-$otherPlaylistUpdate = Invoke-MusicApi -Method 'Put' -Path "/music/playlist/$playlistId" -Headers $readerHeaders `
+$otherPlaylistUpdate = Invoke-MusicApi -Method 'Put' -Path "/music/v1/playlist/$playlistId" -Headers $readerHeaders `
     -Body @{ title = '越权改名'; description = '越权' }
 Assert-Code '4.privatePlaylistUpdate' $otherPlaylistUpdate 40405
-$otherPlaylistAdd = Invoke-MusicApi -Method 'Post' -Path "/music/playlist/$playlistId/song" -Headers $readerHeaders `
+$otherPlaylistAdd = Invoke-MusicApi -Method 'Post' -Path "/music/v1/playlist/$playlistId/song" -Headers $readerHeaders `
     -Body @{ songId = $creatorSongId }
 Assert-Code '4.privatePlaylistAddSong' $otherPlaylistAdd 40405
 
@@ -393,7 +393,7 @@ if ($gatewayBase) {
 }
 
 # 5) 播放票据：绑定租户 / 用户 / 歌曲，流式每次复核可见性与版权状态
-$ticket = Invoke-MusicApi -Method 'Post' -Path '/music/play/ticket' -Headers $creatorHeaders `
+$ticket = Invoke-MusicApi -Method 'Post' -Path '/music/v1/play/ticket' -Headers $creatorHeaders `
     -Body @{ songId = $creatorSongId }
 Check '5.ticketIssue' $ticket
 $ticketValue = $ticket.data.ticket
@@ -412,9 +412,9 @@ $rangeStream = Send-Probe -Method 'Get' -Path "/music/stream/$creatorSongId`?tic
 Assert '5.streamRange' ($rangeStream.Status -eq 206) "status=$($rangeStream.Status)"
 
 # 6) 版权下架：原因必填、下架后不可见 / 不可播放 / 已签发票据失效
-$adminTicket = Invoke-MusicApi -Method 'Post' -Path '/music/play/ticket' -Body @{ songId = $adminSongId }
+$adminTicket = Invoke-MusicApi -Method 'Post' -Path '/music/v1/play/ticket' -Body @{ songId = $adminSongId }
 Check '6.adminTicketIssue' $adminTicket
-$emptyReason = Invoke-MusicApi -Method 'Post' -Path "/music/song/$adminSongId/takedown" `
+$emptyReason = Invoke-MusicApi -Method 'Post' -Path "/music/v1/song/$adminSongId/takedown" `
     -Body @{ reason = '   ' }
 # 空白原因先被入参校验拦下（code=400），领域规则另有 40005（SongTest/SongAppServiceImplTest 覆盖）
 Assert '6.takedownReasonRequired' (([int]$emptyReason.code -eq 40005 -or [int]$emptyReason.code -eq 400) -and
@@ -422,16 +422,16 @@ Assert '6.takedownReasonRequired' (([int]$emptyReason.code -eq 40005 -or [int]$e
 # 下架原因留痕：Windows PowerShell 5.1 的 Invoke-RestMethod 对无 charset 的 JSON 响应按本地码页解码，
 # 中文断言会误判；此处用 ASCII 原因验证「写入即回读一致」，中文留痕由后端单测覆盖
 $takedownReason = "M5 takedown: no authorization proof $stamp"
-$takedown = Invoke-MusicApi -Method 'Post' -Path "/music/song/$adminSongId/takedown" `
+$takedown = Invoke-MusicApi -Method 'Post' -Path "/music/v1/song/$adminSongId/takedown" `
     -Body @{ reason = $takedownReason }
 Check '6.takedown' $takedown
 Assert '6.takedownState' ($takedown.data.copyrightState -eq 'TAKEDOWN' -and
     $takedown.data.publishState -eq 'OFFLINE') "state=$($takedown.data.copyrightState)/$($takedown.data.publishState)"
 Assert '6.takedownReasonTrace' ($takedown.data.takedownReason -eq $takedownReason) `
     "reason=$($takedown.data.takedownReason)"
-$afterTakedownDetail = Invoke-MusicApi -Method 'Get' -Path "/music/public/song/$adminSongId" -Headers $readerHeaders
+$afterTakedownDetail = Invoke-MusicApi -Method 'Get' -Path "/music/v1/public/song/$adminSongId" -Headers $readerHeaders
 Assert-Code '6.takedownInvisible' $afterTakedownDetail 40403
-$afterTakedownTicket = Invoke-MusicApi -Method 'Post' -Path '/music/play/ticket' -Headers $readerHeaders `
+$afterTakedownTicket = Invoke-MusicApi -Method 'Post' -Path '/music/v1/play/ticket' -Headers $readerHeaders `
     -Body @{ songId = $adminSongId }
 Assert-Code '6.takedownTicketDenied' $afterTakedownTicket 40403
 $expiredTicketStream = Invoke-MusicApi -Method 'Get' `
@@ -440,82 +440,82 @@ Assert-Code '6.takedownStreamDenied' $expiredTicketStream 40403
 
 # 6.1) 版权申诉（M5-3）：本人提交 → 重复提交拒绝 → 非本人不泄露 → 运营分页 → 通过 → 版权恢复且保持下架
 $appealReason = "M5 appeal: original work, please restore $stamp"
-$appeal = Invoke-MusicApi -Method 'Post' -Path "/music/song/$adminSongId/appeal" -Headers $h `
+$appeal = Invoke-MusicApi -Method 'Post' -Path "/music/v1/song/$adminSongId/appeal" -Headers $h `
     -Body @{ reason = $appealReason }
 Check '6.1.appealSubmit' $appeal
 $appealId = [long]$appeal.data.id
 Assert '6.1.appealPending' ($appeal.data.status -eq 'PENDING' -and $appeal.data.applicantId -eq [long]$userId) `
     "status=$($appeal.data.status) applicant=[$($appeal.data.applicantId)] expect=[$userId]"
-$dupAppeal = Invoke-MusicApi -Method 'Post' -Path "/music/song/$adminSongId/appeal" -Headers $h `
+$dupAppeal = Invoke-MusicApi -Method 'Post' -Path "/music/v1/song/$adminSongId/appeal" -Headers $h `
     -Body @{ reason = $appealReason }
 Assert-Code '6.1.appealDuplicate' $dupAppeal 40902
 # 非上传者提交：下架作品对他人不可见，按不存在处理（不泄露存在性）
-$otherAppeal = Invoke-MusicApi -Method 'Post' -Path "/music/song/$adminSongId/appeal" -Headers $readerHeaders `
+$otherAppeal = Invoke-MusicApi -Method 'Post' -Path "/music/v1/song/$adminSongId/appeal" -Headers $readerHeaders `
     -Body @{ reason = 'other user appeal' }
 Assert-Code '6.1.appealNotOwner' $otherAppeal 40403
 # 上传者对未下架作品提交：状态不允许（40903）
-$notAllowedAppeal = Invoke-MusicApi -Method 'Post' -Path "/music/song/$creatorSongId/appeal" -Headers $creatorHeaders `
+$notAllowedAppeal = Invoke-MusicApi -Method 'Post' -Path "/music/v1/song/$creatorSongId/appeal" -Headers $creatorHeaders `
     -Body @{ reason = 'song is not taken down' }
 Assert-Code '6.1.appealNotAllowed' $notAllowedAppeal 40903
 # 理由为空：40022
-$blankAppeal = Invoke-MusicApi -Method 'Post' -Path "/music/song/$adminSongId/appeal" -Headers $h `
+$blankAppeal = Invoke-MusicApi -Method 'Post' -Path "/music/v1/song/$adminSongId/appeal" -Headers $h `
     -Body @{ reason = '   ' }
 Assert-Code '6.1.appealReasonRequired' $blankAppeal 40022
 
-$appealPage = Invoke-MusicApi -Method 'Get' -Path "/music/appeal/page?status=PENDING&songId=$adminSongId&current=1&size=10"
+$appealPage = Invoke-MusicApi -Method 'Get' -Path "/music/v1/appeal/page?status=PENDING&songId=$adminSongId&current=1&size=10"
 Check '6.1.appealPagePending' $appealPage
 Assert '6.1.appealPageContains' (@($appealPage.data.records | Where-Object { [long]$_.id -eq $appealId }).Count -ge 1) `
     "total=$($appealPage.data.total) records=$(@($appealPage.data.records).Count)"
 
-$approve = Invoke-MusicApi -Method 'Post' -Path "/music/appeal/$appealId/approve" -Headers $h `
+$approve = Invoke-MusicApi -Method 'Post' -Path "/music/v1/appeal/$appealId/approve" -Headers $h `
     -Body @{ opinion = 'approved: original work' }
 Check '6.1.appealApprove' $approve
 Assert '6.1.appealApproved' ($approve.data.status -eq 'APPROVED' -and $null -ne $approve.data.reviewedAt -and
     $approve.data.reviewerId -eq [long]$userId) `
     "status=$($approve.data.status) reviewer=$($approve.data.reviewerId) reviewedAt=$($approve.data.reviewedAt)"
-$restored = Invoke-MusicApi -Method 'Get' -Path "/music/song/$adminSongId"
+$restored = Invoke-MusicApi -Method 'Get' -Path "/music/v1/song/$adminSongId"
 Check '6.1.restoredDetail' $restored
 Assert '6.1.restoredCopyright' ($restored.data.copyrightState -eq 'VALID' -and
     $restored.data.publishState -eq 'OFFLINE' -and $null -eq $restored.data.takedownReason -and
     $restored.data.playable -eq $false) `
     "copyright=$($restored.data.copyrightState) publish=$($restored.data.publishState) playable=$($restored.data.playable)"
-$restoredPublic = Invoke-MusicApi -Method 'Get' -Path "/music/public/song/$adminSongId" -Headers $readerHeaders
+$restoredPublic = Invoke-MusicApi -Method 'Get' -Path "/music/v1/public/song/$adminSongId" -Headers $readerHeaders
 Assert-Code '6.1.restoredStillOffline' $restoredPublic 40403
-$secondApprove = Invoke-MusicApi -Method 'Post' -Path "/music/appeal/$appealId/approve" -Headers $h `
+$secondApprove = Invoke-MusicApi -Method 'Post' -Path "/music/v1/appeal/$appealId/approve" -Headers $h `
     -Body @{ opinion = '再次复核' }
 Assert-Code '6.1.appealReviewedOnce' $secondApprove 40902
-$republish = Invoke-MusicApi -Method 'Post' -Path "/music/song/$adminSongId/publish"
+$republish = Invoke-MusicApi -Method 'Post' -Path "/music/v1/song/$adminSongId/publish"
 Check '6.1.republish' $republish
 Assert '6.1.republishPlayable' ($republish.data.publishState -eq 'PUBLISHED' -and $republish.data.playable -eq $true) `
     "publish=$($republish.data.publishState) playable=$($republish.data.playable)"
 
 # 6.2) 申诉驳回：歌曲保持版权下架且不可播
-$takedownAgain = Invoke-MusicApi -Method 'Post' -Path "/music/song/$adminSongId/takedown" `
+$takedownAgain = Invoke-MusicApi -Method 'Post' -Path "/music/v1/song/$adminSongId/takedown" `
     -Body @{ reason = "M5 reject path $stamp" }
 Check '6.2.takedownAgain' $takedownAgain
-$rejectAppeal = Invoke-MusicApi -Method 'Post' -Path "/music/song/$adminSongId/appeal" -Headers $h `
+$rejectAppeal = Invoke-MusicApi -Method 'Post' -Path "/music/v1/song/$adminSongId/appeal" -Headers $h `
     -Body @{ reason = 'second appeal for reject path' }
 Check '6.2.appealSubmit' $rejectAppeal
 $rejectId = [long]$rejectAppeal.data.id
-$reject = Invoke-MusicApi -Method 'Post' -Path "/music/appeal/$rejectId/reject" -Headers $h `
+$reject = Invoke-MusicApi -Method 'Post' -Path "/music/v1/appeal/$rejectId/reject" -Headers $h `
     -Body @{ opinion = 'rejected: insufficient proof' }
 Check '6.2.appealReject' $reject
 Assert '6.2.appealRejected' ($reject.data.status -eq 'REJECTED' -and $null -ne $reject.data.reviewedAt) `
     "status=$($reject.data.status)"
-$afterReject = Invoke-MusicApi -Method 'Get' -Path "/music/song/$adminSongId"
+$afterReject = Invoke-MusicApi -Method 'Get' -Path "/music/v1/song/$adminSongId"
 Check '6.2.afterRejectDetail' $afterReject
 Assert '6.2.afterRejectState' ($afterReject.data.copyrightState -eq 'TAKEDOWN' -and
     $afterReject.data.publishState -eq 'OFFLINE' -and $afterReject.data.playable -eq $false) `
     "copyright=$($afterReject.data.copyrightState) publish=$($afterReject.data.publishState)"
 
 # 7) 清理：歌单 / 歌曲 / 歌手 / 文件
-$delPlaylist = Invoke-MusicApi -Method 'Delete' -Path "/music/playlist/$playlistId" -Headers $creatorHeaders
+$delPlaylist = Invoke-MusicApi -Method 'Delete' -Path "/music/v1/playlist/$playlistId" -Headers $creatorHeaders
 Check '7.deletePlaylist' $delPlaylist
 foreach ($songId in $createdSongs) {
-    $deleted = Invoke-MusicApi -Method 'Delete' -Path "/music/song/$songId"
+    $deleted = Invoke-MusicApi -Method 'Delete' -Path "/music/v1/song/$songId"
     Check "7.deleteSong[$songId]" $deleted
 }
-$delArtist = Invoke-MusicApi -Method 'Delete' -Path "/music/artist/$artistId"
+$delArtist = Invoke-MusicApi -Method 'Delete' -Path "/music/v1/artist/$artistId"
 Check '7.deleteArtist' $delArtist
 foreach ($file in $uploadedFiles) {
     $delFile = Invoke-Api -Method 'Delete' -Uri "$fileBase/file/v1/$($file.Id)" -Headers $file.Headers

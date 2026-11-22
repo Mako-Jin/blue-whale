@@ -141,41 +141,41 @@ export interface RuleQuery extends Record<string, unknown> {
 }
 
 export const productApi = {
-  page: (query: ProductQuery) => http.get<PageResult<ProductVO>>('/iot/products/page', query),
+  page: (query: ProductQuery) => http.get<PageResult<ProductVO>>('/iot/v1/products/page', query),
   create: (body: { code: string; name: string; description?: string }) =>
-    http.post<ProductVO>('/iot/products', body),
+    http.post<ProductVO>('/iot/v1/products', body),
   update: (id: string, body: { name: string; description?: string }) =>
-    http.put<ProductVO>(`/iot/products/${id}`, body),
-  publish: (id: string) => http.post<ProductVO>(`/iot/products/${id}/publish`),
-  disable: (id: string) => http.post<ProductVO>(`/iot/products/${id}/disable`),
-  remove: (id: string) => http.del<void>(`/iot/products/${id}`),
-  thingModel: (id: string) => http.get<ThingModelVO[]>(`/iot/products/${id}/thing-model`),
+    http.put<ProductVO>(`/iot/v1/products/${id}`, body),
+  publish: (id: string) => http.post<ProductVO>(`/iot/v1/products/${id}/publish`),
+  disable: (id: string) => http.post<ProductVO>(`/iot/v1/products/${id}/disable`),
+  remove: (id: string) => http.del<void>(`/iot/v1/products/${id}`),
+  thingModel: (id: string) => http.get<ThingModelVO[]>(`/iot/v1/products/${id}/thing-model`),
   saveThingModel: (id: string, items: ThingModelVO[]) =>
-    http.put<ThingModelVO[]>(`/iot/products/${id}/thing-model`, { items }),
+    http.put<ThingModelVO[]>(`/iot/v1/products/${id}/thing-model`, { items }),
 };
 
 export const deviceApi = {
-  page: (query: DeviceQuery) => http.get<PageResult<DeviceVO>>('/iot/devices/page', query),
+  page: (query: DeviceQuery) => http.get<PageResult<DeviceVO>>('/iot/v1/devices/page', query),
   create: (body: { productId: string; deviceName: string; nickname?: string }) =>
-    http.post<DeviceCreateVO>('/iot/devices', body),
+    http.post<DeviceCreateVO>('/iot/v1/devices', body),
   update: (id: string, body: { nickname?: string; status?: string }) =>
-    http.put<DeviceVO>(`/iot/devices/${id}`, body),
-  remove: (id: string) => http.del<void>(`/iot/devices/${id}`),
-  resetSecret: (id: string) => http.post<DeviceCreateVO>(`/iot/devices/${id}/secret`),
-  shadow: (id: string) => http.get<ShadowVO>(`/iot/devices/${id}/shadow`),
+    http.put<DeviceVO>(`/iot/v1/devices/${id}`, body),
+  remove: (id: string) => http.del<void>(`/iot/v1/devices/${id}`),
+  resetSecret: (id: string) => http.post<DeviceCreateVO>(`/iot/v1/devices/${id}/secret`),
+  shadow: (id: string) => http.get<ShadowVO>(`/iot/v1/devices/${id}/shadow`),
   telemetry: (id: string, query?: Record<string, unknown>) =>
-    http.get<TelemetryVO[]>(`/iot/devices/${id}/telemetry`, query),
+    http.get<TelemetryVO[]>(`/iot/v1/devices/${id}/telemetry`, query),
   commands: (query: { deviceId: string; current?: number; size?: number }) =>
-    http.get<PageResult<CommandVO>>('/iot/commands/page', query),
+    http.get<PageResult<CommandVO>>('/iot/v1/commands/page', query),
   sendCommand: (id: string, body: { identifier: string; params?: unknown; messageId?: string }) =>
-    http.post<CommandVO>(`/iot/devices/${id}/commands`, body),
+    http.post<CommandVO>(`/iot/v1/devices/${id}/commands`, body),
 };
 
 export const ruleApi = {
-  page: (query: RuleQuery) => http.get<PageResult<RuleVO>>('/iot/rules/page', query),
-  create: (body: unknown) => http.post<RuleVO>('/iot/rules', body),
-  update: (id: string, body: unknown) => http.put<RuleVO>(`/iot/rules/${id}`, body),
+  page: (query: RuleQuery) => http.get<PageResult<RuleVO>>('/iot/v1/rules/page', query),
+  create: (body: unknown) => http.post<RuleVO>('/iot/v1/rules', body),
+  update: (id: string, body: unknown) => http.put<RuleVO>(`/iot/v1/rules/${id}`, body),
   enable: (id: string, enabled: boolean) =>
-    http.post<RuleVO>(`/iot/rules/${id}/enable?enabled=${enabled}`),
-  remove: (id: string) => http.del<void>(`/iot/rules/${id}`),
+    http.post<RuleVO>(`/iot/v1/rules/${id}/enable?enabled=${enabled}`),
+  remove: (id: string) => http.del<void>(`/iot/v1/rules/${id}`),
 };

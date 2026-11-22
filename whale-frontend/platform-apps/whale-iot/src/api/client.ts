@@ -1,7 +1,7 @@
 // IoT 子应用请求层：基于 @bluewhale/http，token 与用户从基座缓存读取
 //
 // 后端统一返回 `Result` 信封：{ code, message, data }，code === 0 表示成功。
-// 所有请求走相对路径（如 `/iot/devices`），由基座 / Nginx 经网关 8080 代理，
+// 所有请求走相对路径（如 `/iot/v1/devices`），由基座 / Nginx 经网关 8080 代理，
 // 网关不剥离 `/iot` 一级前缀（REQ-ARCH-003）。
 
 import { createHttpClient, type HttpOptions } from '@bluewhale/http';

@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/doc")
+@RequestMapping(path = "/doc/v{version}", version = "1")
 @RequiredArgsConstructor
 public class DocPageAclController {
 

@@ -152,7 +152,7 @@ $fileId = [long]$upload.data.id
 Assert '1.uploadSize' ([long]$upload.data.fileSize -eq $testAudioBytes) "size=$($upload.data.fileSize)"
 
 # 2) 建歌手
-$artist = Invoke-MusicApi -Method 'Post' -Path '/music/artist' -Body @{ name = "M2冒烟歌手-$stamp"; region = 'CN' }
+$artist = Invoke-MusicApi -Method 'Post' -Path '/music/v1/artist' -Body @{ name = "M2冒烟歌手-$stamp"; region = 'CN' }
 Check '2.artistCreate' $artist
 $artistId = [long]$artist.data.id
 Assert '2.artistId' ($artistId -gt 0) "id=$artistId"
@@ -168,18 +168,18 @@ $songBody = @{
     language    = 'ZH'
     lyricText   = "[00:00.00]M2 冒烟测试`n[00:10.00]第二行歌词"
 }
-$song = Invoke-MusicApi -Method 'Post' -Path '/music/song' -Body $songBody
+$song = Invoke-MusicApi -Method 'Post' -Path '/music/v1/song' -Body $songBody
 Check '3.songCreate' $song
 $songId = [long]$song.data.id
 Assert '3.songDraft' ($song.data.publishState -eq 'DRAFT' -and -not $song.data.playable) `
     "publishState=$($song.data.publishState)"
 
-$published = Invoke-MusicApi -Method 'Post' -Path "/music/song/$songId/publish"
+$published = Invoke-MusicApi -Method 'Post' -Path "/music/v1/song/$songId/publish"
 Check '3.songPublish' $published
 Assert '3.songPlayable' ($published.data.publishState -eq 'PUBLISHED' -and $published.data.playable)
 
 # 4) 申请播放票据（绑定 tenantId + userId + songId，TTL 120 秒）
-$ticket = Invoke-MusicApi -Method 'Post' -Path '/music/play/ticket' -Body @{ songId = $songId }
+$ticket = Invoke-MusicApi -Method 'Post' -Path '/music/v1/play/ticket' -Body @{ songId = $songId }
 Check '4.ticket' $ticket
 $ticketValue = [string]$ticket.data.ticket
 $expiresIn = [long]$ticket.data.expiresIn
@@ -226,31 +226,31 @@ Assert '7.range200' ($full.Status -eq 200 -and $full.BodyLength -eq $testAudioBy
 Assert '7.noContentRange' ([string]::IsNullOrEmpty($full.ContentRange)) "contentRange=$($full.ContentRange)"
 
 # 8) 播放进度幂等（同一用户同一歌曲仅一条记录）
-Invoke-MusicApi -Method 'Post' -Path '/music/play/progress' `
+Invoke-MusicApi -Method 'Post' -Path '/music/v1/play/progress' `
     -Body @{ songId = $songId; progressMs = 12000; source = 'MY'; device = 'WEB' } | Out-Null
-Invoke-MusicApi -Method 'Post' -Path '/music/play/progress' `
+Invoke-MusicApi -Method 'Post' -Path '/music/v1/play/progress' `
     -Body @{ songId = $songId; progressMs = 18000; source = 'MY'; device = 'WEB' } | Out-Null
-$history = Invoke-MusicApi -Method 'Get' -Path '/music/play/history?current=1&size=20'
+$history = Invoke-MusicApi -Method 'Get' -Path '/music/v1/play/history?current=1&size=20'
 Check '8.history' $history
 $matched = @($history.data.records | Where-Object { [long]$_.songId -eq $songId })
 Assert '8.historyIdempotent' ($matched.Count -eq 1 -and [long]$matched[0].progressMs -eq 18000) `
     "count=$($matched.Count) progress=$($matched[0].progressMs)"
 
 # 9) 收藏幂等（重复收藏只计一次，取消后消失）
-Invoke-MusicApi -Method 'Post' -Path "/music/song/$songId/like" | Out-Null
-Invoke-MusicApi -Method 'Post' -Path "/music/song/$songId/like" | Out-Null
-$likes = Invoke-MusicApi -Method 'Get' -Path '/music/my/likes?current=1&size=20'
+Invoke-MusicApi -Method 'Post' -Path "/music/v1/song/$songId/like" | Out-Null
+Invoke-MusicApi -Method 'Post' -Path "/music/v1/song/$songId/like" | Out-Null
+$likes = Invoke-MusicApi -Method 'Get' -Path '/music/v1/my/likes?current=1&size=20'
 Check '9.myLikes' $likes
 Assert '9.likeIdempotent' (@($likes.data.records | Where-Object { [long]$_.id -eq $songId }).Count -eq 1)
 Assert '9.likeNoFileId' (-not ($likes.data.records[0].PSObject.Properties.Name -contains 'audioFileId')) '收藏视图不暴露 file_id'
 
-Invoke-MusicApi -Method 'Delete' -Path "/music/song/$songId/like" | Out-Null
-Invoke-MusicApi -Method 'Delete' -Path "/music/song/$songId/like" | Out-Null
-$likesAfter = Invoke-MusicApi -Method 'Get' -Path '/music/my/likes?current=1&size=20'
+Invoke-MusicApi -Method 'Delete' -Path "/music/v1/song/$songId/like" | Out-Null
+Invoke-MusicApi -Method 'Delete' -Path "/music/v1/song/$songId/like" | Out-Null
+$likesAfter = Invoke-MusicApi -Method 'Get' -Path '/music/v1/my/likes?current=1&size=20'
 Assert '9.unlikeIdempotent' (@($likesAfter.data.records | Where-Object { [long]$_.id -eq $songId }).Count -eq 0)
 
 # 10) 版权下架后拒绝播放（票据仍在有效期内也应立即失效）
-$takedown = Invoke-MusicApi -Method 'Post' -Path "/music/song/$songId/takedown" `
+$takedown = Invoke-MusicApi -Method 'Post' -Path "/music/v1/song/$songId/takedown" `
     -Body @{ reason = 'M2 冒烟版权下架' }
 Check '10.takedown' $takedown
 Assert '10.takedownState' ($takedown.data.publishState -eq 'OFFLINE' -and
@@ -259,17 +259,17 @@ Assert '10.takedownState' ($takedown.data.publishState -eq 'OFFLINE' -and
 $blocked = Send-StreamProbe -Uri "$musicBase/music/stream/${songId}?ticket=$ticketValue" -Range 'bytes=0-1023'
 Assert '10.streamBlocked' ($blocked.BodyText -match '"code":40403') "status=$($blocked.Status) body=$($blocked.BodyText)"
 
-$reticket = Invoke-MusicApi -Method 'Post' -Path '/music/play/ticket' -Body @{ songId = $songId }
+$reticket = Invoke-MusicApi -Method 'Post' -Path '/music/v1/play/ticket' -Body @{ songId = $songId }
 Assert '10.ticketBlocked' ($reticket.code -eq 40403) "code=$($reticket.code)"
 
 # 11) 清理（歌曲 / 歌手逻辑删除，文件物理删除）
-Invoke-MusicApi -Method 'Delete' -Path "/music/song/$songId" | Out-Null
-Invoke-MusicApi -Method 'Delete' -Path "/music/artist/$artistId" | Out-Null
+Invoke-MusicApi -Method 'Delete' -Path "/music/v1/song/$songId" | Out-Null
+Invoke-MusicApi -Method 'Delete' -Path "/music/v1/artist/$artistId" | Out-Null
 $fileDelete = Invoke-Api -Method 'Delete' -Uri "$fileBase/file/v1/$fileId" -Headers $h
 Check '11.fileDelete' $fileDelete
 Remove-Item $audioPath -Force -ErrorAction SilentlyContinue
 
-Assert '11.songGone' ((Invoke-MusicApi -Method 'Get' -Path "/music/song/$songId").code -eq 40403)
+Assert '11.songGone' ((Invoke-MusicApi -Method 'Get' -Path "/music/v1/song/$songId").code -eq 40403)
 
 Write-Host ''
 Write-Host 'SMOKE-ALL-PASS'

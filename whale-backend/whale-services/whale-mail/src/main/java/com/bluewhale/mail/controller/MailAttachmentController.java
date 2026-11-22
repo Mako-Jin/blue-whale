@@ -27,7 +27,7 @@ import java.nio.charset.StandardCharsets;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/mail/attachment")
+@RequestMapping(path = "/mail/v{version}/attachment", version = "1")
 @RequiredArgsConstructor
 public class MailAttachmentController {
 

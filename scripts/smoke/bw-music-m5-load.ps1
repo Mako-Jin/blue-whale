@@ -1,5 +1,5 @@
 ﻿# Wave 5.75 M5-6 性能与容量冒烟（本机口径）：
-#   首页 /music/home、详情 /music/public/song/{id} 的时延 P95；
+#   首页 /music/v1/home、详情 /music/v1/public/song/{id} 的时延 P95；
 #   流式 /music/stream/{songId} 的 50 并发首字节（TTFB）P95。
 # 阈值（环境变量可覆盖，单位毫秒）：
 #   HOME_P95_MS=300、DETAIL_P95_MS=200、STREAM_TTFB_P95_MS=300、
@@ -280,26 +280,26 @@ try {
 
 # 1) 造数：上传音频 → 歌手 → 公开歌曲上架
 $fileId = Send-AudioUpload
-$artist = Invoke-MusicApi -Method 'Post' -Path '/music/artist' -Body @{ name = "M5压测歌手-$stamp"; region = 'CN' }
+$artist = Invoke-MusicApi -Method 'Post' -Path '/music/v1/artist' -Body @{ name = "M5压测歌手-$stamp"; region = 'CN' }
 Check '1.artistCreate' $artist
 $artistId = [long]$artist.data.id
-$song = Invoke-MusicApi -Method 'Post' -Path '/music/song' -Body @{
+$song = Invoke-MusicApi -Method 'Post' -Path '/music/v1/song' -Body @{
     artistId = $artistId; title = "M5压测歌曲-$stamp"; audioFileId = $fileId; durationMs = 30000;
     visibility = 'PUBLIC'; source = 'ORIGINAL'
 }
 Check '1.songCreate' $song
 $songId = [long]$song.data.id
-$published = Invoke-MusicApi -Method 'Post' -Path "/music/song/$songId/publish"
+$published = Invoke-MusicApi -Method 'Post' -Path "/music/v1/song/$songId/publish"
 Check '1.songPublish' $published
 
 # 2) 预热：顺序（填首页缓存 / JIT）+ 票据 + 每路径一轮并发（数据丢弃，避免首轮建链假象）
-$warmup = Measure-Sequential -Path '/music/home' -Count 3
-$null = Invoke-MusicApi -Method 'Get' -Path "/music/public/song/$songId"
-$ticket = Invoke-MusicApi -Method 'Post' -Path '/music/play/ticket' -Body @{ songId = $songId }
+$warmup = Measure-Sequential -Path '/music/v1/home' -Count 3
+$null = Invoke-MusicApi -Method 'Get' -Path "/music/v1/public/song/$songId"
+$ticket = Invoke-MusicApi -Method 'Post' -Path '/music/v1/play/ticket' -Body @{ songId = $songId }
 Check '2.ticketIssue' $ticket
 $streamPath = "/music/stream/$songId`?ticket=$($ticket.data.ticket)"
-$detailPath = "/music/public/song/$songId"
-$warmHome = Measure-Concurrent -Path '/music/home' -Count $concurrency
+$detailPath = "/music/v1/public/song/$songId"
+$warmHome = Measure-Concurrent -Path '/music/v1/home' -Count $concurrency
 $warmDetail = Measure-Concurrent -Path $detailPath -Count $concurrency
 $warmStream = Measure-Concurrent -Path $streamPath -Count $concurrency
 Write-Host ('   预热(丢弃): home P95={0:N1}ms detail P95={1:N1}ms stream P95={2:N1}ms' -f `
@@ -308,7 +308,7 @@ Assert '2.concurrentWarmup' (($warmHome.Errors + $warmDetail.Errors + $warmStrea
     "errors=$($warmHome.Errors + $warmDetail.Errors + $warmStream.Errors)"
 
 # 3) 顺序时延：首页 / 详情（单用户口径）
-$homeSamples = Measure-Sequential -Path '/music/home' -Count $iterations
+$homeSamples = Measure-Sequential -Path '/music/v1/home' -Count $iterations
 $detailSamples = Measure-Sequential -Path $detailPath -Count $iterations
 $homeP50 = Get-Percentile -Values $homeSamples -P 0.50
 $homeP95 = Get-Percentile -Values $homeSamples -P 0.95
@@ -333,7 +333,7 @@ for ($round = 1; $round -le $rounds; $round++) {
     # 轮次之间留 1 秒：本机同机承载 6 个 JVM + MySQL + Redis + Nacos，
     # 无间隔连续压测会让排队效应跨轮累积，测出来的不是单轮容量而是持续性过载。
     Start-Sleep -Milliseconds 1000
-    $rHome = Measure-Concurrent -Path '/music/home' -Count $concurrency
+    $rHome = Measure-Concurrent -Path '/music/v1/home' -Count $concurrency
     $rDetail = Measure-Concurrent -Path $detailPath -Count $concurrency
     $rStream = Measure-Concurrent -Path $streamPath -Count $concurrency
     $homeRounds += $rHome
@@ -364,7 +364,7 @@ Assert '4.streamTtfbP95' ($streamConcurrentP95 -le $streamThreshold) ('P95={0:N1
 # 5) 抓取指标可用性（M5-5：直方图桶 → 线上 SLO 面板 / SLO-6/7/8）
 $metrics = Invoke-WebRequest -Uri "$musicBase/actuator/prometheus" -UseBasicParsing
 $metricLines = $metrics.Content -split "`n"
-foreach ($uriPattern in @('/music/home', '/music/public/song/{id}', '/music/stream/{songId}')) {
+foreach ($uriPattern in @('/music/v1/home', '/music/v1/public/song/{id}', '/music/stream/{songId}')) {
     $escaped = [regex]::Escape($uriPattern)
     $bucket = $metricLines | Where-Object { $_ -match ('http_server_requests_seconds_bucket\{[^}]*uri="' + $escaped + '"') }
     $label = '5.histogram' + $uriPattern.Replace('/', '_')
@@ -373,9 +373,9 @@ foreach ($uriPattern in @('/music/home', '/music/public/song/{id}', '/music/stre
 [MusicConcurrentProbe]::Shutdown()
 
 # 6) 清理
-$deleted = Invoke-MusicApi -Method 'Delete' -Path "/music/song/$songId"
+$deleted = Invoke-MusicApi -Method 'Delete' -Path "/music/v1/song/$songId"
 Check '6.deleteSong' $deleted
-$delArtist = Invoke-MusicApi -Method 'Delete' -Path "/music/artist/$artistId"
+$delArtist = Invoke-MusicApi -Method 'Delete' -Path "/music/v1/artist/$artistId"
 Check '6.deleteArtist' $delArtist
 $delFile = Invoke-Api -Method 'Delete' -Uri "$fileBase/file/v1/$fileId" -Headers $h
 Assert '6.deleteFile' ($delFile.code -eq 0 -or $delFile.code -eq 404) "code=$($delFile.code)"

@@ -16,5 +16,5 @@ export interface DocSearchQuery {
 /** 文档搜索接口 */
 export const searchApi = {
   search: (query: DocSearchQuery) =>
-    http.get<PageResult<DocSearchItem>>('/doc/search', { ...query }),
+    http.get<PageResult<DocSearchItem>>('/doc/v1/search', { ...query }),
 };

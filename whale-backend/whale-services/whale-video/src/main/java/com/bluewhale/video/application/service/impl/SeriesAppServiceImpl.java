@@ -53,7 +53,7 @@ public class SeriesAppServiceImpl implements SeriesAppService {
     private static final long DEFAULT_PAGE_SIZE = 20L;
 
     /** 系列封面代理地址前缀 */
-    private static final String COVER_PATH_PREFIX = "/video/series/";
+    private static final String COVER_PATH_PREFIX = "/video/v1/series/";
 
     /** 系列封面代理地址后缀 */
     private static final String COVER_PATH_SUFFIX = "/cover";

@@ -25,7 +25,7 @@ Assert-VideoBaseline -Milestone 'm1' -IncludeFile
 # ---------------------------------------------------------------
 Write-Host ''
 Write-Host '== 3 首页聚合 =='
-$homeAgg = Assert-VideoOk '3.home' (Send-VideoProbe -Path '/video/home')
+$homeAgg = Assert-VideoOk '3.home' (Send-VideoProbe -Path '/video/v1/home')
 Assert '3.homeSections' ($null -ne $homeAgg.shorts -and $null -ne $homeAgg.videos -and $null -ne $homeAgg.movies) `
     "shorts=$(@($homeAgg.shorts).Count) videos=$(@($homeAgg.videos).Count) movies=$(@($homeAgg.movies).Count)"
 Assert '3.homeCategories' (@($homeAgg.categories).Count -ge 1) "count=$(@($homeAgg.categories).Count)"
@@ -37,7 +37,7 @@ Assert-VideoNoFileId '3.home' (@($homeAgg.shorts) + @($homeAgg.videos) + @($home
 # ---------------------------------------------------------------
 Write-Host ''
 Write-Host '== 4 分类与标签 =='
-$categories = Assert-VideoOk '4.categories' (Send-VideoProbe -Path '/video/categories')
+$categories = Assert-VideoOk '4.categories' (Send-VideoProbe -Path '/video/v1/categories')
 Assert '4.categoriesSeeded' (@($categories).Count -ge 1) "count=$(@($categories).Count)"
 if (@($categories).Count -ge 1) {
     $firstCategory = @($categories)[0]
@@ -47,7 +47,7 @@ if (@($categories).Count -ge 1) {
         "scope=$($firstCategory.contentTypeScope)"
 }
 
-$tags = Assert-VideoOk '4.tags' (Send-VideoProbe -Path '/video/tags')
+$tags = Assert-VideoOk '4.tags' (Send-VideoProbe -Path '/video/v1/tags')
 Assert '4.tagsSeeded' (@($tags).Count -ge 1) "count=$(@($tags).Count)"
 if (@($tags).Count -ge 1) {
     $firstTag = @($tags)[0]
@@ -60,21 +60,21 @@ if (@($tags).Count -ge 1) {
 # ---------------------------------------------------------------
 Write-Host ''
 Write-Host '== 5 上传声明 =='
-$declaration = Assert-VideoOk '5.declaration' (Send-VideoProbe -Path '/video/declaration/current')
+$declaration = Assert-VideoOk '5.declaration' (Send-VideoProbe -Path '/video/v1/declaration/current')
 Assert '5.declarationVersion' ($declaration.version -eq 'V1') "version=$($declaration.version)"
 Assert '5.declarationTitle' (-not [string]::IsNullOrWhiteSpace($declaration.title)) "title=$($declaration.title)"
 $declarationText = [string]$declaration.text
 Assert '5.declarationText' ($declarationText.Length -gt 50) "length=$($declarationText.Length)"
 
 $acceptBody = @{ version = $declaration.version; contentSource = 'ORIGINAL' }
-$accepted = Assert-VideoOk '5.accept' (Send-VideoProbe -Method 'Post' -Path '/video/declaration/accept' -Body $acceptBody)
+$accepted = Assert-VideoOk '5.accept' (Send-VideoProbe -Method 'Post' -Path '/video/v1/declaration/accept' -Body $acceptBody)
 Assert '5.acceptStatus' ($accepted.accepted -eq $true) "accepted=$($accepted.accepted)"
 Assert '5.acceptSource' ($accepted.contentSource -eq 'ORIGINAL') "source=$($accepted.contentSource)"
 
-$again = Assert-VideoOk '5.acceptAgain' (Send-VideoProbe -Method 'Post' -Path '/video/declaration/accept' -Body $acceptBody)
+$again = Assert-VideoOk '5.acceptAgain' (Send-VideoProbe -Method 'Post' -Path '/video/v1/declaration/accept' -Body $acceptBody)
 Assert '5.acceptIdempotent' ($again.accepted -eq $true) "accepted=$($again.accepted)"
 Assert-VideoBizError '5.acceptVersionMismatch' `
-    (Send-VideoProbe -Method 'Post' -Path '/video/declaration/accept' `
+    (Send-VideoProbe -Method 'Post' -Path '/video/v1/declaration/accept' `
         -Body @{ version = 'V0'; contentSource = 'ORIGINAL' }) 40008
 
 # ---------------------------------------------------------------
@@ -82,20 +82,20 @@ Assert-VideoBizError '5.acceptVersionMismatch' `
 # ---------------------------------------------------------------
 Write-Host ''
 Write-Host '== 6 内容分页与搜索 =='
-$videoPage = Assert-VideoOk '6.videos' (Send-VideoProbe -Path '/video/videos/page?pageNum=1&pageSize=5')
+$videoPage = Assert-VideoOk '6.videos' (Send-VideoProbe -Path '/video/v1/videos/page?pageNum=1&pageSize=5')
 Assert-VideoPageShape '6.videos' $videoPage 1 5
 Assert-VideoNoFileId '6.videos' @($videoPage.records)
 
-$moviePage = Assert-VideoOk '6.movies' (Send-VideoProbe -Path '/video/movies/page?current=1&size=5')
+$moviePage = Assert-VideoOk '6.movies' (Send-VideoProbe -Path '/video/v1/movies/page?current=1&size=5')
 Assert-VideoPageShape '6.movies' $moviePage 1 5
 Assert-VideoNoFileId '6.movies' @($moviePage.records)
 
-$feedPage = Assert-VideoOk '6.shortsFeed' (Send-VideoProbe -Path '/video/shorts/feed?size=5')
+$feedPage = Assert-VideoOk '6.shortsFeed' (Send-VideoProbe -Path '/video/v1/shorts/feed?size=5')
 Assert-VideoFeedShape '6.shortsFeed' $feedPage 5
 Assert-VideoNoFileId '6.shortsFeed' @($feedPage.records)
 
 Assert-VideoPageShape '6.search' `
-    (Assert-VideoOk '6.search' (Send-VideoProbe -Path '/video/search?keyword=smoke&pageNum=1&pageSize=5')) 1 5
+    (Assert-VideoOk '6.search' (Send-VideoProbe -Path '/video/v1/search?keyword=smoke&pageNum=1&pageSize=5')) 1 5
 
 # ---------------------------------------------------------------
 # 7 内容闭环（仅当列表中存在内容时执行）
@@ -111,14 +111,14 @@ foreach ($item in (@($videoPage.records) + @($moviePage.records) + @($feedPage.r
 Write-Host ''
 if ($contentId -gt 0) {
     Write-Host "== 7 内容闭环 contentId=$contentId =="
-    $detail = Assert-VideoOk '7.detail' (Send-VideoProbe -Path "/video/content/$contentId")
-    Assert '7.detailShape' ($null -ne $detail.id -and $detail.ticketUrl -eq '/video/play/ticket') `
+    $detail = Assert-VideoOk '7.detail' (Send-VideoProbe -Path "/video/v1/content/$contentId")
+    Assert '7.detailShape' ($null -ne $detail.id -and $detail.ticketUrl -eq '/video/v1/play/ticket') `
         "id=$($detail.id) ticketUrl=$($detail.ticketUrl)"
     Assert '7.detailPlayable' ($detail.playable -eq $true) "playable=$($detail.playable)"
     Assert '7.detailNoFileId' ((@($detail.PSObject.Properties.Name) | Where-Object { $_ -match 'fileId' }).Count -eq 0) `
         '详情泄露文件 ID'
 
-    $ticket = Assert-VideoOk '7.ticket' (Send-VideoProbe -Method 'Post' -Path '/video/play/ticket' `
+    $ticket = Assert-VideoOk '7.ticket' (Send-VideoProbe -Method 'Post' -Path '/video/v1/play/ticket' `
         -Body @{ contentId = $contentId })
     Assert '7.ticketToken' (-not [string]::IsNullOrWhiteSpace($ticket.ticket)) '票据为空'
     Assert '7.ticketTtl' ([int]$ticket.expiresIn -eq 300 -and [int]$ticket.refreshIn -eq 240) `
@@ -127,36 +127,36 @@ if ($contentId -gt 0) {
         "streamUrl=$($ticket.streamUrl)"
 
     $commentPage = Assert-VideoOk '7.commentPage' `
-        (Send-VideoProbe -Path "/video/content/$contentId/comment/page?pageNum=1&pageSize=5")
+        (Send-VideoProbe -Path "/video/v1/content/$contentId/comment/page?pageNum=1&pageSize=5")
     Assert-VideoPageShape '7.commentPage' $commentPage 1 5
 
     $commentText = '冒烟评论 ' + [Guid]::NewGuid().ToString('N').Substring(0, 8)
     $comment = Assert-VideoOk '7.commentSubmit' (Send-VideoProbe -Method 'Post' `
-        -Path "/video/content/$contentId/comment" -Body @{ content = $commentText })
+        -Path "/video/v1/content/$contentId/comment" -Body @{ content = $commentText })
     Assert '7.commentShape' ($null -ne $comment.id -and $comment.content -eq $commentText) `
         "id=$($comment.id)"
     $null = Assert-VideoOk '7.commentDelete' (Send-VideoProbe -Method 'Delete' `
-        -Path ("/video/comment/" + $comment.id))
+        -Path ("/video/v1/comment/" + $comment.id))
 
-    $null = Assert-VideoOk '7.like' (Send-VideoProbe -Method 'Post' -Path "/video/content/$contentId/like")
-    $null = Assert-VideoOk '7.unlike' (Send-VideoProbe -Method 'Delete' -Path "/video/content/$contentId/like")
-    $null = Assert-VideoOk '7.favorite' (Send-VideoProbe -Method 'Post' -Path "/video/content/$contentId/favorite")
+    $null = Assert-VideoOk '7.like' (Send-VideoProbe -Method 'Post' -Path "/video/v1/content/$contentId/like")
+    $null = Assert-VideoOk '7.unlike' (Send-VideoProbe -Method 'Delete' -Path "/video/v1/content/$contentId/like")
+    $null = Assert-VideoOk '7.favorite' (Send-VideoProbe -Method 'Post' -Path "/video/v1/content/$contentId/favorite")
     $null = Assert-VideoOk '7.unfavorite' (Send-VideoProbe -Method 'Delete' `
-        -Path "/video/content/$contentId/favorite")
+        -Path "/video/v1/content/$contentId/favorite")
 
     $progress = @{ contentId = $contentId; progressMs = 1000; source = 'MY'; device = 'WEB' }
-    $null = Assert-VideoOk '7.progress' (Send-VideoProbe -Method 'Post' -Path '/video/play/progress' -Body $progress)
+    $null = Assert-VideoOk '7.progress' (Send-VideoProbe -Method 'Post' -Path '/video/v1/play/progress' -Body $progress)
 
-    $history = Assert-VideoOk '7.history' (Send-VideoProbe -Path '/video/history?pageNum=1&pageSize=5')
+    $history = Assert-VideoOk '7.history' (Send-VideoProbe -Path '/video/v1/history?pageNum=1&pageSize=5')
     Assert-VideoPageShape '7.history' $history 1 5
-    $historyAgain = Assert-VideoOk '7.historyAgain' (Send-VideoProbe -Path '/video/history?current=1&size=5')
+    $historyAgain = Assert-VideoOk '7.historyAgain' (Send-VideoProbe -Path '/video/v1/history?current=1&size=5')
     Assert '7.historyShaped' ($null -ne $historyAgain.records) '历史分页缺少 records'
-    $null = Assert-VideoOk '7.historyDelete' (Send-VideoProbe -Method 'Delete' -Path "/video/history/$contentId")
+    $null = Assert-VideoOk '7.historyDelete' (Send-VideoProbe -Method 'Delete' -Path "/video/v1/history/$contentId")
 
     Assert-VideoPageShape '7.myLikes' `
-        (Assert-VideoOk '7.myLikes' (Send-VideoProbe -Path '/video/my/likes?pageNum=1&pageSize=5')) 1 5
+        (Assert-VideoOk '7.myLikes' (Send-VideoProbe -Path '/video/v1/my/likes?pageNum=1&pageSize=5')) 1 5
     Assert-VideoPageShape '7.myFavorites' `
-        (Assert-VideoOk '7.myFavorites' (Send-VideoProbe -Path '/video/my/favorites?pageNum=1&pageSize=5')) 1 5
+        (Assert-VideoOk '7.myFavorites' (Send-VideoProbe -Path '/video/v1/my/favorites?pageNum=1&pageSize=5')) 1 5
 } else {
     Write-Host 'SKIP 7 内容闭环（当前库无已发布内容，插入内容后重跑可覆盖）'
 }
@@ -166,17 +166,17 @@ if ($contentId -gt 0) {
 # ---------------------------------------------------------------
 Write-Host ''
 Write-Host '== 8 运营接口与权限 =='
-$adminContent = Assert-VideoOk '8.adminContent' (Send-VideoProbe -Path '/video/admin/content/page?pageNum=1&pageSize=5')
+$adminContent = Assert-VideoOk '8.adminContent' (Send-VideoProbe -Path '/video/v1/admin/content/page?pageNum=1&pageSize=5')
 Assert-VideoPageShape '8.adminContent' $adminContent 1 5
 
-$adminComment = Assert-VideoOk '8.adminComment' (Send-VideoProbe -Path '/video/admin/comment/page?pageNum=1&pageSize=5')
+$adminComment = Assert-VideoOk '8.adminComment' (Send-VideoProbe -Path '/video/v1/admin/comment/page?pageNum=1&pageSize=5')
 Assert-VideoPageShape '8.adminComment' $adminComment 1 5
 
 $browseOnly = New-VideoHeaders -PermissionCodes 'sys:video:browse'
 Assert-VideoBizError '8.adminDenied' `
-    (Send-VideoProbe -Path '/video/admin/content/page?pageNum=1&pageSize=5' -Headers $browseOnly) 403
+    (Send-VideoProbe -Path '/video/v1/admin/content/page?pageNum=1&pageSize=5' -Headers $browseOnly) 403
 Assert-VideoBizError '8.homeDenied' `
-    (Send-VideoProbe -Path '/video/home' -Headers (New-VideoHeaders -PermissionCodes 'sys:video:upload')) 403
+    (Send-VideoProbe -Path '/video/v1/home' -Headers (New-VideoHeaders -PermissionCodes 'sys:video:upload')) 403
 
 # ---------------------------------------------------------------
 # 9 上传校验拒绝（未知文件 ID）
@@ -190,10 +190,10 @@ $createBody = @{
     contentSource = 'ORIGINAL'
 }
 Assert-VideoBizError '9.createRejectsUnknownFile' `
-    (Send-VideoProbe -Method 'Post' -Path '/video/user/videos' -Body $createBody) 40006
+    (Send-VideoProbe -Method 'Post' -Path '/video/v1/user/videos' -Body $createBody) 40006
 # 缺少 fileId 先被 @NotNull 拦截，全局异常处理器返回 400（参数错误）
 Assert-VideoBizError '9.createMissingFile' `
-    (Send-VideoProbe -Method 'Post' -Path '/video/user/shorts' -Body @{ title = '冒烟短视频' }) 400
+    (Send-VideoProbe -Method 'Post' -Path '/video/v1/user/shorts' -Body @{ title = '冒烟短视频' }) 400
 
 # ---------------------------------------------------------------
 # 10 可选：运营发布 / 下架闭环（需显式指定已存在内容 ID）
@@ -203,21 +203,21 @@ if ($env:SMOKE_VIDEO_CONTENT_ID) {
     Write-Host ''
     Write-Host "== 10 运营发布 / 下架闭环 contentId=$managedId =="
     $published = Assert-VideoOk '10.publish' (Send-VideoProbe -Method 'Post' `
-        -Path "/video/admin/content/$managedId/publish")
+        -Path "/video/v1/admin/content/$managedId/publish")
     Assert '10.publishState' ($published.publishState -eq 'PUBLISHED') "state=$($published.publishState)"
 
     $null = Assert-VideoOk '10.offline' (Send-VideoProbe -Method 'Post' `
-        -Path "/video/admin/content/$managedId/offline")
-    Assert-VideoBizError '10.offlineHidden' (Send-VideoProbe -Path "/video/content/$managedId") 40401
+        -Path "/video/v1/admin/content/$managedId/offline")
+    Assert-VideoBizError '10.offlineHidden' (Send-VideoProbe -Path "/video/v1/content/$managedId") 40401
 
     $null = Assert-VideoOk '10.republish' (Send-VideoProbe -Method 'Post' `
-        -Path "/video/admin/content/$managedId/publish")
-    $detail = Assert-VideoOk '10.republishDetail' (Send-VideoProbe -Path "/video/content/$managedId")
+        -Path "/video/v1/admin/content/$managedId/publish")
+    $detail = Assert-VideoOk '10.republishDetail' (Send-VideoProbe -Path "/video/v1/content/$managedId")
     Assert '10.republishPlayable' ($detail.playable -eq $true) "playable=$($detail.playable)"
 
     # 空白原因先被 @NotBlank 拦截，全局异常处理器返回 400（参数错误）
     Assert-VideoBizError '10.takedownReasonRequired' `
-        (Send-VideoProbe -Method 'Post' -Path "/video/admin/content/$managedId/takedown" -Body @{ reason = '  ' }) 400
+        (Send-VideoProbe -Method 'Post' -Path "/video/v1/admin/content/$managedId/takedown" -Body @{ reason = '  ' }) 400
 }
 
 Write-Host ''

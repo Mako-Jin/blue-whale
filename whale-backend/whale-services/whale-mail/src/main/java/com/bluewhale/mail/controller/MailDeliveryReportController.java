@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/mail/delivery")
+@RequestMapping(path = "/mail/v{version}/delivery", version = "1")
 @RequiredArgsConstructor
 public class MailDeliveryReportController {
 

@@ -31,7 +31,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/doc")
+@RequestMapping(path = "/doc/v{version}", version = "1")
 @RequiredArgsConstructor
 public class DocShareController {
 

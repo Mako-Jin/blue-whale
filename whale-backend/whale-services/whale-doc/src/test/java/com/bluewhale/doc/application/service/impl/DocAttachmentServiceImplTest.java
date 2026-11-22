@@ -96,7 +96,7 @@ class DocAttachmentServiceImplTest {
         assertThat(result).singleElement().satisfies(vo -> {
             assertThat(vo.getId()).isEqualTo(55L);
             assertThat(vo.getFileId()).isEqualTo(100L);
-            assertThat(vo.getContentUrl()).isEqualTo("/doc/page/7/attachment/55/content");
+            assertThat(vo.getContentUrl()).isEqualTo("/doc/v1/page/7/attachment/55/content");
             assertThat(vo.getCreateTime()).isEqualTo(LocalDateTime.of(2026, 1, 2, 3, 4));
         });
     }
@@ -167,7 +167,7 @@ class DocAttachmentServiceImplTest {
         assertThat(captor.getValue().getFileId()).isEqualTo(100L);
         assertThat(captor.getValue().getUsageType()).isEqualTo("INLINE");
         assertThat(captor.getValue().getSortNo()).isZero();
-        assertThat(vo.getContentUrl()).isEqualTo("/doc/page/7/attachment/55/content");
+        assertThat(vo.getContentUrl()).isEqualTo("/doc/v1/page/7/attachment/55/content");
         assertThat(vo.getOriginalName()).isEqualTo("a.txt");
     }
 

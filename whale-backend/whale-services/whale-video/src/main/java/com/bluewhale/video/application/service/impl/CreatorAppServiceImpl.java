@@ -59,7 +59,7 @@ public class CreatorAppServiceImpl implements CreatorAppService {
     private static final long DEFAULT_PAGE_SIZE = 20L;
 
     /** 创作者头像代理地址前缀 */
-    private static final String AVATAR_PATH_PREFIX = "/video/creator/";
+    private static final String AVATAR_PATH_PREFIX = "/video/v1/creator/";
 
     /** 创作者头像代理地址后缀 */
     private static final String AVATAR_PATH_SUFFIX = "/avatar";

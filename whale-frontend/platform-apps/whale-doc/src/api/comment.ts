@@ -15,14 +15,14 @@ export interface CommentCreatePayload {
 export const commentApi = {
   list: (pageId: number, resolved?: boolean) =>
     http.get<DocComment[]>(
-      `/doc/page/${pageId}/comment`,
+      `/doc/v1/page/${pageId}/comment`,
       resolved === undefined ? {} : { resolved },
     ),
   create: (pageId: number, payload: CommentCreatePayload) =>
-    http.post<DocComment>(`/doc/page/${pageId}/comment`, payload),
+    http.post<DocComment>(`/doc/v1/page/${pageId}/comment`, payload),
   resolve: (commentId: number, resolved: boolean) =>
-    http.put<DocComment>(`/doc/comment/${commentId}/resolve?resolved=${resolved}`, {}),
-  remove: (commentId: number) => http.del<void>(`/doc/comment/${commentId}`),
-  unread: (pageId: number) => http.get<DocCommentUnread>(`/doc/page/${pageId}/comment/unread`),
-  markRead: (pageId: number) => http.post<DocCommentUnread>(`/doc/page/${pageId}/comment/read`),
+    http.put<DocComment>(`/doc/v1/comment/${commentId}/resolve?resolved=${resolved}`, {}),
+  remove: (commentId: number) => http.del<void>(`/doc/v1/comment/${commentId}`),
+  unread: (pageId: number) => http.get<DocCommentUnread>(`/doc/v1/page/${pageId}/comment/unread`),
+  markRead: (pageId: number) => http.post<DocCommentUnread>(`/doc/v1/page/${pageId}/comment/read`),
 };

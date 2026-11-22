@@ -336,22 +336,22 @@ export interface PlayProgressInput {
 
 /** 读取服务运行元信息 */
 export function fetchMeta(): Promise<VideoMeta> {
-  return http.get<VideoMeta>('/video/meta');
+  return http.get<VideoMeta>('/video/v1/meta');
 }
 
 /** 首页聚合：短视频推荐 / 视频 / 电影 / 分类 / 标签 */
 export function fetchHome(): Promise<HomeView> {
-  return http.get<HomeView>('/video/home');
+  return http.get<HomeView>('/video/v1/home');
 }
 
 /** 短视频 feed（最新 / 热门 / 分类，键集游标分页） */
 export function fetchShortFeed(query: FeedQuery): Promise<FeedView> {
-  return http.get<FeedView>('/video/shorts/feed', { ...query });
+  return http.get<FeedView>('/video/v1/shorts/feed', { ...query });
 }
 
 /** 短视频详情（不可见内容按不存在返回 40401） */
 export function fetchShortDetail(id: number): Promise<ContentDetailView> {
-  return http.get<ContentDetailView>(`/video/shorts/${id}`);
+  return http.get<ContentDetailView>(`/video/v1/shorts/${id}`);
 }
 
 /** 视频分页（仅已发布且可见内容） */
@@ -361,12 +361,12 @@ export function fetchVideoPage(query: PageQuery): Promise<{
   current: number;
   size: number;
 }> {
-  return http.get('/video/videos/page', { ...query });
+  return http.get('/video/v1/videos/page', { ...query });
 }
 
 /** 视频详情 */
 export function fetchVideoDetail(id: number): Promise<ContentDetailView> {
-  return http.get<ContentDetailView>(`/video/videos/${id}`);
+  return http.get<ContentDetailView>(`/video/v1/videos/${id}`);
 }
 
 /** 电影分页（仅已上架且当前用户可见；海报 / 背景图走代理地址） */
@@ -376,12 +376,12 @@ export function fetchMoviePage(query: PageQuery): Promise<{
   current: number;
   size: number;
 }> {
-  return http.get('/video/movies/page', { ...query });
+  return http.get('/video/v1/movies/page', { ...query });
 }
 
 /** 电影详情（含海报 / 背景图代理地址与收录本片的已上架片单） */
 export function fetchMovieDetail(id: number): Promise<MovieDetailView> {
-  return http.get<MovieDetailView>(`/video/movies/${id}`);
+  return http.get<MovieDetailView>(`/video/v1/movies/${id}`);
 }
 
 /** 已上架片单分页 */
@@ -391,27 +391,27 @@ export function fetchCollectionPage(query?: PageQuery): Promise<{
   current: number;
   size: number;
 }> {
-  return http.get('/video/collections/page', { ...query });
+  return http.get('/video/v1/collections/page', { ...query });
 }
 
 /** 片单详情（未上架片单按不存在返回 40405） */
 export function fetchCollectionDetail(id: number): Promise<MovieCollectionDetailView> {
-  return http.get<MovieCollectionDetailView>(`/video/collections/${id}`);
+  return http.get<MovieCollectionDetailView>(`/video/v1/collections/${id}`);
 }
 
 /** 榜单：热门榜与新片榜（type 为空表示跨类型，size 默认 10、上限 50） */
 export function fetchRankings(query?: { type?: ContentType; size?: number }): Promise<RankingView> {
-  return http.get<RankingView>('/video/rankings', { ...query });
+  return http.get<RankingView>('/video/v1/rankings', { ...query });
 }
 
 /** 片单封面代理地址（响应为二进制图片） */
 export function buildCollectionCoverUrl(id: number): string {
-  return `/video/collections/${id}/cover`;
+  return `/video/v1/collections/${id}/cover`;
 }
 
 /** 电影海报代理地址（响应为二进制图片） */
 export function buildMoviePosterUrl(id: number): string {
-  return `/video/movies/${id}/poster`;
+  return `/video/v1/movies/${id}/poster`;
 }
 
 /** 已上架系列分页（视频列表展示系列入口 / 上传时选择系列） */
@@ -421,32 +421,32 @@ export function fetchSeriesPage(query?: PageQuery): Promise<{
   current: number;
   size: number;
 }> {
-  return http.get('/video/series/page', { ...query });
+  return http.get('/video/v1/series/page', { ...query });
 }
 
 /** 系列详情（未上架系列按不存在返回 40404） */
 export function fetchSeriesDetail(id: number): Promise<SeriesDetailView> {
-  return http.get<SeriesDetailView>(`/video/series/${id}`);
+  return http.get<SeriesDetailView>(`/video/v1/series/${id}`);
 }
 
 /** 系列封面代理地址（响应为二进制图片） */
 export function buildSeriesCoverUrl(id: number): string {
-  return `/video/series/${id}/cover`;
+  return `/video/v1/series/${id}/cover`;
 }
 
 /** 统一内容详情 */
 export function fetchContentDetail(id: number): Promise<ContentDetailView> {
-  return http.get<ContentDetailView>(`/video/content/${id}`);
+  return http.get<ContentDetailView>(`/video/v1/content/${id}`);
 }
 
 /** 分类列表（启用分类，前端按 contentTypeScope 过滤） */
 export function fetchCategories(): Promise<CategoryView[]> {
-  return http.get<CategoryView[]>('/video/categories');
+  return http.get<CategoryView[]>('/video/v1/categories');
 }
 
 /** 标签列表 */
 export function fetchTags(): Promise<TagView[]> {
-  return http.get<TagView[]>('/video/tags');
+  return http.get<TagView[]>('/video/v1/tags');
 }
 
 /** 站内搜索 */
@@ -456,17 +456,17 @@ export function searchContent(query: PageQuery & { contentType?: ContentType }):
   current: number;
   size: number;
 }> {
-  return http.get('/video/search', { ...query });
+  return http.get('/video/v1/search', { ...query });
 }
 
 /** 签发单个播放票据 */
 export function createPlayTicket(contentId: number): Promise<PlayTicket> {
-  return http.post<PlayTicket>('/video/play/ticket', { contentId });
+  return http.post<PlayTicket>('/video/v1/play/ticket', { contentId });
 }
 
 /** 批量签发播放票据（feed 预取，单次最多 20 个） */
 export function createPlayTickets(contentIds: number[]): Promise<PlayTicketBatch> {
-  return http.post<PlayTicketBatch>('/video/play/tickets', { contentIds });
+  return http.post<PlayTicketBatch>('/video/v1/play/tickets', { contentIds });
 }
 
 /** 流式播放地址（只携带短时票据，不含 fileId） */
@@ -476,12 +476,12 @@ export function buildStreamUrl(contentId: number, ticket: string): string {
 
 /** 封面代理地址（响应为二进制图片） */
 export function buildCoverUrl(contentId: number): string {
-  return `/video/content/${contentId}/cover`;
+  return `/video/v1/content/${contentId}/cover`;
 }
 
 /** 观看进度上报（同一内容重复上报幂等） */
 export function reportProgress(input: PlayProgressInput): Promise<void> {
-  return http.post<void>('/video/play/progress', input);
+  return http.post<void>('/video/v1/play/progress', input);
 }
 
 /** 最近观看分页 */
@@ -491,26 +491,26 @@ export function fetchHistory(query?: PageQuery): Promise<{
   current: number;
   size: number;
 }> {
-  return http.get('/video/history', { ...query });
+  return http.get('/video/v1/history', { ...query });
 }
 
 /** 删除最近观看记录 */
 export function deleteHistory(contentId: number): Promise<void> {
-  return http.del<void>(`/video/history/${contentId}`);
+  return http.del<void>(`/video/v1/history/${contentId}`);
 }
 
 /** 点赞 / 取消点赞（幂等） */
 export function likeContent(contentId: number, liked: boolean): Promise<void> {
   return liked
-    ? http.post<void>(`/video/content/${contentId}/like`)
-    : http.del<void>(`/video/content/${contentId}/like`);
+    ? http.post<void>(`/video/v1/content/${contentId}/like`)
+    : http.del<void>(`/video/v1/content/${contentId}/like`);
 }
 
 /** 收藏 / 取消收藏（幂等） */
 export function favoriteContent(contentId: number, favorited: boolean): Promise<void> {
   return favorited
-    ? http.post<void>(`/video/content/${contentId}/favorite`)
-    : http.del<void>(`/video/content/${contentId}/favorite`);
+    ? http.post<void>(`/video/v1/content/${contentId}/favorite`)
+    : http.del<void>(`/video/v1/content/${contentId}/favorite`);
 }
 
 /** 我的点赞分页 */
@@ -520,7 +520,7 @@ export function fetchMyLikes(query?: PageQuery): Promise<{
   current: number;
   size: number;
 }> {
-  return http.get('/video/my/likes', { ...query });
+  return http.get('/video/v1/my/likes', { ...query });
 }
 
 /** 我的收藏分页 */
@@ -530,7 +530,7 @@ export function fetchMyFavorites(query?: PageQuery): Promise<{
   current: number;
   size: number;
 }> {
-  return http.get('/video/my/favorites', { ...query });
+  return http.get('/video/v1/my/favorites', { ...query });
 }
 
 /** 评论分页 */
@@ -543,7 +543,7 @@ export function fetchComments(
   current: number;
   size: number;
 }> {
-  return http.get(`/video/content/${contentId}/comment/page`, { ...query });
+  return http.get(`/video/v1/content/${contentId}/comment/page`, { ...query });
 }
 
 /** 发表评论（parentId 非空时为回复） */
@@ -551,19 +551,19 @@ export function submitComment(
   contentId: number,
   input: { content: string; parentId?: number },
 ): Promise<number> {
-  return http.post<number>(`/video/content/${contentId}/comment`, input);
+  return http.post<number>(`/video/v1/content/${contentId}/comment`, input);
 }
 
 /** 评论点赞 / 取消 */
 export function likeComment(commentId: number, liked: boolean): Promise<void> {
   return liked
-    ? http.post<void>(`/video/comment/${commentId}/like`)
-    : http.del<void>(`/video/comment/${commentId}/like`);
+    ? http.post<void>(`/video/v1/comment/${commentId}/like`)
+    : http.del<void>(`/video/v1/comment/${commentId}/like`);
 }
 
 /** 当前上传声明与本人签署状态 */
 export function fetchDeclaration(): Promise<UploadDeclaration> {
-  return http.get<UploadDeclaration>('/video/declaration/current');
+  return http.get<UploadDeclaration>('/video/v1/declaration/current');
 }
 
 /** 签署当前上传声明（同一版本重复签署幂等） */
@@ -571,7 +571,7 @@ export function acceptDeclaration(
   version: string,
   contentSource: ContentSource,
 ): Promise<UploadDeclaration> {
-  return http.post<UploadDeclaration>('/video/declaration/accept', { version, contentSource });
+  return http.post<UploadDeclaration>('/video/v1/declaration/accept', { version, contentSource });
 }
 
 /** 我的短视频分页（含草稿与私密） */
@@ -581,7 +581,7 @@ export function fetchMyShorts(query?: PageQuery): Promise<{
   current: string;
   size: string;
 }> {
-  return http.get('/video/my/shorts', { ...query });
+  return http.get('/video/v1/my/shorts', { ...query });
 }
 
 /** 我的视频分页（含草稿与私密） */
@@ -591,7 +591,7 @@ export function fetchMyVideos(query?: PageQuery): Promise<{
   current: string;
   size: string;
 }> {
-  return http.get('/video/my/videos', { ...query });
+  return http.get('/video/v1/my/videos', { ...query });
 }
 
 /** 读取本人作品编辑视图（含 videoFileId / coverFileId，供编辑回填） */
@@ -600,55 +600,55 @@ export function fetchOwnerContent(
   contentType: Extract<ContentType, 'SHORT_VIDEO' | 'VIDEO'>,
 ): Promise<ContentEditView> {
   const path = contentType === 'SHORT_VIDEO' ? 'shorts' : 'videos';
-  return http.get<ContentEditView>(`/video/user/${path}/${id}`);
+  return http.get<ContentEditView>(`/video/v1/user/${path}/${id}`);
 }
 
 /** 创建短视频 */
 export function createShortVideo(input: ContentSaveInput): Promise<number> {
-  return http.post<number>('/video/user/shorts', input);
+  return http.post<number>('/video/v1/user/shorts', input);
 }
 
 /** 创建视频 */
 export function createVideo(input: ContentSaveInput): Promise<number> {
-  return http.post<number>('/video/user/videos', input);
+  return http.post<number>('/video/v1/user/videos', input);
 }
 
 /** 编辑本人短视频 */
 export function updateShortVideo(id: number, input: ContentSaveInput): Promise<void> {
-  return http.put<void>(`/video/user/shorts/${id}`, input);
+  return http.put<void>(`/video/v1/user/shorts/${id}`, input);
 }
 
 /** 编辑本人视频 */
 export function updateVideo(id: number, input: ContentSaveInput): Promise<void> {
-  return http.put<void>(`/video/user/videos/${id}`, input);
+  return http.put<void>(`/video/v1/user/videos/${id}`, input);
 }
 
 /** 删除本人短视频（逻辑删除） */
 export function deleteShortVideo(id: number): Promise<void> {
-  return http.del<void>(`/video/user/shorts/${id}`);
+  return http.del<void>(`/video/v1/user/shorts/${id}`);
 }
 
 /** 删除本人视频（逻辑删除） */
 export function deleteVideo(id: number): Promise<void> {
-  return http.del<void>(`/video/user/videos/${id}`);
+  return http.del<void>(`/video/v1/user/videos/${id}`);
 }
 
 /** 发布本人短视频 */
 export function publishShortVideo(id: number): Promise<void> {
-  return http.post<void>(`/video/user/shorts/${id}/publish`);
+  return http.post<void>(`/video/v1/user/shorts/${id}/publish`);
 }
 
 /** 下架本人短视频 */
 export function offlineShortVideo(id: number): Promise<void> {
-  return http.post<void>(`/video/user/shorts/${id}/offline`);
+  return http.post<void>(`/video/v1/user/shorts/${id}/offline`);
 }
 
 /** 发布本人视频 */
 export function publishVideo(id: number): Promise<void> {
-  return http.post<void>(`/video/user/videos/${id}/publish`);
+  return http.post<void>(`/video/v1/user/videos/${id}/publish`);
 }
 
 /** 下架本人视频 */
 export function offlineVideo(id: number): Promise<void> {
-  return http.post<void>(`/video/user/videos/${id}/offline`);
+  return http.post<void>(`/video/v1/user/videos/${id}/offline`);
 }

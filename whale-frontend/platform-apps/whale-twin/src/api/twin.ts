@@ -177,7 +177,7 @@ export const bindingApi = {
 /** 拉取 IoT 设备精简列表（绑定选择器；失败返回空数组不打断查看器） */
 export async function fetchIotDevices(): Promise<IotDeviceItem[]> {
   try {
-    const page = await http.get<Paged<IotDeviceItem>>('/iot/devices', {
+    const page = await http.get<Paged<IotDeviceItem>>('/iot/v1/devices', {
       current: 1,
       size: 200,
     });

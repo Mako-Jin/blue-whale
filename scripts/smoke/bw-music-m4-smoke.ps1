@@ -147,7 +147,7 @@ Check '1.upload' $upload
 $fileId = [long]$upload.data.id
 
 # 2) 建歌手 → 建歌曲 → 上架
-$artist = Invoke-MusicApi -Method 'Post' -Path '/music/artist' -Body @{ name = "M4冒烟歌手-$stamp"; region = 'CN' }
+$artist = Invoke-MusicApi -Method 'Post' -Path '/music/v1/artist' -Body @{ name = "M4冒烟歌手-$stamp"; region = 'CN' }
 Check '2.artistCreate' $artist
 $artistId = [long]$artist.data.id
 $songBody = @{
@@ -159,25 +159,25 @@ $songBody = @{
     visibility  = 'PUBLIC'
     language    = 'ZH'
 }
-$song = Invoke-MusicApi -Method 'Post' -Path '/music/song' -Body $songBody
+$song = Invoke-MusicApi -Method 'Post' -Path '/music/v1/song' -Body $songBody
 Check '2.songCreate' $song
 $songId = [long]$song.data.id
-$published = Invoke-MusicApi -Method 'Post' -Path "/music/song/$songId/publish"
+$published = Invoke-MusicApi -Method 'Post' -Path "/music/v1/song/$songId/publish"
 Check '2.songPublish' $published
 Assert '2.songPlayable' ($published.data.publishState -eq 'PUBLISHED' -and $published.data.playable)
 
 # 3) 发表顶级评论（先发后审：立即可见 + 计数 +1）
-$comment = Invoke-MusicApi -Method 'Post' -Path "/music/song/$songId/comment" `
+$comment = Invoke-MusicApi -Method 'Post' -Path "/music/v1/song/$songId/comment" `
     -Body @{ content = "M4冒烟评论-$stamp"; parentId = 0 }
 Check '3.commentCreate' $comment
 $commentId = [long]$comment.data.id
 Assert '3.commentVisible' ($comment.data.status -eq 'VISIBLE' -and [long]$comment.data.parentId -eq 0) `
     "status=$($comment.data.status)"
-$songView = Invoke-MusicApi -Method 'Get' -Path "/music/song/$songId"
+$songView = Invoke-MusicApi -Method 'Get' -Path "/music/v1/song/$songId"
 Assert '3.commentCount' ([long]$songView.data.commentCount -eq 1) "commentCount=$($songView.data.commentCount)"
 
 # 4) 普通用户回复该评论
-$reply = Invoke-MusicApi -Method 'Post' -Path "/music/song/$songId/comment" `
+$reply = Invoke-MusicApi -Method 'Post' -Path "/music/v1/song/$songId/comment" `
     -Body @{ content = "M4冒烟回复-$stamp"; parentId = $commentId } -Headers $readerHeaders
 Check '4.replyCreate' $reply
 $replyId = [long]$reply.data.id
@@ -185,11 +185,11 @@ Assert '4.replyParent' ([long]$reply.data.parentId -eq $commentId) "parentId=$($
 
 # 5) 用户侧分页：顶级评论倒序并携带回复；HTML 标签按纯文本存储
 $xss = '<b>M4</b><script>alert(1)</script>'
-$xssComment = Invoke-MusicApi -Method 'Post' -Path "/music/song/$songId/comment" `
+$xssComment = Invoke-MusicApi -Method 'Post' -Path "/music/v1/song/$songId/comment" `
     -Body @{ content = $xss; parentId = 0 }
 Check '5.commentPlainText' $xssComment
 Assert '5.xssStoredAsText' ($xssComment.data.content -eq $xss) "content=$($xssComment.data.content)"
-$page = Invoke-MusicApi -Method 'Get' -Path "/music/song/$songId/comment/page?current=1&size=10" -Headers $readerHeaders
+$page = Invoke-MusicApi -Method 'Get' -Path "/music/v1/song/$songId/comment/page?current=1&size=10" -Headers $readerHeaders
 Check '5.commentPage' $page
 Assert '5.pageTotal' ([long]$page.data.total -eq 2) "total=$($page.data.total)"
 $topHit = @($page.data.records | Where-Object { [long]$_.id -eq $commentId })
@@ -197,59 +197,59 @@ Assert '5.replyGrouped' ($topHit.Count -eq 1 -and @($topHit[0].replies).Count -e
     [long]@($topHit[0].replies)[0].id -eq $replyId) "replies=$(@($topHit[0].replies).Count)"
 
 # 6) 正文与父评论校验：超长 / 空白 / 父评论不存在 / 歌曲不存在
-$tooLong = Invoke-MusicApi -Method 'Post' -Path "/music/song/$songId/comment" `
+$tooLong = Invoke-MusicApi -Method 'Post' -Path "/music/v1/song/$songId/comment" `
     -Body @{ content = ('好' * 501); parentId = 0 }
 Assert '6.tooLong' ($tooLong.code -eq 40014) "code=$($tooLong.code)"
-$blank = Invoke-MusicApi -Method 'Post' -Path "/music/song/$songId/comment" -Body @{ content = '   '; parentId = 0 }
+$blank = Invoke-MusicApi -Method 'Post' -Path "/music/v1/song/$songId/comment" -Body @{ content = '   '; parentId = 0 }
 Assert '6.blank' ($blank.code -eq 40014) "code=$($blank.code)"
-$badParent = Invoke-MusicApi -Method 'Post' -Path "/music/song/$songId/comment" `
+$badParent = Invoke-MusicApi -Method 'Post' -Path "/music/v1/song/$songId/comment" `
     -Body @{ content = '回复不存在的评论'; parentId = 999999 }
 Assert '6.badParent' ($badParent.code -eq 40015) "code=$($badParent.code)"
-$badSong = Invoke-MusicApi -Method 'Post' -Path '/music/song/999999/comment' -Body @{ content = '不存在歌曲'; parentId = 0 }
+$badSong = Invoke-MusicApi -Method 'Post' -Path '/music/v1/song/999999/comment' -Body @{ content = '不存在歌曲'; parentId = 0 }
 Assert '6.badSong' ($badSong.code -eq 40403) "code=$($badSong.code)"
 
 # 7) 审核队列：运营可见（含歌曲标题），普通用户 403
 # 说明：PS5.1 的 Invoke-RestMethod 对无 charset 的 JSON 响应按 ISO-8859-1 解码，
 #       中文标题会乱码；审核页含中文，改用 HttpClient 探测（UTF-8 解码）后解析。
-$auditRaw = Send-Probe -Method 'Get' -Path "/music/comment/page?current=1&size=10&songId=$songId&status=VISIBLE"
+$auditRaw = Send-Probe -Method 'Get' -Path "/music/v1/comment/page?current=1&size=10&songId=$songId&status=VISIBLE"
 $audit = $auditRaw.BodyText | ConvertFrom-Json
 Check '7.auditPage' $audit
 Assert '7.auditTotal' ([long]$audit.data.total -ge 3) "total=$($audit.data.total)"
 $auditHit = @($audit.data.records | Where-Object { [long]$_.id -eq $commentId })
 Assert '7.auditSongTitle' ($auditHit.Count -eq 1 -and $auditHit[0].songTitle -eq "M4冒烟歌曲-$stamp") `
     "songTitle=$($auditHit[0].songTitle)"
-$auditForbidden = Send-Probe -Method 'Get' -Path "/music/comment/page?current=1&size=10" -Headers $readerHeaders
+$auditForbidden = Send-Probe -Method 'Get' -Path "/music/v1/comment/page?current=1&size=10" -Headers $readerHeaders
 Assert '7.auditForbidden' ($auditForbidden.Status -eq 403 -or $auditForbidden.BodyText -match '"code":403') `
     "status=$($auditForbidden.Status)"
 
 # 8) 隐藏：立即对用户不可见 + 计数 -1（回复仍可见）
-$hidden = Invoke-MusicApi -Method 'Post' -Path "/music/comment/$commentId/hide"
+$hidden = Invoke-MusicApi -Method 'Post' -Path "/music/v1/comment/$commentId/hide"
 Check '8.hide' $hidden
 Assert '8.hiddenStatus' ($hidden.data.status -eq 'HIDDEN') "status=$($hidden.data.status)"
-$pageAfterHide = Invoke-MusicApi -Method 'Get' -Path "/music/song/$songId/comment/page?current=1&size=10" -Headers $readerHeaders
+$pageAfterHide = Invoke-MusicApi -Method 'Get' -Path "/music/v1/song/$songId/comment/page?current=1&size=10" -Headers $readerHeaders
 Assert '8.hideInvisible' (@($pageAfterHide.data.records | Where-Object { [long]$_.id -eq $commentId }).Count -eq 0 -and
     [long]$pageAfterHide.data.total -eq 1) "total=$($pageAfterHide.data.total)"
-$songAfterHide = Invoke-MusicApi -Method 'Get' -Path "/music/song/$songId"
+$songAfterHide = Invoke-MusicApi -Method 'Get' -Path "/music/v1/song/$songId"
 Assert '8.hideCount' ([long]$songAfterHide.data.commentCount -eq 2) `
     "commentCount=$($songAfterHide.data.commentCount)"
 
 # 9) 通过：恢复可见 + 计数回升
-$approved = Invoke-MusicApi -Method 'Post' -Path "/music/comment/$commentId/approve"
+$approved = Invoke-MusicApi -Method 'Post' -Path "/music/v1/comment/$commentId/approve"
 Check '9.approve' $approved
 Assert '9.approveStatus' ($approved.data.status -eq 'VISIBLE') "status=$($approved.data.status)"
-$pageAfterApprove = Invoke-MusicApi -Method 'Get' -Path "/music/song/$songId/comment/page?current=1&size=10" -Headers $readerHeaders
+$pageAfterApprove = Invoke-MusicApi -Method 'Get' -Path "/music/v1/song/$songId/comment/page?current=1&size=10" -Headers $readerHeaders
 Assert '9.approveVisible' ([long]$pageAfterApprove.data.total -eq 2) "total=$($pageAfterApprove.data.total)"
 # 重复通过幂等：状态不变、计数不重复
-$approvedAgain = Invoke-MusicApi -Method 'Post' -Path "/music/comment/$commentId/approve"
+$approvedAgain = Invoke-MusicApi -Method 'Post' -Path "/music/v1/comment/$commentId/approve"
 Check '9.approveIdempotent' $approvedAgain
-$songFinal = Invoke-MusicApi -Method 'Get' -Path "/music/song/$songId"
+$songFinal = Invoke-MusicApi -Method 'Get' -Path "/music/v1/song/$songId"
 Assert '9.finalCount' ([long]$songFinal.data.commentCount -eq 3) "commentCount=$($songFinal.data.commentCount)"
 
 # 10) 清理：隐藏测试评论 / 删除歌曲 / 文件
-$null = Invoke-MusicApi -Method 'Post' -Path "/music/comment/$commentId/hide"
-$null = Invoke-MusicApi -Method 'Post' -Path "/music/comment/$replyId/hide"
-$null = Invoke-MusicApi -Method 'Post' -Path "/music/comment/$($xssComment.data.id)/hide"
-$delSong = Invoke-MusicApi -Method 'Delete' -Path "/music/song/$songId"
+$null = Invoke-MusicApi -Method 'Post' -Path "/music/v1/comment/$commentId/hide"
+$null = Invoke-MusicApi -Method 'Post' -Path "/music/v1/comment/$replyId/hide"
+$null = Invoke-MusicApi -Method 'Post' -Path "/music/v1/comment/$($xssComment.data.id)/hide"
+$delSong = Invoke-MusicApi -Method 'Delete' -Path "/music/v1/song/$songId"
 Check '10.deleteSong' $delSong
 $delFile = Invoke-Api -Method 'Delete' -Uri "$fileBase/file/v1/$fileId" -Headers $h
 Assert '10.deleteFile' ($delFile.code -eq 0 -or $delFile.code -eq 404) "code=$($delFile.code)"

@@ -24,7 +24,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/iot/devices")
+@RequestMapping(path = "/iot/v{version}/devices", version = "1")
 @RequiredArgsConstructor
 public class IotTelemetryController {
 

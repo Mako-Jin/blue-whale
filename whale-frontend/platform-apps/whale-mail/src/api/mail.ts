@@ -187,27 +187,27 @@ export interface MailDraftSaveCommand {
 
 /** 当前用户可见的邮箱账号列表 */
 export function listAccounts(): Promise<MailAccount[]> {
-  return http.get<MailAccount[]>('/mail/account/list');
+  return http.get<MailAccount[]>('/mail/v1/account/list');
 }
 
 /** 当前用户默认邮箱账号（无绑定时抛出业务错误） */
 export function currentAccount(): Promise<MailAccount> {
-  return http.get<MailAccount>('/mail/account/current');
+  return http.get<MailAccount>('/mail/v1/account/current');
 }
 
 /** 绑定邮箱账号 */
 export function createAccount(body: MailAccountSaveCommand): Promise<MailAccount> {
-  return http.post<MailAccount>('/mail/account', body);
+  return http.post<MailAccount>('/mail/v1/account', body);
 }
 
 /** 修改邮箱账号 */
 export function updateAccount(id: number, body: MailAccountSaveCommand): Promise<MailAccount> {
-  return http.put<MailAccount>(`/mail/account/${id}`, body);
+  return http.put<MailAccount>(`/mail/v1/account/${id}`, body);
 }
 
 /** 解绑邮箱账号 */
 export function removeAccount(id: number): Promise<void> {
-  return http.del<void>(`/mail/account/${id}`);
+  return http.del<void>(`/mail/v1/account/${id}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -216,7 +216,7 @@ export function removeAccount(id: number): Promise<void> {
 
 /** 文件夹列表（含未读与总数） */
 export function listFolders(accountId?: number): Promise<MailFolder[]> {
-  return http.get<MailFolder[]>('/mail/folder/list', { accountId });
+  return http.get<MailFolder[]>('/mail/v1/folder/list', { accountId });
 }
 
 /** 文件夹与服务器对齐的结果统计 */
@@ -231,12 +231,12 @@ export interface MailFolderSyncResult {
 /** 立即探测服务器文件夹（用户在 Webmail 新建目录后无需等定时同步） */
 export function refreshFolders(accountId?: number): Promise<MailFolderSyncResult> {
   const query = accountId ? `?accountId=${accountId}` : '';
-  return http.post<MailFolderSyncResult>(`/mail/folder/refresh${query}`);
+  return http.post<MailFolderSyncResult>(`/mail/v1/folder/refresh${query}`);
 }
 
 /** 未读统计 */
 export function getUnread(): Promise<MailUnread> {
-  return http.get<MailUnread>('/mail/message/unread');
+  return http.get<MailUnread>('/mail/v1/message/unread');
 }
 
 // ---------------------------------------------------------------------------
@@ -245,7 +245,7 @@ export function getUnread(): Promise<MailUnread> {
 
 /** 邮件分页 */
 export function pageMessages(query: MailMessageQuery): Promise<PageResult<MailMessage>> {
-  return http.get<PageResult<MailMessage>>('/mail/message/page', { ...query });
+  return http.get<PageResult<MailMessage>>('/mail/v1/message/page', { ...query });
 }
 
 /** 检索引擎状态（决定是否显示「重建索引」） */
@@ -258,33 +258,33 @@ export interface MailSearchStatus {
 
 /** 查看检索引擎状态 */
 export function getSearchStatus(): Promise<MailSearchStatus> {
-  return http.get<MailSearchStatus>('/mail/search/status');
+  return http.get<MailSearchStatus>('/mail/v1/search/status');
 }
 
 /** 重建当前账号的检索索引（MySQL 引擎返回 0） */
 export function reindexSearch(accountId?: number): Promise<number> {
   const query = accountId ? `?accountId=${accountId}` : '';
-  return http.post<number>(`/mail/search/reindex${query}`);
+  return http.post<number>(`/mail/v1/search/reindex${query}`);
 }
 
 /** 邮件详情（正文惰性回源，首次打开可能稍慢） */
 export function getMessage(id: number): Promise<MailMessage> {
-  return http.get<MailMessage>(`/mail/message/${id}`);
+  return http.get<MailMessage>(`/mail/v1/message/${id}`);
 }
 
 /** 标记已读 / 未读 */
 export function markSeen(id: number, seen: boolean): Promise<void> {
-  return http.put<void>(`/mail/message/${id}/seen?seen=${seen ? 1 : 0}`);
+  return http.put<void>(`/mail/v1/message/${id}/seen?seen=${seen ? 1 : 0}`);
 }
 
 /** 标记星标 */
 export function markFlagged(id: number, flagged: boolean): Promise<void> {
-  return http.put<void>(`/mail/message/${id}/flagged?flagged=${flagged ? 1 : 0}`);
+  return http.put<void>(`/mail/v1/message/${id}/flagged?flagged=${flagged ? 1 : 0}`);
 }
 
 /** 移入回收站 */
 export function removeMessage(id: number): Promise<void> {
-  return http.del<void>(`/mail/message/${id}`);
+  return http.del<void>(`/mail/v1/message/${id}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -293,7 +293,7 @@ export function removeMessage(id: number): Promise<void> {
 
 /** 发送邮件（M1 支持附件，附件需先经 {@link uploadAttachment} 上传换取 fileId） */
 export function sendMail(body: MailSendCommand): Promise<void> {
-  return http.post<void>('/mail/send', body);
+  return http.post<void>('/mail/v1/send', body);
 }
 
 /**
@@ -319,7 +319,7 @@ export function uploadAttachment(file: File): Promise<UploadedFile> {
  * @returns 字节流与文件名
  */
 export function downloadAttachment(attachmentId: number): Promise<DownloadResult> {
-  return downloadBlob(`/mail/attachment/${attachmentId}/download`);
+  return downloadBlob(`/mail/v1/attachment/${attachmentId}/download`);
 }
 
 /** 草稿分页 */
@@ -328,22 +328,22 @@ export function pageDrafts(query: {
   size?: number;
   accountId?: number;
 }): Promise<PageResult<MailDraft>> {
-  return http.get<PageResult<MailDraft>>('/mail/draft/page', { ...query });
+  return http.get<PageResult<MailDraft>>('/mail/v1/draft/page', { ...query });
 }
 
 /** 新建草稿 */
 export function createDraft(body: MailDraftSaveCommand): Promise<MailDraft> {
-  return http.post<MailDraft>('/mail/draft', body);
+  return http.post<MailDraft>('/mail/v1/draft', body);
 }
 
 /** 更新草稿 */
 export function updateDraft(id: number, body: MailDraftSaveCommand): Promise<MailDraft> {
-  return http.put<MailDraft>(`/mail/draft/${id}`, body);
+  return http.put<MailDraft>(`/mail/v1/draft/${id}`, body);
 }
 
 /** 删除草稿 */
 export function removeDraft(id: number): Promise<void> {
-  return http.del<void>(`/mail/draft/${id}`);
+  return http.del<void>(`/mail/v1/draft/${id}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -352,7 +352,7 @@ export function removeDraft(id: number): Promise<void> {
 
 /** 手动同步指定账号，返回本次新增邮件数 */
 export function syncAccount(accountId: number): Promise<number> {
-  return http.post<number>(`/mail/sync/${accountId}`);
+  return http.post<number>(`/mail/v1/sync/${accountId}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -402,26 +402,26 @@ export interface MailRuleApplyResult {
 
 /** 规则列表（按优先级升序，即执行顺序） */
 export function listRules(accountId?: number): Promise<MailRule[]> {
-  return http.get<MailRule[]>('/mail/rule/list', { accountId });
+  return http.get<MailRule[]>('/mail/v1/rule/list', { accountId });
 }
 
 /** 新建或更新规则 */
 export function saveRule(body: MailRuleSaveCommand): Promise<MailRule> {
-  return http.post<MailRule>('/mail/rule/save', body);
+  return http.post<MailRule>('/mail/v1/rule/save', body);
 }
 
 /** 启用 / 停用规则 */
 export function setRuleEnabled(id: number, enabled: boolean): Promise<void> {
-  return http.post<void>(`/mail/rule/enabled?id=${id}&enabled=${enabled}`);
+  return http.post<void>(`/mail/v1/rule/enabled?id=${id}&enabled=${enabled}`);
 }
 
 /** 删除规则 */
 export function removeRule(id: number): Promise<void> {
-  return http.post<void>(`/mail/rule/remove?id=${id}`);
+  return http.post<void>(`/mail/v1/rule/remove?id=${id}`);
 }
 
 /** 对收件箱存量邮件回填规则 */
 export function applyRules(accountId?: number): Promise<MailRuleApplyResult> {
   const suffix = accountId ? `?accountId=${accountId}` : '';
-  return http.post<MailRuleApplyResult>(`/mail/rule/apply${suffix}`);
+  return http.post<MailRuleApplyResult>(`/mail/v1/rule/apply${suffix}`);
 }

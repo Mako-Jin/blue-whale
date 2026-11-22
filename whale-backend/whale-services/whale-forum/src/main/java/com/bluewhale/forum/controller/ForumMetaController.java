@@ -28,7 +28,7 @@ import java.util.Arrays;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/forum/meta")
+@RequestMapping(path = "/forum/v{version}/meta", version = "1")
 @RequiredArgsConstructor
 public class ForumMetaController {
 

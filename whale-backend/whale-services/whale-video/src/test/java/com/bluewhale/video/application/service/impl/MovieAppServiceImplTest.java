@@ -249,8 +249,8 @@ class MovieAppServiceImplTest {
         MovieDetailView view = movieAppService.detail(CONTENT_ID, USER_ID);
 
         assertEquals("朱塞佩·托纳多雷", view.getDirector());
-        assertEquals("/video/movies/88/poster", view.getPosterUrl());
-        assertEquals("/video/movies/88/backdrop", view.getBackdropUrl());
+        assertEquals("/video/v1/movies/88/poster", view.getPosterUrl());
+        assertEquals("/video/v1/movies/88/backdrop", view.getBackdropUrl());
         assertEquals(Collections.emptyList(), view.getCollections());
     }
 
@@ -320,7 +320,7 @@ class MovieAppServiceImplTest {
 
         assertEquals(1L, page.getTotal());
         assertEquals(1, page.getRecords().size());
-        assertEquals("/video/movies/88/poster", page.getRecords().get(0).getPosterUrl());
+        assertEquals("/video/v1/movies/88/poster", page.getRecords().get(0).getPosterUrl());
     }
 
     /**

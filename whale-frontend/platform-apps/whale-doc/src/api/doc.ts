@@ -17,5 +17,5 @@ export interface DocMeta {
 
 export const docApi = {
   /** 读取服务运行参数与功能开关 */
-  meta: () => http.get<DocMeta>('/doc/meta'),
+  meta: () => http.get<DocMeta>('/doc/v1/meta'),
 };

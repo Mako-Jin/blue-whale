@@ -213,7 +213,7 @@ class IotOverviewProviderTest {
         List<OverviewLink> links = provider.build(context()).links();
 
         assertThat(links).singleElement().satisfies(link -> {
-            assertThat(link.path()).isEqualTo("/iot/devices/page");
+            assertThat(link.path()).isEqualTo("/iot/v1/devices/page");
             assertThat(link.permission()).isEqualTo("sys:iot:device");
         });
     }

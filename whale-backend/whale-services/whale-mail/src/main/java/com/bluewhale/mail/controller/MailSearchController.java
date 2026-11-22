@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/mail/search")
+@RequestMapping(path = "/mail/v{version}/search", version = "1")
 @RequiredArgsConstructor
 public class MailSearchController {
 

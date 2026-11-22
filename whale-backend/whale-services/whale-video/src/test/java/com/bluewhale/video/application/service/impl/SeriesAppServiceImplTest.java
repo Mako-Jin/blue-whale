@@ -124,7 +124,7 @@ class SeriesAppServiceImplTest {
         assertEquals(SERIES_ID, view.getId());
         assertEquals(PublishState.DRAFT.name(), view.getPublishState());
         assertEquals(0, view.getEpisodeCount());
-        assertEquals("/video/series/21/cover", view.getCoverUrl());
+        assertEquals("/video/v1/series/21/cover", view.getCoverUrl());
     }
 
     /**
@@ -249,7 +249,7 @@ class SeriesAppServiceImplTest {
         assertEquals(2, view.getEpisodeCount());
         assertEquals(2, view.getEpisodes().size());
         assertEquals(1, view.getEpisodes().get(0).getEpisodeNo());
-        assertEquals("/video/series/21/cover", view.getCoverUrl());
+        assertEquals("/video/v1/series/21/cover", view.getCoverUrl());
     }
 
     /**

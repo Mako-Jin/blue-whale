@@ -11,12 +11,12 @@ export interface ShareCreatePayload {
 
 /** 页面分享接口 */
 export const shareApi = {
-  list: (pageId: number) => http.get<DocPageShare[]>(`/doc/page/${pageId}/share`),
+  list: (pageId: number) => http.get<DocPageShare[]>(`/doc/v1/page/${pageId}/share`),
   create: (pageId: number, payload: ShareCreatePayload) =>
-    http.post<DocPageShare>(`/doc/page/${pageId}/share`, payload),
+    http.post<DocPageShare>(`/doc/v1/page/${pageId}/share`, payload),
   revoke: (pageId: number, shareId: number) =>
-    http.del<void>(`/doc/page/${pageId}/share/${shareId}`),
-  resolve: (token: string) => http.get<DocPage>(`/doc/share/${encodeURIComponent(token)}`),
+    http.del<void>(`/doc/v1/page/${pageId}/share/${shareId}`),
+  resolve: (token: string) => http.get<DocPage>(`/doc/v1/share/${encodeURIComponent(token)}`),
 };
 
 /** 生成登录内可读的分享完整地址 */

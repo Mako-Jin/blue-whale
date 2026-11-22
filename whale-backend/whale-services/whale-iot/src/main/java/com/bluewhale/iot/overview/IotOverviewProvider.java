@@ -48,7 +48,7 @@ public class IotOverviewProvider implements OverviewProvider {
     private static final String PERMISSION = "sys:iot:device";
 
     /** 设备台账列表接口：屏风页直接取这个路径，不再单发一套只读接口 */
-    private static final String DEVICE_PAGE_PATH = "/iot/devices/page";
+    private static final String DEVICE_PAGE_PATH = "/iot/v1/devices/page";
 
     /** 在线率"健康"分界：≥ 它给绿灯 */
     private static final double ONLINE_GOOD = 0.9d;

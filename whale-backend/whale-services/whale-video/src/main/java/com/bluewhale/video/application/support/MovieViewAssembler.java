@@ -15,7 +15,7 @@ import com.bluewhale.video.domain.model.Movie;
 public final class MovieViewAssembler {
 
     /** 电影图片代理地址前缀 */
-    private static final String PATH_PREFIX = "/video/movies/";
+    private static final String PATH_PREFIX = "/video/v1/movies/";
 
     /** 海报代理地址后缀 */
     private static final String POSTER_SUFFIX = "/poster";

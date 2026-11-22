@@ -10,11 +10,11 @@
 //      但**没有状态筛选**——设备分页接口不收 status，配下拉就是发一个后端忽略的参数；
 //   ③ 「在线」列是 0/1 数字码，靠**列级字典**译成在线/离线；状态列是另一套码值（active/disabled）。
 //      两套混用会把在线显示成英文 1，而且不报错；
-//   ④ 列表行即详情（不配 detailPath）：`/iot/devices/page` 返回的 DeviceVO 已含产品名与两个时间；
+//   ④ 列表行即详情（不配 detailPath）：`/iot/v1/devices/page` 返回的 DeviceVO 已含产品名与两个时间；
 //   ⑤ 近 7 日遥测画成折线：7 根横条会把台账挤到只剩 3 行可见，断流那天线落到基线；
 //   ⑥ 接口全挂时不白屏：标 stale + 给一句人话。
 //
-// 数据来源：page.route 拦 /iot/overview 与 /iot/devices/page，返回与后端同形状的信封。
+// 数据来源：page.route 拦 /iot/overview 与 /iot/v1/devices/page，返回与后端同形状的信封。
 
 import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
@@ -70,7 +70,7 @@ const OVERVIEW = {
     { level: 'warning', text: '有 6 条指令已发出但未收到回执', count: 6 },
     { level: 'info', text: '全部 3 条规则都已停用，遥测不再触发告警', count: null },
   ],
-  links: [{ key: 'devices', label: '设备台账', path: '/iot/devices/page', permission: 'sys:iot:device' }],
+  links: [{ key: 'devices', label: '设备台账', path: '/iot/v1/devices/page', permission: 'sys:iot:device' }],
   notes: ['口径：设备与遥测取自 iot_device / iot_telemetry 同源表，在线率 = 启用中在线 ÷ 启用中（停用不计入分母）'],
 };
 
@@ -127,7 +127,7 @@ await page.route('**/iot/overview**', async (route) => {
 
 /* 详情路由先注册、列表路由后注册：Playwright 后注册的优先匹配。
    兵部坊不配 detailPath，这条路由只用来断言"点行不会打详情接口"。 */
-await page.route('**/iot/devices/*', async (route) => {
+await page.route('**/iot/v1/devices/*', async (route) => {
   const url = new URL(route.request().url());
   if (url.pathname.endsWith('/page')) {
     await route.fallback();
@@ -137,7 +137,7 @@ await page.route('**/iot/devices/*', async (route) => {
   await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(json(null)) });
 });
 
-await page.route('**/iot/devices/page**', async (route) => {
+await page.route('**/iot/v1/devices/page**', async (route) => {
   const url = new URL(route.request().url());
   const current = Number(url.searchParams.get('current') ?? '1');
   const size = Number(url.searchParams.get('size') ?? '6');
@@ -366,7 +366,7 @@ check('退出后回到 3D 尺寸（不是糊满整个镜头）', exited.w > 0 &&
 await page.route('**/iot/overview**', (route) =>
   route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }),
 );
-await page.route('**/iot/devices/page**', (route) =>
+await page.route('**/iot/v1/devices/page**', (route) =>
   route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }),
 );
 await page.locator('[data-screen-id="bingbu"]').click();

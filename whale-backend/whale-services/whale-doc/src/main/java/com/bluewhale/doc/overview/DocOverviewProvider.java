@@ -45,7 +45,7 @@ public class DocOverviewProvider implements OverviewProvider {
     private static final String PERMISSION = "sys:doc:space:list";
 
     /** 空间台账列表接口：屏风页直接取这个路径 */
-    private static final String SPACE_PAGE_PATH = "/doc/space/page";
+    private static final String SPACE_PAGE_PATH = "/doc/v1/space/page";
 
     /** 翰林统计口径 */
     private final DocOverviewStatsService statsService;

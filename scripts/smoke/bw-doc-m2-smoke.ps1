@@ -72,14 +72,14 @@ $login = Invoke-RestMethod -Method Post -Uri "$base/auth/login" -ContentType 'ap
 Assert '1.login' ($login.code -eq 0 -and $null -ne $login.data.accessToken) "(code=$($login.code))"
 $script:h = @{ Authorization = "Bearer $($login.data.accessToken)" }
 
-$meta = Invoke-Api Get "$base/doc/meta"
+$meta = Invoke-Api Get "$base/doc/v1/meta"
 Assert '2.meta' ($meta.code -eq 0 -and $meta.data.service -eq 'whale-doc') "(service=$($meta.data.service))"
 Assert '3.collabEnabled' ($meta.data.collabEnabled -eq $true) `
     '(请以 WHALE_DOC_COLLAB_ENABLED=true 启动 whale-doc)'
 
 # 2) 空间与子树
 $stamp = [DateTime]::Now.ToString('yyyyMMddHHmmss')
-$space = Invoke-Api Post "$base/doc/space" @{
+$space = Invoke-Api Post "$base/doc/v1/space" @{
     name        = "M2 Smoke $stamp"
     description = 'M2 recycle + collab smoke space'
     icon        = 'book'
@@ -88,66 +88,66 @@ $space = Invoke-Api Post "$base/doc/space" @{
 Assert '4.spaceCreate' ($space.code -eq 0 -and $null -ne $space.data.id) "(code=$($space.code), msg=$($space.message))"
 $spaceId = $space.data.id
 
-$folder = Invoke-Api Post "$base/doc/page" @{
+$folder = Invoke-Api Post "$base/doc/v1/page" @{
     spaceId  = $spaceId; parentId = 0; title = 'M2 Folder'; pageType = 'FOLDER'
 }
 Assert '5.folderCreate' ($folder.code -eq 0 -and $folder.data.id) "(code=$($folder.code))"
 $folderId = $folder.data.id
 $folderTitle = $folder.data.title
 
-$pageA = Invoke-Api Post "$base/doc/page" @{
+$pageA = Invoke-Api Post "$base/doc/v1/page" @{
     spaceId  = $spaceId; parentId = $folderId; title = 'M2 Page A'; pageType = 'PAGE'
 }
 Assert '6.pageCreateA' ($pageA.code -eq 0 -and $pageA.data.id) "(code=$($pageA.code), slug=$($pageA.data.slug))"
 $pageAId = $pageA.data.id
 $pageASlug = $pageA.data.slug
 
-$pageB = Invoke-Api Post "$base/doc/page" @{
+$pageB = Invoke-Api Post "$base/doc/v1/page" @{
     spaceId  = $spaceId; parentId = $pageAId; title = 'M2 Page B'; pageType = 'PAGE'
 }
 Assert '7.pageCreateB' ($pageB.code -eq 0 -and $pageB.data.id) "(code=$($pageB.code))"
 $pageBId = $pageB.data.id
 
 # 3) 回收站：整棵子树软删除、列表、恢复、彻底清除
-$deleteA = Invoke-Api Delete "$base/doc/page/$pageAId"
+$deleteA = Invoke-Api Delete "$base/doc/v1/page/$pageAId"
 Assert '8.subtreeTrash' ($deleteA.code -eq 0) "(code=$($deleteA.code))"
 
-$treeAfterTrash = Invoke-Api Get "$base/doc/space/$spaceId/tree"
+$treeAfterTrash = Invoke-Api Get "$base/doc/v1/space/$spaceId/tree"
 $folderNode = @($treeAfterTrash.data | Where-Object { $_.id -eq $folderId })[0]
 Assert '9.treeOmitsTrash' (@($folderNode.children).Count -eq 0) "(children=$(@($folderNode.children).Count))"
-Assert '10.trashDetailGone' ((Invoke-Api Get "$base/doc/page/$pageAId").code -eq 40401)
-Assert '11.trashChildGone' ((Invoke-Api Get "$base/doc/page/$pageBId").code -eq 40401)
+Assert '10.trashDetailGone' ((Invoke-Api Get "$base/doc/v1/page/$pageAId").code -eq 40401)
+Assert '11.trashChildGone' ((Invoke-Api Get "$base/doc/v1/page/$pageBId").code -eq 40401)
 
-$recycle = Invoke-Api Get "$base/doc/space/$spaceId/recycle/page?current=1&size=20"
+$recycle = Invoke-Api Get "$base/doc/v1/space/$spaceId/recycle/page?current=1&size=20"
 $trashRoot = @($recycle.data.records | Where-Object { $_.pageId -eq $pageAId })[0]
 Assert '12.recycleRoot' ($recycle.code -eq 0 -and $null -ne $trashRoot -and $trashRoot.childCount -eq 1) `
     "(total=$($recycle.data.total), childCount=$($trashRoot.childCount))"
 Assert '13.recycleParent' ($trashRoot.parentTitle -eq $folderTitle) "(parentTitle=$($trashRoot.parentTitle))"
 
-$restoreChild = Invoke-Api Post "$base/doc/page/$pageBId/trash/restore"
+$restoreChild = Invoke-Api Post "$base/doc/v1/page/$pageBId/trash/restore"
 Assert '14.restoreNonRoot' ($restoreChild.code -eq 40008) "(code=$($restoreChild.code))"
 
-$restoreRoot = Invoke-Api Post "$base/doc/page/$pageAId/trash/restore"
+$restoreRoot = Invoke-Api Post "$base/doc/v1/page/$pageAId/trash/restore"
 Assert '15.restoreRoot' ($restoreRoot.code -eq 0) "(code=$($restoreRoot.code))"
-$treeAfterRestore = Invoke-Api Get "$base/doc/space/$spaceId/tree"
+$treeAfterRestore = Invoke-Api Get "$base/doc/v1/space/$spaceId/tree"
 $folderAfter = @($treeAfterRestore.data | Where-Object { $_.id -eq $folderId })[0]
 $nodeA = @($folderAfter.children | Where-Object { $_.id -eq $pageAId })[0]
 Assert '16.treeRestored' ($null -ne $nodeA -and @($nodeA.children | Where-Object { $_.id -eq $pageBId }).Count -eq 1)
-$detailA = Invoke-Api Get "$base/doc/page/$pageAId"
+$detailA = Invoke-Api Get "$base/doc/v1/page/$pageAId"
 Assert '17.slugRestored' ($detailA.code -eq 0 -and $detailA.data.slug -eq $pageASlug) `
     "(slug=$($detailA.data.slug))"
 
-$deleteA2 = Invoke-Api Delete "$base/doc/page/$pageAId"
+$deleteA2 = Invoke-Api Delete "$base/doc/v1/page/$pageAId"
 Assert '18.trashAgain' ($deleteA2.code -eq 0)
-$purgeA = Invoke-Api Delete "$base/doc/page/$pageAId/purge"
+$purgeA = Invoke-Api Delete "$base/doc/v1/page/$pageAId/purge"
 Assert '19.purgeSubtree' ($purgeA.code -eq 0) "(code=$($purgeA.code))"
-$recycleAfterPurge = Invoke-Api Get "$base/doc/space/$spaceId/recycle/page?current=1&size=20"
+$recycleAfterPurge = Invoke-Api Get "$base/doc/v1/space/$spaceId/recycle/page?current=1&size=20"
 Assert '20.recycleEmptyAfterPurge' (@($recycleAfterPurge.data.records | Where-Object { $_.pageId -eq $pageAId }).Count -eq 0) `
     "(total=$($recycleAfterPurge.data.total))"
-Assert '21.purgedGone' ((Invoke-Api Get "$base/doc/page/$pageAId").code -eq 40401)
+Assert '21.purgedGone' ((Invoke-Api Get "$base/doc/v1/page/$pageAId").code -eq 40401)
 
 # 4) 实时协作：ticket、ready、leader 快照、协作期 REST 拦截、断线回退
-$collabPage = Invoke-Api Post "$base/doc/page" @{
+$collabPage = Invoke-Api Post "$base/doc/v1/page" @{
     spaceId  = $spaceId; parentId = 0; title = 'M2 Collab Page'; pageType = 'PAGE'
 }
 Assert '22.collabPageCreate' ($collabPage.code -eq 0 -and $collabPage.data.id) "(code=$($collabPage.code))"
@@ -156,7 +156,7 @@ $collabPageId = $collabPage.data.id
 $baseRevision = [long]$collabPage.data.revision
 Assert '23.collabRevisionZero' ($baseRevision -eq 0) "(revision=$baseRevision)"
 
-$ticket = Invoke-Api Post "$base/doc/ws-ticket" @{ pageId = $collabPageId }
+$ticket = Invoke-Api Post "$base/doc/v1/ws-ticket" @{ pageId = $collabPageId }
 Assert '24.wsTicket' ($ticket.code -eq 0 -and $ticket.data.ticket) "(code=$($ticket.code), msg=$($ticket.message))"
 Assert '25.wsTicketTtl' ($ticket.data.expiresIn -eq 60) "(expiresIn=$($ticket.data.expiresIn))"
 $wsTicket = $ticket.data.ticket
@@ -184,12 +184,12 @@ $ackRevision = [long]$ack.revision
 Assert '29.snapshotAck' ($ack.skipped -eq $false -and $ackRevision -eq ([long]$ready.revision + 1)) `
     "(skipped=$($ack.skipped), readyRevision=$($ready.revision), ackRevision=$ackRevision)"
 
-$collabDetail = Invoke-Api Get "$base/doc/page/$collabPageId"
+$collabDetail = Invoke-Api Get "$base/doc/v1/page/$collabPageId"
 Assert '30.snapshotPersisted' (([long]$collabDetail.data.revision) -eq $ackRevision -and $collabDetail.data.title -eq $snapshotTitle) `
     "(revision=$($collabDetail.data.revision), title=$($collabDetail.data.title))"
 Assert '31.snapshotContent' ($collabDetail.data.contentJson -match 'M2 collab content')
 
-$restSave = Invoke-Api Put "$base/doc/page/$collabPageId" @{
+$restSave = Invoke-Api Put "$base/doc/v1/page/$collabPageId" @{
     baseRevision = $ack.revision
     title        = 'M2 rest while collab'
     contentJson  = @{
@@ -214,7 +214,7 @@ $socket.CloseAsync([System.Net.WebSockets.WebSocketCloseStatus]::NormalClosure, 
 $socket.Dispose()
 Start-Sleep -Milliseconds 800
 
-$afterClose = Invoke-Api Put "$base/doc/page/$collabPageId" @{
+$afterClose = Invoke-Api Put "$base/doc/v1/page/$collabPageId" @{
     baseRevision = $ack.revision
     title        = 'M2 rest after ws'
     contentJson  = @{
@@ -226,22 +226,22 @@ Assert '34.restAfterDisconnect' ($afterClose.code -eq 0 -and ([long]$afterClose.
     "(code=$($afterClose.code), revision=$($afterClose.data.revision), expect=$($ackRevision + 1))"
 
 # 5) 回收站：清空空间
-$deleteCollab = Invoke-Api Delete "$base/doc/page/$collabPageId"
+$deleteCollab = Invoke-Api Delete "$base/doc/v1/page/$collabPageId"
 Assert '35.trashForClear' ($deleteCollab.code -eq 0)
-$recycleBeforeClear = Invoke-Api Get "$base/doc/space/$spaceId/recycle/page?current=1&size=20"
+$recycleBeforeClear = Invoke-Api Get "$base/doc/v1/space/$spaceId/recycle/page?current=1&size=20"
 Assert '36.recycleHasItem' ($recycleBeforeClear.data.total -eq 1) "(total=$($recycleBeforeClear.data.total))"
-$clear = Invoke-Api Delete "$base/doc/space/$spaceId/recycle"
+$clear = Invoke-Api Delete "$base/doc/v1/space/$spaceId/recycle"
 Assert '37.clearRecycle' ($clear.code -eq 0) "(code=$($clear.code))"
-$recycleAfterClear = Invoke-Api Get "$base/doc/space/$spaceId/recycle/page?current=1&size=20"
+$recycleAfterClear = Invoke-Api Get "$base/doc/v1/space/$spaceId/recycle/page?current=1&size=20"
 Assert '38.recycleEmpty' ($recycleAfterClear.data.total -eq 0) "(total=$($recycleAfterClear.data.total))"
-Assert '39.clearedGone' ((Invoke-Api Get "$base/doc/page/$collabPageId").code -eq 40401)
+Assert '39.clearedGone' ((Invoke-Api Get "$base/doc/v1/page/$collabPageId").code -eq 40401)
 
 # 6) 空间归档
-$spaceUpdate = Invoke-Api Put "$base/doc/space/$spaceId" @{
+$spaceUpdate = Invoke-Api Put "$base/doc/v1/space/$spaceId" @{
     name = "M2 Smoke $stamp updated"; description = 'updated'; visibility = 'PUBLIC'; icon = 'book'
 }
 Assert '40.spaceUpdate' ($spaceUpdate.code -eq 0 -and $spaceUpdate.data.name -match 'updated')
-$spaceArchive = Invoke-Api Delete "$base/doc/space/$spaceId"
+$spaceArchive = Invoke-Api Delete "$base/doc/v1/space/$spaceId"
 Assert '41.spaceArchive' ($spaceArchive.code -eq 0)
 
 if ($failures -gt 0) {

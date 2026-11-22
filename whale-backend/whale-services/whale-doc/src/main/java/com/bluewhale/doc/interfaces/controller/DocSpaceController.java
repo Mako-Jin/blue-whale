@@ -36,7 +36,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/doc/space")
+@RequestMapping(path = "/doc/v{version}/space", version = "1")
 @RequiredArgsConstructor
 public class DocSpaceController {
 

@@ -10,7 +10,7 @@ export type ExportFormat = 'md' | 'html';
 export const transferApi = {
   /** 导出正文为 Blob（Markdown / HTML） */
   exportPage: (pageId: number, format: ExportFormat): Promise<Blob> =>
-    requestBlob(`/doc/page/${pageId}/export?format=${format}`),
+    requestBlob(`/doc/v1/page/${pageId}/export?format=${format}`),
 
   /** 上传 Markdown / HTML 覆盖正文 */
   importPage: (pageId: number, file: File, format?: ExportFormat): Promise<DocImportResult> => {
@@ -19,7 +19,7 @@ export const transferApi = {
     if (format) {
       form.append('format', format);
     }
-    return upload<DocImportResult>(`/doc/page/${pageId}/import`, form);
+    return upload<DocImportResult>(`/doc/v1/page/${pageId}/import`, form);
   },
 };
 

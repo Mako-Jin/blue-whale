@@ -53,7 +53,7 @@ public class DocAttachmentServiceImpl implements DocAttachmentService {
     private static final String DEFAULT_FILENAME = "file";
 
     /** 附件下载地址模板 */
-    private static final String CONTENT_URL = "/doc/page/%d/attachment/%d/content";
+    private static final String CONTENT_URL = "/doc/v1/page/%d/attachment/%d/content";
 
     private final DocPageAttachmentMapper attachmentMapper;
 

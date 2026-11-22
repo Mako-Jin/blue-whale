@@ -1,7 +1,7 @@
 // 邮箱子应用请求层：基于 @bluewhale/http，token 与用户从基座注入的读取器获取。
 //
 // 后端统一返回 `Result` 信封：{ code, message, data }，code === 0 表示成功。
-// 所有请求走相对路径（如 `/mail/folder/list`），由基座 / Nginx 经网关 8080 代理，
+// 所有请求走相对路径（如 `/mail/v1/folder/list`），由基座 / Nginx 经网关 8080 代理，
 // 网关不剥离 `/mail` 一级前缀（与 whale-party / whale-lms 一致）。
 
 import { ApiError, createHttpClient, type HttpOptions } from '@bluewhale/http';

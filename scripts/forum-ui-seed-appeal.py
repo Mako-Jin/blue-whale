@@ -38,14 +38,14 @@ author_id = f"97{fs.RUN}"
 author = fs.identity(author_id, f"smoke_ui_{fs.RUN}", fs.MEMBER_PERMS, roles="member")
 
 # 1) 禁言（申诉对象只能是已处置内容或当前禁言）
-fs.call("ui.ban", "POST", f"/forum/admin/user/{author_id}/ban", who=fs.ADMIN,
+fs.call("ui.ban", "POST", f"/forum/v1/admin/user/{author_id}/ban", who=fs.ADMIN,
         body={"reason": "UI 实机造数", "banType": "MUTE", "days": 1})
 
 # 2) 材料：png（应渲缩略图）+ txt（应降级为下载链接）
 png_id = fs.upload_file("ui.upload.png", author, f"ui-{fs.RUN}.png", solid_png(), "image/png")
 txt_id = fs.upload_file("ui.upload.txt", author, f"ui-{fs.RUN}.txt", b"evidence\n", "text/plain")
 
-appeal = fs.call("ui.appeal", "POST", "/forum/appeal", who=author, body={
+appeal = fs.call("ui.appeal", "POST", "/forum/v1/appeal", who=author, body={
     "targetType": "BAN",
     "targetId": int(author_id),
     "reason": f"UI 实机申诉 {fs.RUN}",

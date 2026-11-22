@@ -26,7 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/video")
+@RequestMapping(path = "/video/v{version}", version = "1")
 @RequiredArgsConstructor
 public class VideoMovieController {
 

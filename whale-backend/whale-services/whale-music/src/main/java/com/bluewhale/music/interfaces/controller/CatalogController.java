@@ -34,7 +34,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/music")
+@RequestMapping(path = "/music/v{version}", version = "1")
 @RequiredArgsConstructor
 public class CatalogController {
 

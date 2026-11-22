@@ -59,7 +59,7 @@ public class DocPageCopyServiceImpl implements DocPageCopyService {
 
     /** 附件地址模式 */
     private static final Pattern ATTACHMENT_URL =
-            Pattern.compile("/doc/page/(\\d+)/attachment/(\\d+)/content");
+            Pattern.compile("/doc/v1/page/(\\d+)/attachment/(\\d+)/content");
 
     private final DocPageMapper pageMapper;
 
@@ -357,7 +357,7 @@ public class DocPageCopyServiceImpl implements DocPageCopyService {
         while (matcher.find()) {
             Long mappedId = attachmentId.get(Long.valueOf(matcher.group(2)));
             String replacement = mappedId == null ? matcher.group()
-                    : "/doc/page/" + newPageId + "/attachment/" + mappedId + "/content";
+                    : "/doc/v1/page/" + newPageId + "/attachment/" + mappedId + "/content";
             matcher.appendReplacement(builder, Matcher.quoteReplacement(replacement));
         }
         matcher.appendTail(builder);

@@ -26,12 +26,12 @@ export interface TemplateApplyPayload {
 /** 文档模板接口 */
 export const templateApi = {
   list: (spaceId?: number) =>
-    http.get<DocTemplate[]>('/doc/template', spaceId ? { spaceId } : undefined),
-  detail: (id: number) => http.get<DocTemplate>(`/doc/template/${id}`),
-  create: (payload: TemplateSavePayload) => http.post<DocTemplate>('/doc/template', payload),
+    http.get<DocTemplate[]>('/doc/v1/template', spaceId ? { spaceId } : undefined),
+  detail: (id: number) => http.get<DocTemplate>(`/doc/v1/template/${id}`),
+  create: (payload: TemplateSavePayload) => http.post<DocTemplate>('/doc/v1/template', payload),
   update: (id: number, payload: TemplateSavePayload) =>
-    http.put<DocTemplate>(`/doc/template/${id}`, payload),
-  remove: (id: number) => http.del<void>(`/doc/template/${id}`),
+    http.put<DocTemplate>(`/doc/v1/template/${id}`, payload),
+  remove: (id: number) => http.del<void>(`/doc/v1/template/${id}`),
   apply: (id: number, payload: TemplateApplyPayload) =>
-    http.post<DocPage>(`/doc/template/${id}/apply`, payload),
+    http.post<DocPage>(`/doc/v1/template/${id}/apply`, payload),
 };

@@ -25,7 +25,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/mail/rule")
+@RequestMapping(path = "/mail/v{version}/rule", version = "1")
 @RequiredArgsConstructor
 public class MailRuleController {
 

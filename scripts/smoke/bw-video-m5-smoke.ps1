@@ -10,7 +10,7 @@
 #   5) 越权矩阵：他人私密 40401、可见非本人 40301、跨租户 40401、跨租户封面拒绝
 #   6) 互动与进度：点赞 / 收藏幂等、进度上报、最近观看与删除
 #   7) 指标直方图：meta / home / content 详情 / stream 四类 uri 桶
-#   8) 可选网关段：/video/internal/** 403、伪造身份头 401（需 GATEWAY_BASE）
+#   8) 可选网关段：/video/v1/internal/** 403、伪造身份头 401（需 GATEWAY_BASE）
 #   9) 清理：内容 + 文件
 #
 # 前置：whale-video(8098)、whale-file(8085)、MySQL、Redis、Nacos 就绪。
@@ -158,9 +158,9 @@ function Send-TrackedVideoUpload {
 function Confirm-VideoDeclaration {
     param([hashtable]$Headers, [string]$Label = '1')
 
-    $current = Send-VideoProbe -Method 'Get' -Path '/video/declaration/current' -Headers $Headers
+    $current = Send-VideoProbe -Method 'Get' -Path '/video/v1/declaration/current' -Headers $Headers
     $view = Assert-VideoOk -Label "$Label.declarationCurrent" -Probe $current
-    $accept = Send-VideoProbe -Method 'Post' -Path '/video/declaration/accept' -Headers $Headers `
+    $accept = Send-VideoProbe -Method 'Post' -Path '/video/v1/declaration/accept' -Headers $Headers `
         -Body @{ version = $view.version; contentSource = 'ORIGINAL' }
     $accepted = Assert-VideoOk -Label "$Label.declarationAccept" -Probe $accept
     Assert "$Label.declarationAccepted" ($accepted.accepted -eq $true -and $accepted.version -eq $view.version) `
@@ -175,10 +175,10 @@ function Confirm-VideoDeclaration {
 .PARAMETER Body
 保存命令请求体。
 .PARAMETER Path
-创建路径（/video/user/shorts 或 /video/user/videos）。
+创建路径（/video/v1/user/shorts 或 /video/v1/user/videos）。
 #>
 function New-VideoContent {
-    param([hashtable]$Headers, [object]$Body, [string]$Path = '/video/user/shorts')
+    param([hashtable]$Headers, [object]$Body, [string]$Path = '/video/v1/user/shorts')
 
     $probe = Send-VideoProbe -Method 'Post' -Path $Path -Headers $Headers -Body $Body
     $id = Assert-VideoOk -Label '1.contentCreate' -Probe $probe
@@ -198,7 +198,7 @@ Assert-VideoBaseline -Milestone 'm5' -IncludeFile
 # 0) 内网接口不经网关不可直接触达（服务侧未暴露 internal 控制器即视为通过）
 # 说明：全局异常处理器把未匹配路由统一收敛为 HTTP 200 + code=500「系统异常」，
 #      因此除 HTTP 404 外，也接受「无对应处理器」的 500 信封，二者都证明不存在 internal 控制器。
-$internal = Send-VideoProbe -Method 'Get' -Path '/video/internal/meta'
+$internal = Send-VideoProbe -Method 'Get' -Path '/video/v1/internal/meta'
 $internalAbsent = $internal.Status -eq 404 -or ($internal.Status -eq 200 -and $null -ne $internal.Result -and $internal.Result.code -eq 500)
 Assert '0.internalNotExposed' $internalAbsent "HTTP $($internal.Status) code=$($internal.Result.code)"
 
@@ -212,11 +212,11 @@ $shortId = New-VideoContent -Headers $h -Body @{
     coverFileId = $coverFileId; durationMs = 5000; width = 720; height = 1280;
     visibility = 'PUBLIC'; source = 'ORIGINAL'
 }
-$publish = Send-VideoProbe -Method 'Post' -Path "/video/user/shorts/$shortId/publish" -Headers $h
+$publish = Send-VideoProbe -Method 'Post' -Path "/video/v1/user/shorts/$shortId/publish" -Headers $h
 # 发布接口按契约返回 Result<Void>（无 data），发布结果由下方公开详情核验
 Assert-VideoOk -Label '1.publish' -Probe $publish
 
-$detail = Send-VideoProbe -Method 'Get' -Path "/video/content/$shortId" -Headers $readerHeaders
+$detail = Send-VideoProbe -Method 'Get' -Path "/video/v1/content/$shortId" -Headers $readerHeaders
 $detailView = Assert-VideoOk -Label '1.detail' -Probe $detail
 Assert '1.publishedState' ($detailView.playable -eq $true) "playable=$($detailView.playable)"
 Assert '1.detailPlayable' ($detailView.playable -eq $true -and $detailView.coverUrl -ne '') `
@@ -225,35 +225,35 @@ Assert-VideoNoFileId -Label '1.detail' -Items @($detailView)
 
 # 2) 上传安全（M5-2）
 $webmFileId = Send-TrackedVideoUpload -Path $webmPath -ContentType 'video/mp4'
-$mismatch = Send-VideoProbe -Method 'Post' -Path '/video/user/shorts' -Headers $h -Body @{
+$mismatch = Send-VideoProbe -Method 'Post' -Path '/video/v1/user/shorts' -Headers $h -Body @{
     title = "M5 伪装格式-$stamp"; videoFileId = $webmFileId; durationMs = 5000; source = 'ORIGINAL'
 }
 Assert-VideoBizError -Label '2.magicBytesMismatch' -Probe $mismatch -ExpectCode 40003
 
 $txtFileId = Send-TrackedVideoUpload -Path $txtPath -ContentType 'text/plain'
-$badMime = Send-VideoProbe -Method 'Post' -Path '/video/user/shorts' -Headers $h -Body @{
+$badMime = Send-VideoProbe -Method 'Post' -Path '/video/v1/user/shorts' -Headers $h -Body @{
     title = "M5 非法视频类型-$stamp"; videoFileId = $txtFileId; durationMs = 5000; source = 'ORIGINAL'
 }
 Assert-VideoBizError -Label '2.mimeNotAllowed' -Probe $badMime -ExpectCode 40003
 
-$badCover = Send-VideoProbe -Method 'Post' -Path '/video/user/shorts' -Headers $h -Body @{
+$badCover = Send-VideoProbe -Method 'Post' -Path '/video/v1/user/shorts' -Headers $h -Body @{
     title = "M5 非法封面-$stamp"; videoFileId = $mp4FileId; coverFileId = $txtFileId;
     durationMs = 5000; source = 'ORIGINAL'
 }
 Assert-VideoBizError -Label '2.coverMimeNotAllowed' -Probe $badCover -ExpectCode 40004
 
-$missingFile = Send-VideoProbe -Method 'Post' -Path '/video/user/shorts' -Headers $h -Body @{
+$missingFile = Send-VideoProbe -Method 'Post' -Path '/video/v1/user/shorts' -Headers $h -Body @{
     title = "M5 文件不存在-$stamp"; videoFileId = 999999999; durationMs = 5000; source = 'ORIGINAL'
 }
 Assert-VideoBizError -Label '2.fileMissing' -Probe $missingFile -ExpectCode 40006
 
-$badDuration = Send-VideoProbe -Method 'Post' -Path '/video/user/shorts' -Headers $h -Body @{
+$badDuration = Send-VideoProbe -Method 'Post' -Path '/video/v1/user/shorts' -Headers $h -Body @{
     title = "M5 时长越界-$stamp"; videoFileId = $mp4FileId; durationMs = 301000; source = 'ORIGINAL'
 }
 Assert-VideoBizError -Label '2.durationTooLong' -Probe $badDuration -ExpectCode 40002
 
 # 3) 播放票据（M5-4）
-$ticketProbe = Send-VideoProbe -Method 'Post' -Path '/video/play/ticket' -Headers $h `
+$ticketProbe = Send-VideoProbe -Method 'Post' -Path '/video/v1/play/ticket' -Headers $h `
     -Body @{ contentId = $shortId }
 $ticket = Assert-VideoOk -Label '3.ticketIssue' -Probe $ticketProbe
 Assert '3.ticketTtl' ([int]$ticket.expiresIn -eq 300 -and [int]$ticket.refreshIn -eq 240) `
@@ -296,52 +296,52 @@ $privateId = New-VideoContent -Headers $ownerHeaders -Body @{
     title = "M5 创作者私密-$stamp"; videoFileId = $mp4FileId; durationMs = 5000;
     visibility = 'PRIVATE'; source = 'ORIGINAL'
 }
-$privatePublish = Send-VideoProbe -Method 'Post' -Path "/video/user/shorts/$privateId/publish" -Headers $ownerHeaders
+$privatePublish = Send-VideoProbe -Method 'Post' -Path "/video/v1/user/shorts/$privateId/publish" -Headers $ownerHeaders
 $null = Assert-VideoOk -Label '5.privatePublish' -Probe $privatePublish
-$ownerDetail = Send-VideoProbe -Method 'Get' -Path "/video/content/$privateId" -Headers $ownerHeaders
+$ownerDetail = Send-VideoProbe -Method 'Get' -Path "/video/v1/content/$privateId" -Headers $ownerHeaders
 $null = Assert-VideoOk -Label '5.privateDetailOwner' -Probe $ownerDetail
-$otherPrivateDetail = Send-VideoProbe -Method 'Get' -Path "/video/content/$privateId" -Headers $readerHeaders
+$otherPrivateDetail = Send-VideoProbe -Method 'Get' -Path "/video/v1/content/$privateId" -Headers $readerHeaders
 Assert-VideoBizError -Label '5.privateDetailOther' -Probe $otherPrivateDetail -ExpectCode 40401
-$otherPrivateOwnerView = Send-VideoProbe -Method 'Get' -Path "/video/user/shorts/$privateId" -Headers $intruderHeaders
+$otherPrivateOwnerView = Send-VideoProbe -Method 'Get' -Path "/video/v1/user/shorts/$privateId" -Headers $intruderHeaders
 Assert-VideoBizError -Label '5.privateOwnerViewOther' -Probe $otherPrivateOwnerView -ExpectCode 40401
-$otherPrivateUpdate = Send-VideoProbe -Method 'Put' -Path "/video/user/shorts/$privateId" -Headers $intruderHeaders `
+$otherPrivateUpdate = Send-VideoProbe -Method 'Put' -Path "/video/v1/user/shorts/$privateId" -Headers $intruderHeaders `
     -Body @{ title = '越权改名'; videoFileId = $mp4FileId; durationMs = 5000 }
 Assert-VideoBizError -Label '5.privateUpdateOther' -Probe $otherPrivateUpdate -ExpectCode 40401
-$publicUpdateOther = Send-VideoProbe -Method 'Put' -Path "/video/user/shorts/$shortId" -Headers $intruderHeaders `
+$publicUpdateOther = Send-VideoProbe -Method 'Put' -Path "/video/v1/user/shorts/$shortId" -Headers $intruderHeaders `
     -Body @{ title = '越权改名'; videoFileId = $mp4FileId; durationMs = 5000 }
 Assert-VideoBizError -Label '5.publicUpdateOther' -Probe $publicUpdateOther -ExpectCode 40301
-$publicOwnerViewOther = Send-VideoProbe -Method 'Get' -Path "/video/user/shorts/$shortId" -Headers $intruderHeaders
+$publicOwnerViewOther = Send-VideoProbe -Method 'Get' -Path "/video/v1/user/shorts/$shortId" -Headers $intruderHeaders
 Assert-VideoBizError -Label '5.publicOwnerViewOther' -Probe $publicOwnerViewOther -ExpectCode 40301
-$crossTenantDetail = Send-VideoProbe -Method 'Get' -Path "/video/content/$shortId" -Headers $otherTenantHeaders
+$crossTenantDetail = Send-VideoProbe -Method 'Get' -Path "/video/v1/content/$shortId" -Headers $otherTenantHeaders
 Assert-VideoBizError -Label '5.crossTenantDetail' -Probe $crossTenantDetail -ExpectCode 40401
-$crossTenantTicket = Send-VideoProbe -Method 'Post' -Path '/video/play/ticket' -Headers $otherTenantHeaders `
+$crossTenantTicket = Send-VideoProbe -Method 'Post' -Path '/video/v1/play/ticket' -Headers $otherTenantHeaders `
     -Body @{ contentId = $shortId }
 Assert-VideoBizError -Label '5.crossTenantTicket' -Probe $crossTenantTicket -ExpectCode 40401
-$crossTenantCover = Send-VideoProbe -Method 'Get' -Path "/video/content/$shortId/cover" -Headers $otherTenantHeaders
+$crossTenantCover = Send-VideoProbe -Method 'Get' -Path "/video/v1/content/$shortId/cover" -Headers $otherTenantHeaders
 Assert-VideoBizError -Label '5.crossTenantCover' -Probe $crossTenantCover -ExpectCode 40401
 
 # 6) 互动与进度（幂等 + 最近观看）
-$like = Send-VideoProbe -Method 'Post' -Path "/video/content/$shortId/like" -Headers $readerHeaders
+$like = Send-VideoProbe -Method 'Post' -Path "/video/v1/content/$shortId/like" -Headers $readerHeaders
 $null = Assert-VideoOk -Label '6.like' -Probe $like
-$likeAgain = Send-VideoProbe -Method 'Post' -Path "/video/content/$shortId/like" -Headers $readerHeaders
+$likeAgain = Send-VideoProbe -Method 'Post' -Path "/video/v1/content/$shortId/like" -Headers $readerHeaders
 $null = Assert-VideoOk -Label '6.likeIdempotent' -Probe $likeAgain
-$favorite = Send-VideoProbe -Method 'Post' -Path "/video/content/$shortId/favorite" -Headers $readerHeaders
+$favorite = Send-VideoProbe -Method 'Post' -Path "/video/v1/content/$shortId/favorite" -Headers $readerHeaders
 $null = Assert-VideoOk -Label '6.favorite' -Probe $favorite
-$progress = Send-VideoProbe -Method 'Post' -Path '/video/play/progress' -Headers $readerHeaders `
+$progress = Send-VideoProbe -Method 'Post' -Path '/video/v1/play/progress' -Headers $readerHeaders `
     -Body @{ contentId = $shortId; progressMs = 2000; source = 'MY' }
 $null = Assert-VideoOk -Label '6.progress' -Probe $progress
-$history = Send-VideoProbe -Method 'Get' -Path '/video/history?pageNum=1&pageSize=10' -Headers $readerHeaders
+$history = Send-VideoProbe -Method 'Get' -Path '/video/v1/history?pageNum=1&pageSize=10' -Headers $readerHeaders
 $historyPage = Assert-VideoOk -Label '6.history' -Probe $history
 $historyHit = @($historyPage.records | Where-Object { [long]$_.contentId -eq $shortId })
 Assert '6.historyContains' ($historyHit.Count -ge 1) "total=$($historyPage.total)"
-$delHistory = Send-VideoProbe -Method 'Delete' -Path "/video/history/$shortId" -Headers $readerHeaders
+$delHistory = Send-VideoProbe -Method 'Delete' -Path "/video/v1/history/$shortId" -Headers $readerHeaders
 $null = Assert-VideoOk -Label '6.deleteHistory' -Probe $delHistory
 
 # 7) 指标直方图（M5-5）
-$null = Send-VideoProbe -Method 'Get' -Path '/video/home' -Headers $h
+$null = Send-VideoProbe -Method 'Get' -Path '/video/v1/home' -Headers $h
 $metrics = Invoke-WebRequest -Uri ($videoBase + '/actuator/prometheus') -UseBasicParsing
 $metricLines = $metrics.Content -split "`n"
-foreach ($uriPattern in @('/video/meta', '/video/home', '/video/content/{id}', '/video/stream/{contentId}')) {
+foreach ($uriPattern in @('/video/v1/meta', '/video/v1/home', '/video/v1/content/{id}', '/video/stream/{contentId}')) {
     $escaped = [regex]::Escape($uriPattern)
     $buckets = $metricLines | Where-Object {
         $_ -match ('http_server_requests_seconds_bucket\{[^}]*uri="' + $escaped + '"')
@@ -352,9 +352,9 @@ foreach ($uriPattern in @('/video/meta', '/video/home', '/video/content/{id}', '
 
 # 8) 可选网关段：内网接口 403、伪造身份头 401
 if ($gatewayBase) {
-    $internalProbe = Send-VideoProbe -Method 'Get' -Path '/video/internal/meta' -Headers $h -BaseUri $gatewayBase
+    $internalProbe = Send-VideoProbe -Method 'Get' -Path '/video/v1/internal/meta' -Headers $h -BaseUri $gatewayBase
     Assert '8.gatewayInternalDeny' ($internalProbe.Status -eq 403) "status=$($internalProbe.Status)"
-    $forgedProbe = Send-VideoProbe -Method 'Get' -Path '/video/meta' -Headers $otherTenantHeaders -BaseUri $gatewayBase
+    $forgedProbe = Send-VideoProbe -Method 'Get' -Path '/video/v1/meta' -Headers $otherTenantHeaders -BaseUri $gatewayBase
     Assert '8.gatewayForgedHeader' ($forgedProbe.Status -eq 401) "status=$($forgedProbe.Status) body=$($forgedProbe.BodyText)"
 } else {
     Write-Host 'SKIP 8.gateway（未设置 GATEWAY_BASE，网关内网 403 / 伪造头 401 由部署环境验证）'
@@ -362,7 +362,7 @@ if ($gatewayBase) {
 
 # 9) 清理：内容 → 文件（文件服务只允许上传者本人删除）
 foreach ($content in $createdContents) {
-    $deleted = Send-VideoProbe -Method 'Delete' -Path "/video/user/shorts/$($content.Id)" -Headers $content.Headers
+    $deleted = Send-VideoProbe -Method 'Delete' -Path "/video/v1/user/shorts/$($content.Id)" -Headers $content.Headers
     Assert "9.deleteContent[$($content.Id)]" ($null -ne $deleted.Result -and [int]$deleted.Result.code -eq 0) `
         "code=$($deleted.Result.code) body=$($deleted.BodyText)"
 }

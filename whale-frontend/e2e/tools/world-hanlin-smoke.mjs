@@ -71,7 +71,7 @@ const OVERVIEW = {
     { level: 'warning', text: '有 3 篇页面卡在发布审批，作者改不了也撤不回，需要人去核', count: null },
     { level: 'info', text: '回收站里有 2 棵删除子树，恢复或彻底清除前一直占着位置', count: null },
   ],
-  links: [{ key: 'spaces', label: '空间台账', path: '/doc/space/page', permission: 'sys:doc:space:list' }],
+  links: [{ key: 'spaces', label: '空间台账', path: '/doc/v1/space/page', permission: 'sys:doc:space:list' }],
   notes: ['口径：正式页面 = 未入回收站（含目录节点）；回收站按棵数（整棵删除子树算一棵）；待审批 = 卡在发布审批的页面'],
 };
 
@@ -127,7 +127,7 @@ await page.route('**/doc/overview**', async (route) => {
 
 /* 详情路由先注册、列表路由后注册：Playwright 后注册的优先匹配。
    翰林坊不配 detailPath，这条路由只用来断言"点行不会打详情接口"。 */
-await page.route('**/doc/space/*', async (route) => {
+await page.route('**/doc/v1/space/*', async (route) => {
   const url = new URL(route.request().url());
   if (url.pathname.endsWith('/page')) {
     await route.fallback();
@@ -137,7 +137,7 @@ await page.route('**/doc/space/*', async (route) => {
   await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(json(null)) });
 });
 
-await page.route('**/doc/space/page**', async (route) => {
+await page.route('**/doc/v1/space/page**', async (route) => {
   const url = new URL(route.request().url());
   const current = Number(url.searchParams.get('current') ?? '1');
   const size = Number(url.searchParams.get('size') ?? '6');
@@ -402,7 +402,7 @@ check('退出后回到 3D 尺寸（不是糊满整个镜头）', exited.w > 0 &&
 await page.route('**/doc/overview**', (route) =>
   route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }),
 );
-await page.route('**/doc/space/page**', (route) =>
+await page.route('**/doc/v1/space/page**', (route) =>
   route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }),
 );
 await page.evaluate(() => {

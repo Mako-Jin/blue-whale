@@ -37,7 +37,7 @@ import java.util.Set;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/doc/page/{pageId}/attachment")
+@RequestMapping(path = "/doc/v{version}/page/{pageId}/attachment", version = "1")
 @RequiredArgsConstructor
 public class DocAttachmentController {
 
