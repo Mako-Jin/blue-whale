@@ -1244,13 +1244,51 @@
   （生成器改单引号）。
 - 改了 whale-video 与 whale-monitor 的 yml，**部署时两座容器都要重建镜像**。
 
+**S7 第三批交付说明（2026-11-23，T7.3 清议堂 / forum，帖子列表）**
+
+- **选址**：清议堂在正东偏北外城（x/z = 90.80/-24.33、r=94、θ=105°、rotationDeg=-75、
+  portal=殿心+14×正面法线 → (77.27,-20.71)、entry `/forum` `sys:forum:browse`）。
+  东门轴线在 θ=90°，本坊取 105° 避开城门正面；`collider.halfX=7.0 / halfZ=5.0`
+  （**halfZ 必须 <5.3**，否则屏风落点被圈进碰撞盒、寻路报"不可站"）。
+- **接口**：`GET /forum/overview`（`whale.overview.base-path=/forum/overview`，
+  TTL 30s、超时 2s）：四张 KPI（在议帖子 / 待审帖子 / 待受理举报 / 待理申诉，
+  后三张有账就黄）+ 一张帖子**五态**柱图（待审 / 在议 / 已解决 / 已关闭 / 已驳回，
+  COUNT）+ 五条告警（待审 / 举报 / 申诉三黄；封禁存量 INFO；空库 INFO）
+  + 三个入口（帖子列表 / 审核队列 / 举报工单）。新建
+  `ForumOverviewStats / StatsService / Provider`（whale-services/whale-forum，:9011，
+  容器 bw-forum）。**权限码 `sys:forum:manage:list`**——本屏含三笔治理账，
+  普通浏览权限不该看到；帖子列表入口走自己的 `sys:forum:browse`。
+- **口径**：帖子状态取 `ThreadStatus` 五态（草稿与定时发布不进柱图，那是作者的
+  草稿箱）；举报待办 = `PENDING + HANDLING`（处理中还没出结论，仍是欠账）；
+  申诉只数 `PENDING`；封禁只报 `ACTIVE` 存量。**不写 GROUP BY，按状态各 count 一次**；
+  tenantId 显式传入，缺了直接抛。封禁/举报/申诉三张表都走 BaseMapper + 租户插件，
+  不开 `InterceptorIgnore`、不自拼 `tenant_id`。
+- **屏风页**：`THREAD_PAGE`（`/forum/v1/thread/page`，八列）。**筛选框选的是排序不是状态**：
+  公开列表按浏览、没有状态维度（待审/驳回是审核链路的内部概念），所以
+  `statusParam` 指向 `sort`（最新 / 热帖 / 精华），控件语义变成"看哪一类帖"；
+  行上的状态灯仍由页面级 `statusMap` 管（待审黄、在议绿、已驳回红）。
+  类型走**列级字典**（问答/投票绿、公告黄）；datetime 口径；不配 `detailPath`
+  （`ThreadListItemVO` 平铺，详情 15 字段）。
+- **★ 行数坑（本坊新坑）**：五态柱图比四态页面多吃约 0.7 行高，`pageSize:5` 会让
+  第 5 行在表格下缘被切一半（看着像坏了）。**先按柱图根数算行数**：四态 6 行 /
+  五态 4 行；实测表体只放得下 4.3 行。
+- **★ e2e 退出断言别判像素**：玩家站在屏风前 2 米时，退出后屏风在镜头里仍占
+  3667×2161，"退出后尺寸 <1000×700"必然误报（影戏院那条能过只是相机恰好退得远）。
+  退出该判**层**：`parentElement.id !== 'bww-planar'` + 类名不含 `bww-focus`。
+- **数枢殿总控在册**：`http://bw-forum:9011/forum/overview`，接入 **23 处**。
+- **验证**：forum 单测 180 例（新增 11）；monitor 53 例；e2e `world-qingyi-smoke`
+  **56 项全绿**（含禁用标签、排序非状态、三页分页、走位实测 2m、降级 stale）；
+  city-smoke 传送门 15→16；影戏院 60 项、乐坊 59 项回归全绿；tsc / lint /
+  check:overview 通过；八项门禁 8/8 rc=0；覆盖率门禁通过（聚合 53.56%/47.69%）。
+- 改了 whale-forum 与 whale-monitor 的 yml，**部署时两座容器都要重建镜像**。
+
 ### S7 外城 9 处
 
 | 编号 | 任务 | 服务 | 特殊 |
 |---|---|---|---|
 | T7.1 | [x] 乐坊 | music | 空间音频 |
 | T7.2 | [x] 影戏院 | video | 视频纹理 |
-| T7.3 | [ ] 清议堂 | forum | 帖子列表 |
+| T7.3 | [x] 清议堂 | forum | 帖子列表 |
 | T7.4 | [ ] 邮驿 | mail | 邮件列表 |
 | T7.5 | [ ] 传信司 | im | 会话列表（贴脸模式） |
 | T7.6 | [ ] 舆图司 | map | 地面舆图纹理 |
