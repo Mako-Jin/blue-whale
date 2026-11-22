@@ -2,6 +2,7 @@
 
 > 用途：**全平台端口 ↔ 服务 ↔ 组件**的唯一权威清单。看端口即知对应哪个服务，看服务即知其分组、库、对外前缀与职责。
 > 关联需求：REQ-ARCH-005（新增）、REQ-ARCH-004（命名规范，[naming-conventions.md](naming-conventions.md) §八）
+> 最后更新：2026-11-22（**IM/党建/监控对外接口版本化**：统一为 `/<service>/v1/**`；`/im/ws`、`/im/world`、`/monitor/overview`、各服务 internal 保持不变；新增 `V46__im_party_monitor_api_path_versioning.sql`，IM WS 票据、世界频道、党建屏风页、监控客户端、e2e 与烟测同步。）
 > 最后更新：2026-11-22（**文档/论坛/邮箱/音乐/影视/IoT 对外接口版本化**：统一为 `/<service>/v1/**`；`/doc/ws`、`/music/stream/**`、`/video/stream/**`、各服务 internal 与 overview 保持不变；新增 `V45__doc_forum_mail_music_video_iot_api_path_versioning.sql`，前端 API 层、文档协同/分享、媒体 URL、e2e 与烟测脚本同步。）
 > 最后更新：2026-11-22（**Agent/Assistant/档案/场景/数字孪生对外接口版本化**：统一为 `/<service>/v1/**`；`/assistant/openapi/v1/**`、`/agent/mcp`、各服务 internal 与 overview 保持不变；新增 `V44__agent_assistant_archive_scene_twin_api_path_versioning.sql`，前端 API 层、门户/文档/后台、世界屏风页、SSE 与烟测脚本同步。）
 > 最后更新：2026-11-22（**CRM/合同/PDM/PM/地图对外接口版本化**：统一为 `/<service>/v1/**`；电子签回调 `/contract/sign/callback/**`、各服务 internal 与 overview 保持不变；新增 `V43__crm_contract_pdm_pm_map_api_path_versioning.sql`，前端 API 层、世界屏风页、e2e 与烟测脚本同步。）
