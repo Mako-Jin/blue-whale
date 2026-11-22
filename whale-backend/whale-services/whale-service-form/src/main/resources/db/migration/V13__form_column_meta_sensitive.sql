@@ -12,7 +12,7 @@ SET @ddl = IF(
       WHERE TABLE_SCHEMA = DATABASE()
         AND TABLE_NAME = 'form_column_meta'
         AND COLUMN_NAME = 'sensitive') = 0,
-    'ALTER TABLE form_column_meta ADD COLUMN sensitive TINYINT NOT NULL DEFAULT 0 COMMENT ''敏感字段：0 普通 / 1 敏感（导出脱敏）'' AFTER required',
+    'ALTER TABLE form_column_meta ADD COLUMN `sensitive` TINYINT NOT NULL DEFAULT 0 COMMENT ''敏感字段：0 普通 / 1 敏感（导出脱敏）'' AFTER required',
     'SELECT 1');
 PREPARE form_v13_stmt FROM @ddl;
 EXECUTE form_v13_stmt;

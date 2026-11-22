@@ -29,7 +29,7 @@ SET path = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(path,
         '/video/', '/video/v1/'),
         '/iot/', '/iot/v1/'),
     update_time = CURRENT_TIMESTAMP
-WHERE type = 'API'
+WHERE perm_type = 'API'
   AND deleted = 0
   AND (path LIKE '/doc/%' OR path LIKE '%/doc/%'
     OR path LIKE '/forum/%' OR path LIKE '%/forum/%'

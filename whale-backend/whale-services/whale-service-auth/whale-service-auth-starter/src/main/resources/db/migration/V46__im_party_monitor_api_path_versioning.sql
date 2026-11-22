@@ -25,7 +25,7 @@ SET path = REPLACE(REPLACE(REPLACE(path,
         '/party/', '/party/v1/'),
         '/monitor/', '/monitor/v1/'),
     update_time = CURRENT_TIMESTAMP
-WHERE type = 'API'
+WHERE perm_type = 'API'
   AND deleted = 0
   AND (path LIKE '/im/%' OR path LIKE '%/im/%'
     OR path LIKE '/party/%' OR path LIKE '%/party/%'
