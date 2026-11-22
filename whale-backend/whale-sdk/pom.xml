@@ -20,5 +20,6 @@
         <module>whale-i18n-sdk</module>
         <module>whale-auth-sdk</module>
         <module>whale-overview-sdk</module>
+        <module>whale-pay-client</module>
     </modules>
 </project>
