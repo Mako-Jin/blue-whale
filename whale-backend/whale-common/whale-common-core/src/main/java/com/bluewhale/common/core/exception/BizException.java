@@ -144,8 +144,8 @@ public class BizException extends RuntimeException {
     /**
      * 以国际化键与中文兜底构造业务异常，错误码取系统错误。
      *
-     * <p>用于原 {@code new BizException("biz.common.core.chinese", "中文")} 调用的迁移；键由
-     * {@code GlobalExceptionHandler} 按请求 Locale 解析，资源缺失时回落到中文兜底。</p>
+     * <p>用于原先「只传中文文案」的调用迁移；键由 {@code GlobalExceptionHandler} 按请求
+     * Locale 解析，资源缺失时回落到中文兜底。</p>
      *
      * @param messageKey 国际化文案键
      * @param message 中文兜底文案
