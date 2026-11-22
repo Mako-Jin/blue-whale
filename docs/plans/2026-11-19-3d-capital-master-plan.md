@@ -1329,6 +1329,41 @@
   宣抚司/营造局全过；tsc / lint / check:overview 通过。
 - 改了 whale-mail 与 whale-monitor 的 yml，**部署时两座容器都要重建镜像**。
 
+**S7 第五批交付说明（2026-11-23，T7.5 传信司 / im，会话列表）**
+
+- **选址**：传信司在西北外城（x/z = -47.00/-81.41、r=94、θ=210°、rotationDeg=30、
+  portal=殿心+14×正面法线 → (-40.00,-69.28)、entry `/im` `sys:im:chat`），与邮驿
+  关于南北中轴对称。θ 取 210°（离 180° 北门轴线 30°，离 195° 兴檀坊与 225° 市舶司
+  各 7.3 米；屏风落点 (-40.40,-74.06) 距两坊墙均 >10 米），`collider.halfX=6.5 /
+  halfZ=5.0`。**IM 全类只有一个权限码 `sys:im:chat`**，不臆造 browse/manage。
+- **接口**：`GET /im/overview`（`whale.overview.base-path=/im/overview`，TTL 30s、
+  超时 2s）：四张 KPI（会话总数 / 今日消息 / 静默会话 / 待确认，后两张有账就黄）
+  + 一张**近七日消息量**柱图（七根，逐日 COUNT）+ 三条告警（待确认 / 近七日运行失败
+  WARNING；静默会话 INFO；另有今日无消息、无机器人绑定、空库三条条件提示）
+  + 一个入口（会话列表）。新建 `ImOverviewStats / StatsService / Provider`
+  （whale-services/whale-im，:8091，容器 bw-im）。
+- **口径**：会话三态按 `type` 各 count；今日活跃/静默都按 `last_active_at`
+  （静默只数"动过又停了"的，`last_active_at IS NULL` 的空壳不算）；消息只数
+  `status=1`（撤回的不算）；机器人两笔账 = `WAITING_CONFIRM` 全量 + 近七日 `FAILED`；
+  近七日是把同一条 count 按天跑七次。**不写 GROUP BY**；tenantId 显式传入，缺了直接抛。
+- **屏风页**：`IM_PAGE`（`/im/v1/conversations`，五列）。这个接口返回的是**普通数组**
+  而不是 `{records,total}`，渲染器为此新增 `clientPaged`：请求不带 `current/size`，
+  取回整份后前端切页。同时补了两个列级能力：`emptyText`（单聊标题为空是平台约定，
+  2D 也显示"未命名会话"，一列裸 `—` 会让人以为接口没返回）与嵌套键 `a.b`
+  （"最后一句"取 `lastMessage.content`）。`pageSize: 3`——七根**横向**柱图比四态柱图
+  多吃两行，排 4 行时第 4 行在表格下缘被切一半（截图实拍）。
+- **★ 新坑（三条，已写进记忆）**：① 数组型接口套后端分页写法 → 页码会变、内容不变
+  且不报错；② 3D 透视下的屏风页页码按钮在视口外，Playwright `click` 会一直
+  "滚进视口"到超时——**翻页断言必须在贴脸态做**；③ 详情里 `senderType` 不能显示
+  裸的 `USER`，加 `IM_SENDER_TYPE` 字典（用户/机器人/系统）。
+- **数枢殿总控在册**：`http://bw-im:8091/im/overview`，接入 **25 处**。
+- **验证**：im 单测 180 例（新增 11）；monitor 53 例；e2e `world-chuanxin-smoke`
+  **59 项全绿**（本地切页负向验证"翻页不再打接口"、嵌套字段、emptyText、走位实测 5 米、
+  降级 stale）；city-smoke 传送门 **17→18**；回归邮驿 56、清议堂 56、影戏院 60、
+  乐坊 59 全绿；tsc / lint / check:overview / check-city-layout 通过；八项门禁 8/8 rc=0
+  （api-path-drift 1571 处调用全命中）。
+- 改了 whale-im 与 whale-monitor 的 yml，**部署时两座容器都要重建镜像**。
+
 ### S7 外城 9 处
 
 | 编号 | 任务 | 服务 | 特殊 |
@@ -1337,7 +1372,7 @@
 | T7.2 | [x] 影戏院 | video | 视频纹理 |
 | T7.3 | [x] 清议堂 | forum | 帖子列表 |
 | T7.4 | [x] 邮驿 | mail | 邮件列表 |
-| T7.5 | [ ] 传信司 | im | 会话列表（贴脸模式） |
+| T7.5 | [x] 传信司 | im | 会话列表（贴脸模式） |
 | T7.6 | [ ] 舆图司 | map | 地面舆图纹理 |
 | T7.7 | [ ] 观星台 | twin | 3D 场景嵌入 |
 | T7.8 | [ ] 智囊院 | agent + assistant | 对话（贴脸模式） |
