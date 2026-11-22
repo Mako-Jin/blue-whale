@@ -20,20 +20,20 @@ public class MesExceptionCreateRequest {
     private Long taskId;
 
     /** 异常类型：EQUIPMENT/MATERIAL/QUALITY/OTHER */
-    @NotBlank(message = "异常类型不能为空")
-    @Pattern(regexp = "EQUIPMENT|MATERIAL|QUALITY|OTHER", message = "异常类型不合法")
+    @NotBlank(message = "{validation.mes.mes-exception.exception-type-required}")
+    @Pattern(regexp = "EQUIPMENT|MATERIAL|QUALITY|OTHER", message = "{validation.mes.mes-exception.exception-type-pattern}")
     private String exceptionType;
 
     /** 异常原因编码 */
-    @Size(max = 64, message = "异常原因编码长度不能超过 64")
+    @Size(max = 64, message = "{validation.mes.mes-exception.reason-code-size}")
     private String reasonCode;
 
     /** 异常描述 */
-    @NotBlank(message = "异常描述不能为空")
-    @Size(max = 512, message = "异常描述长度不能超过 512")
+    @NotBlank(message = "{validation.mes.mes-exception.description-required}")
+    @Size(max = 512, message = "{validation.mes.mes-exception.description-size}")
     private String description;
 
     /** 备注 */
-    @Size(max = 255, message = "备注长度不能超过 255")
+    @Size(max = 255, message = "{validation.mes.mes-exception.remark-size}")
     private String remark;
 }

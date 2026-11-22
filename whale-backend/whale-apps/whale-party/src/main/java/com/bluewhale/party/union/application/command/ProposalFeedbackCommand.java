@@ -13,7 +13,7 @@ import lombok.Data;
 public class ProposalFeedbackCommand {
 
     /** 反馈内容 */
-    @NotBlank(message = "反馈内容不能为空")
-    @Size(max = 500, message = "反馈内容不得超过 500 字符")
+    @NotBlank(message = "{validation.party.proposal-feedback.feedback-required}")
+    @Size(max = 500, message = "{validation.party.proposal-feedback.feedback-size}")
     private String feedback;
 }

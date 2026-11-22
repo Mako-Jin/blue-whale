@@ -28,23 +28,23 @@ public final class CalendarCommands {
     public static class EntrySaveCommand {
 
         /** 日程标题 */
-        @NotBlank(message = "日程标题不能为空")
-        @Size(max = 128, message = "日程标题不能超过 128 个字符")
+        @NotBlank(message = "{validation.oa.entry.title-required}")
+        @Size(max = 128, message = "{validation.oa.entry.title-size}")
         private String title;
 
         /** 日程描述 */
         private String description;
 
         /** 地点 */
-        @Size(max = 128, message = "地点不能超过 128 个字符")
+        @Size(max = 128, message = "{validation.oa.entry.location-size}")
         private String location;
 
         /** 开始时间 */
-        @NotNull(message = "开始时间不能为空")
+        @NotNull(message = "{validation.oa.entry.start-time-required}")
         private LocalDateTime startTime;
 
         /** 结束时间 */
-        @NotNull(message = "结束时间不能为空")
+        @NotNull(message = "{validation.oa.entry.end-time-required}")
         private LocalDateTime endTime;
 
         /** 是否全天：0 否 / 1 是 */
@@ -54,8 +54,8 @@ public final class CalendarCommands {
         private String visibility;
 
         /** 提前提醒分钟数（0 表示不提醒） */
-        @Min(value = 0, message = "提醒分钟数不能为负数")
-        @Max(value = 10080, message = "提醒分钟数不能超过 7 天")
+        @Min(value = 0, message = "{validation.oa.entry.remind-minutes-min}")
+        @Max(value = 10080, message = "{validation.oa.entry.remind-minutes-max}")
         private Integer remindMinutes;
 
         /** 所有者用户ID（控制器注入） */
@@ -82,7 +82,7 @@ public final class CalendarCommands {
     public static class ShareUserCommand {
 
         /** 用户ID */
-        @NotNull(message = "共享用户ID不能为空")
+        @NotNull(message = "{validation.oa.share-user.user-id-required}")
         private Long userId;
 
         /** 用户姓名 */

@@ -16,8 +16,8 @@ import java.time.LocalDate;
 public class FeePayCommand {
 
     /** 本次缴纳金额 */
-    @NotNull(message = "缴纳金额不能为空")
-    @DecimalMin(value = "0.01", message = "缴纳金额必须大于 0")
+    @NotNull(message = "{validation.party.fee-pay.amount-required}")
+    @DecimalMin(value = "0.01", message = "{validation.party.fee-pay.amount-min}")
     private BigDecimal amount;
 
     /** 缴费日期（空表示当天） */

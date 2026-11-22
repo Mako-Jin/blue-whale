@@ -18,11 +18,11 @@ public class ErpInternalItemUpsertRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** PDM 零件编码（幂等键） */
-    @NotBlank(message = "PDM 零件编码不能为空")
+    @NotBlank(message = "{validation.erp.erp-internal-item-upsert.pdm-part-no-required}")
     private String pdmPartNo;
 
     /** 物料名称 */
-    @NotBlank(message = "物料名称不能为空")
+    @NotBlank(message = "{validation.erp.erp-internal-item-upsert.name-required}")
     private String name;
 
     /** 状态：ENABLED/DISABLED，留空按 ENABLED */

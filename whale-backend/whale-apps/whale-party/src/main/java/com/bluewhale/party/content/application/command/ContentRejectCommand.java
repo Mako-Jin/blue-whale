@@ -15,7 +15,7 @@ import lombok.Data;
 public class ContentRejectCommand {
 
     /** 审核意见 */
-    @NotBlank(message = "退回必须填写审核意见")
-    @Size(max = 1000, message = "审核意见不得超过 1000 字符")
+    @NotBlank(message = "{validation.party.content-reject.opinion-required}")
+    @Size(max = 1000, message = "{validation.party.content-reject.opinion-size}")
     private String opinion;
 }

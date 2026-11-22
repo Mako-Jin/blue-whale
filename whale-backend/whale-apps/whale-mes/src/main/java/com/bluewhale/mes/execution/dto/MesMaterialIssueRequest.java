@@ -21,38 +21,38 @@ import java.util.List;
 public class MesMaterialIssueRequest {
 
     /** 工单 ID */
-    @NotNull(message = "工单不能为空")
+    @NotNull(message = "{validation.mes.mes-material-issue.work-order-id-required}")
     private Long workOrderId;
 
     /** 任务 ID */
     private Long taskId;
 
     /** 领料仓库编码 */
-    @NotBlank(message = "领料仓库不能为空")
-    @Size(max = 64, message = "仓库编码长度不能超过 64")
+    @NotBlank(message = "{validation.mes.mes-material-issue.warehouse-code-required}")
+    @Size(max = 64, message = "{validation.mes.mes-material-issue.warehouse-code-size}")
     private String warehouseCode;
 
     /** 产线 ID（填写时按线边仓扣减库存） */
     private Long lineId;
 
     /** 产线编码（与产线 ID 同时填写） */
-    @Size(max = 64, message = "产线编码长度不能超过 64")
+    @Size(max = 64, message = "{validation.mes.mes-material-issue.line-code-size}")
     private String lineCode;
 
     /** 类型：ISSUE 领料 / SUPPLEMENT 补料 */
-    @Pattern(regexp = "ISSUE|SUPPLEMENT", message = "领料类型不合法")
+    @Pattern(regexp = "ISSUE|SUPPLEMENT", message = "{validation.mes.mes-material-issue.issue-type-pattern}")
     private String issueType;
 
     /** 补料原因 */
-    @Size(max = 255, message = "补料原因长度不能超过 255")
+    @Size(max = 255, message = "{validation.mes.mes-material-issue.reason-size}")
     private String reason;
 
     /** 备注 */
-    @Size(max = 255, message = "备注长度不能超过 255")
+    @Size(max = 255, message = "{validation.mes.mes-material-issue.remark-size}")
     private String remark;
 
     /** 领料明细 */
-    @NotEmpty(message = "领料明细不能为空")
+    @NotEmpty(message = "{validation.mes.mes-material-issue.lines-required}")
     @Valid
     private List<Line> lines;
 
@@ -63,25 +63,25 @@ public class MesMaterialIssueRequest {
     public static class Line {
 
         /** 物料编码 */
-        @NotBlank(message = "物料编码不能为空")
-        @Size(max = 64, message = "物料编码长度不能超过 64")
+        @NotBlank(message = "{validation.mes.line.item-code-required}")
+        @Size(max = 64, message = "{validation.mes.line.item-code-size}")
         private String itemCode;
 
         /** 物料名称 */
-        @Size(max = 128, message = "物料名称长度不能超过 128")
+        @Size(max = 128, message = "{validation.mes.line.item-name-size}")
         private String itemName;
 
         /** 领用数量 */
-        @NotNull(message = "领用数量不能为空")
-        @DecimalMin(value = "0.0001", message = "领用数量必须大于 0")
+        @NotNull(message = "{validation.mes.line.quantity-required}")
+        @DecimalMin(value = "0.0001", message = "{validation.mes.line.quantity-min}")
         private BigDecimal quantity;
 
         /** 计量单位 */
-        @Size(max = 16, message = "计量单位长度不能超过 16")
+        @Size(max = 16, message = "{validation.mes.line.uom-size}")
         private String uom;
 
         /** 批次号 */
-        @Size(max = 64, message = "批次号长度不能超过 64")
+        @Size(max = 64, message = "{validation.mes.line.batch-no-size}")
         private String batchNo;
     }
 }

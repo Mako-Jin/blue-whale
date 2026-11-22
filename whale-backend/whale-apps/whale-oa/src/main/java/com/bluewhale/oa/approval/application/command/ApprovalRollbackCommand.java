@@ -13,7 +13,7 @@ import lombok.Data;
 public class ApprovalRollbackCommand {
 
     /** 目标节点键 */
-    @NotBlank(message = "退回节点不能为空")
-    @Size(max = 64, message = "退回节点长度不能超过 64")
+    @NotBlank(message = "{validation.oa.approval-rollback.target-node-key-required}")
+    @Size(max = 64, message = "{validation.oa.approval-rollback.target-node-key-size}")
     private String targetNodeKey;
 }

@@ -18,31 +18,31 @@ public class MesArchivePolicySaveRequest {
     private Long id;
 
     /** 策略编码（空则编辑时保持不变） */
-    @Size(max = 64, message = "策略编码长度不能超过 64")
+    @Size(max = 64, message = "{validation.mes.mes-archive-policy.policy-code-size}")
     private String policyCode;
 
     /** 归档目标表 */
-    @NotBlank(message = "归档目标表不能为空")
-    @Size(max = 64, message = "归档目标表长度不能超过 64")
+    @NotBlank(message = "{validation.mes.mes-archive-policy.table-name-required}")
+    @Size(max = 64, message = "{validation.mes.mes-archive-policy.table-name-size}")
     private String tableName;
 
     /** 保留天数 */
-    @Min(value = 1, message = "保留天数必须大于 0")
+    @Min(value = 1, message = "{validation.mes.mes-archive-policy.retention-days-min}")
     private Integer retentionDays;
 
     /** 单批归档条数 */
-    @Min(value = 1, message = "单批归档条数必须大于 0")
+    @Min(value = 1, message = "{validation.mes.mes-archive-policy.archive-batch-size-min}")
     private Integer archiveBatchSize;
 
     /** 调度表达式 */
-    @Size(max = 64, message = "调度表达式长度不能超过 64")
+    @Size(max = 64, message = "{validation.mes.mes-archive-policy.cron-expr-size}")
     private String cronExpr;
 
     /** 状态：ENABLED / DISABLED */
-    @Pattern(regexp = "ENABLED|DISABLED", message = "状态仅支持 ENABLED / DISABLED")
+    @Pattern(regexp = "ENABLED|DISABLED", message = "{validation.mes.mes-archive-policy.status-pattern}")
     private String status;
 
     /** 备注 */
-    @Size(max = 255, message = "备注长度不能超过 255")
+    @Size(max = 255, message = "{validation.mes.mes-archive-policy.remark-size}")
     private String remark;
 }

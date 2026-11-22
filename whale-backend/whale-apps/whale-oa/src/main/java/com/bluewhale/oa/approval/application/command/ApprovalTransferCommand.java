@@ -13,7 +13,7 @@ import lombok.Data;
 public class ApprovalTransferCommand {
 
     /** 目标账号 */
-    @NotBlank(message = "转办目标账号不能为空")
-    @Size(max = 64, message = "转办目标账号长度不能超过 64")
+    @NotBlank(message = "{validation.oa.approval-transfer.target-user-required}")
+    @Size(max = 64, message = "{validation.oa.approval-transfer.target-user-size}")
     private String targetUser;
 }

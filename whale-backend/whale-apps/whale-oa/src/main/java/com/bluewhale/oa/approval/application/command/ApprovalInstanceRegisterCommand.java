@@ -20,39 +20,39 @@ import java.util.List;
 public class ApprovalInstanceRegisterCommand {
 
     /** 业务类型 */
-    @NotBlank(message = "业务类型不能为空")
-    @Size(max = 64, message = "业务类型长度不能超过 64")
+    @NotBlank(message = "{validation.oa.approval-instance-register.business-type-required}")
+    @Size(max = 64, message = "{validation.oa.approval-instance-register.business-type-size}")
     private String businessType;
 
     /** 业务单据ID */
-    @NotNull(message = "业务单据ID不能为空")
+    @NotNull(message = "{validation.oa.approval-instance-register.business-id-required}")
     private Long businessId;
 
     /** 业务单号 */
-    @Size(max = 64, message = "业务单号长度不能超过 64")
+    @Size(max = 64, message = "{validation.oa.approval-instance-register.business-code-size}")
     private String businessCode;
 
     /** Workflow 流程定义编码；为空时按审批配置解析 */
-    @Size(max = 64, message = "流程定义编码长度不能超过 64")
+    @Size(max = 64, message = "{validation.oa.approval-instance-register.definition-code-size}")
     private String definitionCode;
 
     /** 审批标题；为空时按标题模板与配置解析 */
-    @Size(max = 255, message = "标题长度不能超过 255")
+    @Size(max = 255, message = "{validation.oa.approval-instance-register.title-size}")
     private String title;
 
     /** 发起人用户ID */
     private Long initiatorId;
 
     /** 发起人姓名快照 */
-    @Size(max = 64, message = "发起人姓名长度不能超过 64")
+    @Size(max = 64, message = "{validation.oa.approval-instance-register.initiator-name-size}")
     private String initiatorName;
 
     /** 业务详情前端路由；为空时按审批配置解析 */
-    @Size(max = 255, message = "业务路由长度不能超过 255")
+    @Size(max = 255, message = "{validation.oa.approval-instance-register.business-url-size}")
     private String businessUrl;
 
     /** 备注 */
-    @Size(max = 255, message = "备注长度不能超过 255")
+    @Size(max = 255, message = "{validation.oa.approval-instance-register.remark-size}")
     private String remark;
 
     /** 审批人快照 */

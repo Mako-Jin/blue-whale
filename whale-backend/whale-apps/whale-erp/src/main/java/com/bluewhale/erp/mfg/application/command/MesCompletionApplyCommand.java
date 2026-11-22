@@ -15,7 +15,7 @@ import java.math.BigDecimal;
 public class MesCompletionApplyCommand {
 
     /** 本次入库数量 */
-    @NotNull(message = "入库数量不能为空")
-    @DecimalMin(value = "0.0001", message = "入库数量必须大于 0")
+    @NotNull(message = "{validation.erp.mes-completion-apply.quantity-required}")
+    @DecimalMin(value = "0.0001", message = "{validation.erp.mes-completion-apply.quantity-min}")
     private BigDecimal quantity;
 }

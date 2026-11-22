@@ -27,12 +27,12 @@ public final class CollabCommands {
     public static class RoomSaveCommand {
 
         /** 会议室名称 */
-        @NotBlank(message = "会议室名称不能为空")
-        @Size(max = 64, message = "会议室名称不能超过 64 个字符")
+        @NotBlank(message = "{validation.oa.room.name-required}")
+        @Size(max = 64, message = "{validation.oa.room.name-size}")
         private String name;
 
         /** 位置 */
-        @Size(max = 128, message = "位置不能超过 128 个字符")
+        @Size(max = 128, message = "{validation.oa.room.location-size}")
         private String location;
 
         /** 容纳人数 */
@@ -42,7 +42,7 @@ public final class CollabCommands {
         private String status;
 
         /** 备注 */
-        @Size(max = 255, message = "备注不能超过 255 个字符")
+        @Size(max = 255, message = "{validation.oa.room.remark-size}")
         private String remark;
     }
 
@@ -53,8 +53,8 @@ public final class CollabCommands {
     public static class MeetingSaveCommand {
 
         /** 会议主题 */
-        @NotBlank(message = "会议主题不能为空")
-        @Size(max = 128, message = "会议主题不能超过 128 个字符")
+        @NotBlank(message = "{validation.oa.meeting.title-required}")
+        @Size(max = 128, message = "{validation.oa.meeting.title-size}")
         private String title;
 
         /** 会议室ID */
@@ -70,18 +70,18 @@ public final class CollabCommands {
         private Long deptId;
 
         /** 开始时间 */
-        @NotNull(message = "会议开始时间不能为空")
+        @NotNull(message = "{validation.oa.meeting.start-time-required}")
         private LocalDateTime startTime;
 
         /** 结束时间 */
-        @NotNull(message = "会议结束时间不能为空")
+        @NotNull(message = "{validation.oa.meeting.end-time-required}")
         private LocalDateTime endTime;
 
         /** 会议议程 */
         private String agenda;
 
         /** 备注 */
-        @Size(max = 255, message = "备注不能超过 255 个字符")
+        @Size(max = 255, message = "{validation.oa.meeting.remark-size}")
         private String remark;
 
         /** 参会人 */
@@ -95,7 +95,7 @@ public final class CollabCommands {
     public static class ParticipantCommand {
 
         /** 参会人用户ID */
-        @NotNull(message = "参会人用户ID不能为空")
+        @NotNull(message = "{validation.oa.participant.user-id-required}")
         private Long userId;
 
         /** 参会人姓名 */
@@ -115,7 +115,7 @@ public final class CollabCommands {
     public static class MeetingStatusCommand {
 
         /** 目标状态 */
-        @NotBlank(message = "目标状态不能为空")
+        @NotBlank(message = "{validation.oa.meeting-status.status-required}")
         private String status;
     }
 
@@ -126,7 +126,7 @@ public final class CollabCommands {
     public static class ParticipantStatusCommand {
 
         /** 目标状态 */
-        @NotBlank(message = "参会状态不能为空")
+        @NotBlank(message = "{validation.oa.participant-status.status-required}")
         private String status;
 
         /** 备注 */
@@ -140,7 +140,7 @@ public final class CollabCommands {
     public static class MinuteSaveCommand {
 
         /** 纪要内容 */
-        @NotBlank(message = "纪要内容不能为空")
+        @NotBlank(message = "{validation.oa.minute.content-required}")
         private String content;
 
         /** 纪要作者账号 */
@@ -160,12 +160,12 @@ public final class CollabCommands {
     public static class ActionCommand {
 
         /** 行动项内容 */
-        @NotBlank(message = "行动项内容不能为空")
-        @Size(max = 255, message = "行动项内容不能超过 255 个字符")
+        @NotBlank(message = "{validation.oa.action.content-required}")
+        @Size(max = 255, message = "{validation.oa.action.content-size}")
         private String content;
 
         /** 负责人用户ID */
-        @NotNull(message = "行动项负责人不能为空")
+        @NotNull(message = "{validation.oa.action.owner-id-required}")
         private Long ownerId;
 
         /** 负责人姓名 */
@@ -185,12 +185,12 @@ public final class CollabCommands {
     public static class NoticeSaveCommand {
 
         /** 公告标题 */
-        @NotBlank(message = "公告标题不能为空")
-        @Size(max = 128, message = "公告标题不能超过 128 个字符")
+        @NotBlank(message = "{validation.oa.notice.title-required}")
+        @Size(max = 128, message = "{validation.oa.notice.title-size}")
         private String title;
 
         /** 公告正文 */
-        @NotBlank(message = "公告正文不能为空")
+        @NotBlank(message = "{validation.oa.notice.content-required}")
         private String content;
 
         /** 发布范围 */
@@ -200,7 +200,7 @@ public final class CollabCommands {
         private String scopeValue;
 
         /** 备注 */
-        @Size(max = 255, message = "备注不能超过 255 个字符")
+        @Size(max = 255, message = "{validation.oa.notice.remark-size}")
         private String remark;
 
         /** 接收人（为空时按范围从通讯录解析） */
@@ -214,7 +214,7 @@ public final class CollabCommands {
     public static class RecipientCommand {
 
         /** 接收人用户ID */
-        @NotNull(message = "接收人用户ID不能为空")
+        @NotNull(message = "{validation.oa.recipient.user-id-required}")
         private Long userId;
 
         /** 接收人姓名 */
@@ -228,15 +228,15 @@ public final class CollabCommands {
     public static class TaskSaveCommand {
 
         /** 任务标题 */
-        @NotBlank(message = "任务标题不能为空")
-        @Size(max = 128, message = "任务标题不能超过 128 个字符")
+        @NotBlank(message = "{validation.oa.task.title-required}")
+        @Size(max = 128, message = "{validation.oa.task.title-size}")
         private String title;
 
         /** 任务描述 */
         private String description;
 
         /** 负责人用户ID */
-        @NotNull(message = "任务负责人不能为空")
+        @NotNull(message = "{validation.oa.task.owner-id-required}")
         private Long ownerId;
 
         /** 负责人姓名 */
@@ -268,7 +268,7 @@ public final class CollabCommands {
     public static class TaskStatusCommand {
 
         /** 目标状态 */
-        @NotBlank(message = "任务状态不能为空")
+        @NotBlank(message = "{validation.oa.task-status.status-required}")
         private String status;
     }
 
@@ -279,8 +279,8 @@ public final class CollabCommands {
     public static class CommentSaveCommand {
 
         /** 评论内容 */
-        @NotBlank(message = "评论内容不能为空")
-        @Size(max = 500, message = "评论内容不能超过 500 个字符")
+        @NotBlank(message = "{validation.oa.comment.content-required}")
+        @Size(max = 500, message = "{validation.oa.comment.content-size}")
         private String content;
 
         /** 评论人用户ID */

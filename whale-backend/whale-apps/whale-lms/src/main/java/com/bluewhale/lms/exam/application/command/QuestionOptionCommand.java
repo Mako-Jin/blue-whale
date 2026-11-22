@@ -13,13 +13,13 @@ import lombok.Data;
 public class QuestionOptionCommand {
 
     /** 选项键（A/B/C…） */
-    @NotBlank(message = "选项键不能为空")
-    @Size(max = 8, message = "选项键最长 8 字符")
+    @NotBlank(message = "{validation.lms.question-option.option-key-required}")
+    @Size(max = 8, message = "{validation.lms.question-option.option-key-size}")
     private String optionKey;
 
     /** 选项内容 */
-    @NotBlank(message = "选项内容不能为空")
-    @Size(max = 500, message = "选项内容最长 500 字符")
+    @NotBlank(message = "{validation.lms.question-option.content-required}")
+    @Size(max = 500, message = "{validation.lms.question-option.content-size}")
     private String content;
 
     /** 排序号 */

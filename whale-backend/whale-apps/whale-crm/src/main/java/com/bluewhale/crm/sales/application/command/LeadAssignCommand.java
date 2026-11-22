@@ -12,7 +12,7 @@ import lombok.Data;
 public class LeadAssignCommand {
 
     /** 负责人 */
-    @NotNull(message = "负责人不能为空")
+    @NotNull(message = "{validation.crm.lead-assign.owner-id-required}")
     private Long ownerId;
 
     /** 归属部门 */

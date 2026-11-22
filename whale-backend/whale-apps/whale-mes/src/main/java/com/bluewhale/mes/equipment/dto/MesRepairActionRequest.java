@@ -12,26 +12,26 @@ import lombok.Data;
 public class MesRepairActionRequest {
 
     /** 维修人（派工） */
-    @Size(max = 64, message = "维修人长度不能超过 64")
+    @Size(max = 64, message = "{validation.mes.mes-repair-action.assignee-size}")
     private String assignee;
 
     /** 维修说明（验证） */
-    @Size(max = 500, message = "维修说明长度不能超过 500")
+    @Size(max = 500, message = "{validation.mes.mes-repair-action.repair-desc-size}")
     private String repairDesc;
 
     /** 验证人（验证） */
-    @Size(max = 64, message = "验证人长度不能超过 64")
+    @Size(max = 64, message = "{validation.mes.mes-repair-action.verified-by-size}")
     private String verifiedBy;
 
     /** 验证结论（验证） */
-    @Size(max = 255, message = "验证结论长度不能超过 255")
+    @Size(max = 255, message = "{validation.mes.mes-repair-action.verify-conclusion-size}")
     private String verifyConclusion;
 
     /** 操作人（开始/关闭） */
-    @Size(max = 64, message = "操作人长度不能超过 64")
+    @Size(max = 64, message = "{validation.mes.mes-repair-action.operator-size}")
     private String operator;
 
     /** 备注 */
-    @Size(max = 255, message = "备注长度不能超过 255")
+    @Size(max = 255, message = "{validation.mes.mes-repair-action.remark-size}")
     private String remark;
 }

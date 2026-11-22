@@ -22,31 +22,31 @@ import java.util.List;
 public class QuoteSaveCommand {
 
     /** 商机 ID */
-    @NotNull(message = "报价必须关联商机")
+    @NotNull(message = "{validation.crm.quote.opportunity-id-required}")
     private Long opportunityId;
 
     /** 报价标题 */
-    @NotBlank(message = "报价标题不能为空")
-    @Size(max = 128, message = "报价标题最多 128 个字符")
+    @NotBlank(message = "{validation.crm.quote.title-required}")
+    @Size(max = 128, message = "{validation.crm.quote.title-size}")
     private String title;
 
     /** 币种 */
-    @Size(max = 8, message = "币种最多 8 个字符")
+    @Size(max = 8, message = "{validation.crm.quote.currency-size}")
     private String currency = "CNY";
 
     /** 有效期 */
     private LocalDate validUntil;
 
     /** 整单折扣金额 */
-    @DecimalMin(value = "0", message = "整单折扣不能为负数")
+    @DecimalMin(value = "0", message = "{validation.crm.quote.discount-amount-min}")
     private BigDecimal discountAmount = BigDecimal.ZERO;
 
     /** 备注 */
-    @Size(max = 500, message = "备注最多 500 个字符")
+    @Size(max = 500, message = "{validation.crm.quote.remark-size}")
     private String remark;
 
     /** 报价行 */
-    @NotEmpty(message = "报价至少需要一行明细")
+    @NotEmpty(message = "{validation.crm.quote.lines-required}")
     @Valid
     private List<QuoteLineCommand> lines = new ArrayList<>();
 }

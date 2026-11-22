@@ -16,7 +16,7 @@ public class PdmClbReviewCloseRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 结论：PASSED/CONDITIONAL/REJECTED */
-    @NotBlank(message = "评审结论不能为空")
+    @NotBlank(message = "{validation.pdm.pdm-clb-review-close.conclusion-required}")
     private String conclusion;
 
     /** 结论说明 */

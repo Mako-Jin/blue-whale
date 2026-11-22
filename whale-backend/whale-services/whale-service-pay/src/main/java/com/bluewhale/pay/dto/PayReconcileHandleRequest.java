@@ -20,10 +20,10 @@ public class PayReconcileHandleRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 处置动作：CONFIRM / COMPENSATE / SUSPEND */
-    @NotBlank(message = "处置动作不能为空")
+    @NotBlank(message = "{validation.pay.pay-reconcile-handle.action-required}")
     private String action;
 
     /** 处置备注 */
-    @Size(max = 255, message = "处置备注长度不能超过 255")
+    @Size(max = 255, message = "{validation.pay.pay-reconcile-handle.remark-size}")
     private String remark;
 }

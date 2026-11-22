@@ -20,27 +20,27 @@ public class PdmPrcStepSaveRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 工序序号（缺省取当前最大序号 +1） */
-    @Min(value = 1, message = "工序序号必须大于 0")
+    @Min(value = 1, message = "{validation.pdm.pdm-prc-step.step-no-min}")
     private Integer stepNo;
 
     /** 工序名称 */
-    @NotBlank(message = "工序名称不能为空")
-    @Size(max = 128, message = "工序名称长度不能超过 128")
+    @NotBlank(message = "{validation.pdm.pdm-prc-step.name-required}")
+    @Size(max = 128, message = "{validation.pdm.pdm-prc-step.name-size}")
     private String name;
 
     /** 工作中心 */
-    @Size(max = 128, message = "工作中心长度不能超过 128")
+    @Size(max = 128, message = "{validation.pdm.pdm-prc-step.work-center-size}")
     private String workCenter;
 
     /** 标准工时（小时） */
-    @DecimalMin(value = "0", message = "标准工时不能为负")
+    @DecimalMin(value = "0", message = "{validation.pdm.pdm-prc-step.standard-hours-min}")
     private BigDecimal standardHours;
 
     /** 准备工时（小时） */
-    @DecimalMin(value = "0", message = "准备工时不能为负")
+    @DecimalMin(value = "0", message = "{validation.pdm.pdm-prc-step.setup-hours-min}")
     private BigDecimal setupHours;
 
     /** 工序说明 */
-    @Size(max = 500, message = "工序说明长度不能超过 500")
+    @Size(max = 500, message = "{validation.pdm.pdm-prc-step.description-size}")
     private String description;
 }

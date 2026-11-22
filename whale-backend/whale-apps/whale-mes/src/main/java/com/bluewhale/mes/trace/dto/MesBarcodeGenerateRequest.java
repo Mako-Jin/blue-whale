@@ -15,20 +15,20 @@ import lombok.Data;
 public class MesBarcodeGenerateRequest {
 
     /** 条码规则 ID */
-    @NotNull(message = "条码规则不能为空")
+    @NotNull(message = "{validation.mes.mes-barcode-generate.rule-id-required}")
     private Long ruleId;
 
     /** 绑定批次 ID */
-    @NotNull(message = "绑定批次不能为空")
+    @NotNull(message = "{validation.mes.mes-barcode-generate.batch-id-required}")
     private Long batchId;
 
     /** 生成数量 */
-    @NotNull(message = "生成数量不能为空")
-    @Min(value = 1, message = "生成数量至少为 1")
-    @Max(value = 1000, message = "单次最多生成 1000 个条码")
+    @NotNull(message = "{validation.mes.mes-barcode-generate.quantity-required}")
+    @Min(value = 1, message = "{validation.mes.mes-barcode-generate.quantity-min}")
+    @Max(value = 1000, message = "{validation.mes.mes-barcode-generate.quantity-max}")
     private Integer quantity;
 
     /** 备注 */
-    @Size(max = 255, message = "备注长度不能超过 255")
+    @Size(max = 255, message = "{validation.mes.mes-barcode-generate.remark-size}")
     private String remark;
 }

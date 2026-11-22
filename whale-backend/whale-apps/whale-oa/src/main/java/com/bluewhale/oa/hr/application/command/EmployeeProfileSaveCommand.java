@@ -19,11 +19,11 @@ public class EmployeeProfileSaveCommand implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 用户ID */
-    @NotNull(message = "用户ID不能为空")
+    @NotNull(message = "{validation.oa.employee-profile.user-id-required}")
     private Long userId;
 
     /** 工号 */
-    @Size(max = 64, message = "工号长度不能超过 64")
+    @Size(max = 64, message = "{validation.oa.employee-profile.employee-no-size}")
     private String employeeNo;
 
     /** 部门ID */
@@ -39,7 +39,7 @@ public class EmployeeProfileSaveCommand implements Serializable {
     private LocalDate birthday;
 
     /** 在职状态 */
-    @Pattern(regexp = "ACTIVE|PROBATION|REGULAR|LEFT", message = "在职状态仅支持 ACTIVE / PROBATION / REGULAR / LEFT")
+    @Pattern(regexp = "ACTIVE|PROBATION|REGULAR|LEFT", message = "{validation.oa.employee-profile.employment-status-pattern}")
     private String employmentStatus;
 
     /** 离职日期 */
@@ -49,6 +49,6 @@ public class EmployeeProfileSaveCommand implements Serializable {
     private Boolean cultureVisible;
 
     /** 备注 */
-    @Size(max = 255, message = "备注长度不能超过 255")
+    @Size(max = 255, message = "{validation.oa.employee-profile.remark-size}")
     private String remark;
 }

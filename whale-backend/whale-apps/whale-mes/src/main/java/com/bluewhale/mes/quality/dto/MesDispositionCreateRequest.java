@@ -16,27 +16,27 @@ import java.math.BigDecimal;
 public class MesDispositionCreateRequest {
 
     /** NCR ID */
-    @NotNull(message = "NCR ID 不能为空")
+    @NotNull(message = "{validation.mes.mes-disposition.ncr-id-required}")
     private Long ncrId;
 
     /** 处置类型：REWORK / REPAIR / SCRAP / CONCESSION */
-    @NotNull(message = "处置类型不能为空")
+    @NotNull(message = "{validation.mes.mes-disposition.disposition-type-required}")
     @Pattern(regexp = "REWORK|REPAIR|SCRAP|CONCESSION",
-            message = "处置类型仅支持 REWORK / REPAIR / SCRAP / CONCESSION")
+            message = "{validation.mes.mes-disposition.disposition-type-pattern}")
     private String dispositionType;
 
     /** 处置数量（空则取 NCR 不良数量；填写时必须与之一致） */
     private BigDecimal quantity;
 
     /** 处置原因 */
-    @Size(max = 255, message = "处置原因长度不能超过 255")
+    @Size(max = 255, message = "{validation.mes.mes-disposition.reason-size}")
     private String reason;
 
     /** 审批人 */
-    @Size(max = 64, message = "审批人长度不能超过 64")
+    @Size(max = 64, message = "{validation.mes.mes-disposition.approved-by-size}")
     private String approvedBy;
 
     /** 备注 */
-    @Size(max = 255, message = "备注长度不能超过 255")
+    @Size(max = 255, message = "{validation.mes.mes-disposition.remark-size}")
     private String remark;
 }

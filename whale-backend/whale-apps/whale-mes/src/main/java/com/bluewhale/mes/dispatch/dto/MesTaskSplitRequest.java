@@ -34,26 +34,26 @@ public class MesTaskSplitRequest {
     public static class Item {
 
         /** 工序顺序 */
-        @NotNull(message = "工序顺序不能为空")
-        @Min(value = 1, message = "工序顺序必须大于 0")
+        @NotNull(message = "{validation.mes.item.seq-no-required}")
+        @Min(value = 1, message = "{validation.mes.item.seq-no-min}")
         private Integer seqNo;
 
         /** 工序编码 */
-        @NotBlank(message = "工序编码不能为空")
-        @Size(max = 64, message = "工序编码长度不能超过 64")
+        @NotBlank(message = "{validation.mes.item.operation-code-required}")
+        @Size(max = 64, message = "{validation.mes.item.operation-code-size}")
         private String operationCode;
 
         /** 工序名称 */
-        @Size(max = 128, message = "工序名称长度不能超过 128")
+        @Size(max = 128, message = "{validation.mes.item.operation-name-size}")
         private String operationName;
 
         /** 工作中心编码 */
-        @Size(max = 64, message = "工作中心编码长度不能超过 64")
+        @Size(max = 64, message = "{validation.mes.item.work-center-code-size}")
         private String workCenterCode;
 
         /** 计划数量 */
-        @NotNull(message = "计划数量不能为空")
-        @DecimalMin(value = "0.0001", message = "计划数量必须大于 0")
+        @NotNull(message = "{validation.mes.item.planned-quantity-required}")
+        @DecimalMin(value = "0.0001", message = "{validation.mes.item.planned-quantity-min}")
         private BigDecimal plannedQuantity;
 
         /** 计划开工时间 */

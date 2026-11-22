@@ -14,7 +14,7 @@ import java.math.BigDecimal;
 public class VoucherLineCommand {
 
     /** 科目编码 */
-    @NotBlank(message = "科目编码不能为空")
+    @NotBlank(message = "{validation.erp.voucher-line.account-code-required}")
     private String accountCode;
 
     /** 摘要 */

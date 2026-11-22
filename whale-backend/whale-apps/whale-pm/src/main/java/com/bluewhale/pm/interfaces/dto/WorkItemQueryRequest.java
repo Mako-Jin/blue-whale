@@ -17,7 +17,7 @@ public class WorkItemQueryRequest extends PageQuery {
     private static final long serialVersionUID = 1L;
 
     /** 项目ID */
-    @NotNull(message = "项目ID不能为空")
+    @NotNull(message = "{validation.pm.work-item.project-id-required}")
     private Long projectId;
 
     /** 关键字（标题或工作项键模糊匹配） */

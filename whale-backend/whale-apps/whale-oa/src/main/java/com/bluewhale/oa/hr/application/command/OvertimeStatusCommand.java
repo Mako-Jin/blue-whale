@@ -17,8 +17,8 @@ public class OvertimeStatusCommand implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 目标状态 */
-    @NotBlank(message = "目标状态不能为空")
+    @NotBlank(message = "{validation.oa.overtime-status.status-required}")
     @Pattern(regexp = "APPROVED|REJECTED|CANCELLED",
-            message = "目标状态仅支持 APPROVED / REJECTED / CANCELLED")
+            message = "{validation.oa.overtime-status.status-pattern}")
     private String status;
 }

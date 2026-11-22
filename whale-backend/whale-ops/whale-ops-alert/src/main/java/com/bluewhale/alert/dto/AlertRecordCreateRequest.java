@@ -19,24 +19,24 @@ import java.time.LocalDateTime;
 public class AlertRecordCreateRequest {
 
     /** 来源标识（如 {@code iot}），仅用于接入审计日志 */
-    @Size(max = 32, message = "来源标识长度不能超过 32")
+    @Size(max = 32, message = "{validation.alert.alert-record.source-size}")
     private String source;
 
     /** 规则编码（如 {@code iot:rule:123}） */
-    @Size(max = 64, message = "规则编码长度不能超过 64")
+    @Size(max = 64, message = "{validation.alert.alert-record.rule-code-size}")
     private String ruleCode;
 
     /** 告警级别：INFO / WARN / ERROR / CRITICAL */
-    @Size(max = 16, message = "告警级别长度不能超过 16")
+    @Size(max = 16, message = "{validation.alert.alert-record.alert-level-size}")
     private String alertLevel;
 
     /** 告警内容 */
-    @NotBlank(message = "告警内容不能为空")
-    @Size(max = 512, message = "告警内容长度不能超过 512")
+    @NotBlank(message = "{validation.alert.alert-record.content-required}")
+    @Size(max = 512, message = "{validation.alert.alert-record.content-size}")
     private String content;
 
     /** 告警指纹（同源同对象恒定，用于窗口内去重） */
-    @Size(max = 64, message = "告警指纹长度不能超过 64")
+    @Size(max = 64, message = "{validation.alert.alert-record.fingerprint-size}")
     private String fingerprint;
 
     /** 归属租户ID（可空，空时取当前上下文；必须为正整数） */

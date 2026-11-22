@@ -15,11 +15,11 @@ import java.math.BigDecimal;
 public class GradeItemCommand {
 
     /** 题目 ID */
-    @NotNull(message = "题目不能为空")
+    @NotNull(message = "{validation.lms.grade-item.question-id-required}")
     private Long questionId;
 
     /** 本题得分（0 至该题满分） */
-    @NotNull(message = "本题得分不能为空")
-    @DecimalMin(value = "0.0", message = "本题得分不能为负")
+    @NotNull(message = "{validation.lms.grade-item.score-required}")
+    @DecimalMin(value = "0.0", message = "{validation.lms.grade-item.score-min}")
     private BigDecimal score;
 }

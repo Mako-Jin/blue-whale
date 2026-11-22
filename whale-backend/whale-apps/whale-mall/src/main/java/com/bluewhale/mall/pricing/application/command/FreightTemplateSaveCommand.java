@@ -16,12 +16,12 @@ import java.util.List;
 public class FreightTemplateSaveCommand {
 
     /** 模板名称（租户内唯一） */
-    @NotBlank(message = "模板名称不能为空")
-    @Size(max = 64, message = "模板名称不得超过 64 字符")
+    @NotBlank(message = "{validation.mall.freight-template.template-name-required}")
+    @Size(max = 64, message = "{validation.mall.freight-template.template-name-size}")
     private String templateName;
 
     /** 计费方式：FREE / FIXED / THRESHOLD / BY_PIECE */
-    @NotBlank(message = "必须指定计费方式")
+    @NotBlank(message = "{validation.mall.freight-template.charge-type-required}")
     private String chargeType;
 
     /** 固定运费金额（FREE/BY_PIECE 时忽略） */
@@ -52,7 +52,7 @@ public class FreightTemplateSaveCommand {
     private String status;
 
     /** 备注 */
-    @Size(max = 255, message = "备注不得超过 255 字符")
+    @Size(max = 255, message = "{validation.mall.freight-template.remark-size}")
     private String remark;
 
     /**

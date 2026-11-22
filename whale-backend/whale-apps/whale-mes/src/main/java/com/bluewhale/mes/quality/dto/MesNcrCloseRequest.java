@@ -13,11 +13,11 @@ import lombok.Data;
 public class MesNcrCloseRequest {
 
     /** 关闭结论 */
-    @NotBlank(message = "关闭结论不能为空")
-    @Size(max = 255, message = "关闭结论长度不能超过 255")
+    @NotBlank(message = "{validation.mes.mes-ncr-close.conclusion-required}")
+    @Size(max = 255, message = "{validation.mes.mes-ncr-close.conclusion-size}")
     private String conclusion;
 
     /** 关闭人 */
-    @Size(max = 64, message = "关闭人长度不能超过 64")
+    @Size(max = 64, message = "{validation.mes.mes-ncr-close.closed-by-size}")
     private String closedBy;
 }

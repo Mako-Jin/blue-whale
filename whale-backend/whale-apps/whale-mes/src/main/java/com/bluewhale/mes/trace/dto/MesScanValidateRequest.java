@@ -13,20 +13,20 @@ import lombok.Data;
 public class MesScanValidateRequest {
 
     /** 条码值 */
-    @NotBlank(message = "条码不能为空")
-    @Size(max = 128, message = "条码长度不能超过 128")
+    @NotBlank(message = "{validation.mes.mes-scan-validate.barcode-value-required}")
+    @Size(max = 128, message = "{validation.mes.mes-scan-validate.barcode-value-size}")
     private String barcodeValue;
 
     /** 工位编码 */
-    @Size(max = 64, message = "工位编码长度不能超过 64")
+    @Size(max = 64, message = "{validation.mes.mes-scan-validate.station-code-size}")
     private String stationCode;
 
     /** 工序编码 */
-    @Size(max = 64, message = "工序编码长度不能超过 64")
+    @Size(max = 64, message = "{validation.mes.mes-scan-validate.operation-code-size}")
     private String operationCode;
 
     /** 扫码幂等键（相同键重复扫码不产生副作用） */
-    @Size(max = 64, message = "扫码幂等键长度不能超过 64")
+    @Size(max = 64, message = "{validation.mes.mes-scan-validate.scan-no-size}")
     private String scanNo;
 
     /** 关联任务 ID */

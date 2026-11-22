@@ -32,11 +32,11 @@ public class FileProperties {
     private Bucket bucket = new Bucket();
 
     /** 单文件最大字节数，默认 52428800（即 50MB）；超限抛 {@code PARAM_ERROR} */
-    @Min(value = 1, message = "whale.file.max-size-bytes 必须大于 0")
+    @Min(value = 1, message = "{validation.file.file-properties.max-size-bytes-min}")
     private long maxSizeBytes = 52428800L;
 
     /** 分片上传分片大小，默认 5242880（即 5MB） */
-    @Min(value = 1, message = "whale.file.chunk-size-bytes 必须大于 0")
+    @Min(value = 1, message = "{validation.file.file-properties.chunk-size-bytes-min}")
     private long chunkSizeBytes = 5242880L;
 
     /**
@@ -224,7 +224,7 @@ public class FileProperties {
         private long retentionDays = 30L;
 
         /** 单批清理条数，默认 200；避免一次扫描过多记录长时间占用连接 */
-        @Min(value = 1, message = "whale.file.recycle.purge-batch-size 必须大于 0")
+        @Min(value = 1, message = "{validation.file.recycle.purge-batch-size-min}")
         private int purgeBatchSize = 200;
     }
 
@@ -248,7 +248,7 @@ public class FileProperties {
         private boolean deleteOrphanObjects = false;
 
         /** 日志中每类差异最多打印的样例行数 */
-        @Min(value = 0, message = "whale.file.orphan.report-samples 不能为负数")
+        @Min(value = 0, message = "{validation.file.orphan.report-samples-min}")
         private int reportSamples = 20;
     }
 
@@ -264,11 +264,11 @@ public class FileProperties {
     public static class Share {
 
         /** 未指定有效期时的默认值（小时），默认 168（7 天） */
-        @Min(value = 1, message = "whale.file.share.default-expire-hours 必须大于 0")
+        @Min(value = 1, message = "{validation.file.share.default-expire-hours-min}")
         private long defaultExpireHours = 168L;
 
         /** 有效期上限（小时），默认 720（30 天），超出截断 */
-        @Min(value = 1, message = "whale.file.share.max-expire-hours 必须大于 0")
+        @Min(value = 1, message = "{validation.file.share.max-expire-hours-min}")
         private long maxExpireHours = 720L;
 
         /**
@@ -287,7 +287,7 @@ public class FileProperties {
         private long retentionDays = 7L;
 
         /** 单批删除条数，默认 200；避免一次删除过多行造成长事务 */
-        @Min(value = 1, message = "whale.file.share.purge-batch-size 必须大于 0")
+        @Min(value = 1, message = "{validation.file.share.purge-batch-size-min}")
         private int purgeBatchSize = 200;
     }
 
@@ -303,11 +303,11 @@ public class FileProperties {
     public static class Batch {
 
         /** 单次批量删除/打包的最大文件数，默认 100 */
-        @Min(value = 1, message = "whale.file.batch.max-files 必须大于 0")
+        @Min(value = 1, message = "{validation.file.batch.max-files-min}")
         private int maxFiles = 100;
 
         /** 打包下载的未压缩总字节上限，默认 4294967296（即 4GB） */
-        @Min(value = 1, message = "whale.file.batch.max-zip-bytes 必须大于 0")
+        @Min(value = 1, message = "{validation.file.batch.max-zip-bytes-min}")
         private long maxZipBytes = 4294967296L;
     }
 
@@ -428,7 +428,7 @@ public class FileProperties {
          * <p>新版本产生后按版本号倒序清理超出的最旧版本；根版本永不清理，
          * 配置为 1 等价于不保留历史版本。</p>
          */
-        @Min(value = 0, message = "whale.file.version.max-versions 不能为负数")
+        @Min(value = 0, message = "{validation.file.version.max-versions-min}")
         private int maxVersions = 20;
 
         /**
@@ -440,7 +440,7 @@ public class FileProperties {
         private boolean cleanupEnabled = false;
 
         /** 定时清理单批扫描的根文件数量，默认 100 */
-        @Min(value = 1, message = "whale.file.version.cleanup-batch-size 必须大于 0")
+        @Min(value = 1, message = "{validation.file.version.cleanup-batch-size-min}")
         private int cleanupBatchSize = 100;
     }
 
@@ -498,11 +498,11 @@ public class FileProperties {
         private boolean enabled = false;
 
         /** 每秒补充的令牌数（稳态 QPS），默认 20 */
-        @Min(value = 1, message = "whale.file.access.rate-limit.requests-per-second 必须大于 0")
+        @Min(value = 1, message = "{validation.file.rate-limit.requests-per-second-min}")
         private int requestsPerSecond = 20;
 
         /** 桶容量（允许的瞬时突发数），默认 40 */
-        @Min(value = 1, message = "whale.file.access.rate-limit.burst 必须大于 0")
+        @Min(value = 1, message = "{validation.file.rate-limit.burst-min}")
         private int burst = 40;
     }
 }

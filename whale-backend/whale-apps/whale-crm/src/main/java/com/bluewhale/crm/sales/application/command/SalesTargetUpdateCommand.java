@@ -16,15 +16,15 @@ import java.math.BigDecimal;
 public class SalesTargetUpdateCommand {
 
     /** 目标金额 */
-    @NotNull(message = "目标金额不能为空")
-    @DecimalMin(value = "0", message = "目标金额不得为负数")
+    @NotNull(message = "{validation.crm.sales-target.target-amount-required}")
+    @DecimalMin(value = "0", message = "{validation.crm.sales-target.target-amount-min}")
     private BigDecimal targetAmount;
 
     /** 调整原因 */
-    @Size(max = 500, message = "调整原因长度不能超过 500")
+    @Size(max = 500, message = "{validation.crm.sales-target.reason-size}")
     private String reason;
 
     /** 备注 */
-    @Size(max = 500, message = "备注长度不能超过 500")
+    @Size(max = 500, message = "{validation.crm.sales-target.remark-size}")
     private String remark;
 }

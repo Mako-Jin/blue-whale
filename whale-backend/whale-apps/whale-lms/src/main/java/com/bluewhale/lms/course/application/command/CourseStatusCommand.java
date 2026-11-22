@@ -12,6 +12,6 @@ import lombok.Data;
 public class CourseStatusCommand {
 
     /** 目标动作：PUBLISH / ARCHIVE */
-    @NotBlank(message = "状态动作不能为空")
+    @NotBlank(message = "{validation.lms.course-status.action-required}")
     private String action;
 }

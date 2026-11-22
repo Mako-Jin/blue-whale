@@ -28,12 +28,12 @@ public class PaperRuleCommand {
     private String difficulty;
 
     /** 抽取数量 */
-    @NotNull(message = "抽取数量不能为空")
-    @Min(value = 1, message = "抽取数量至少 1 道")
-    @Max(value = 100, message = "单条规则最多抽取 100 道")
+    @NotNull(message = "{validation.lms.paper-rule.count-required}")
+    @Min(value = 1, message = "{validation.lms.paper-rule.count-min}")
+    @Max(value = 100, message = "{validation.lms.paper-rule.count-max}")
     private Integer count;
 
     /** 每题分值（为空取题目默认分值） */
-    @DecimalMin(value = "0.1", message = "每题分值必须大于 0")
+    @DecimalMin(value = "0.1", message = "{validation.lms.paper-rule.score-min}")
     private BigDecimal score;
 }

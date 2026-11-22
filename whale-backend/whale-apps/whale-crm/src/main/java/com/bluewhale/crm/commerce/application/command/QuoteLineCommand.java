@@ -18,39 +18,39 @@ import java.math.BigDecimal;
 public class QuoteLineCommand {
 
     /** 产品 / 服务名称 */
-    @NotBlank(message = "产品名称不能为空")
-    @Size(max = 128, message = "产品名称最多 128 个字符")
+    @NotBlank(message = "{validation.crm.quote-line.product-name-required}")
+    @Size(max = 128, message = "{validation.crm.quote-line.product-name-size}")
     private String productName;
 
     /** 规格 */
-    @Size(max = 128, message = "规格最多 128 个字符")
+    @Size(max = 128, message = "{validation.crm.quote-line.specification-size}")
     private String specification;
 
     /** 单位 */
-    @Size(max = 16, message = "单位最多 16 个字符")
+    @Size(max = 16, message = "{validation.crm.quote-line.unit-size}")
     private String unit;
 
     /** 数量 */
-    @NotNull(message = "数量不能为空")
-    @DecimalMin(value = "0.0001", message = "数量必须大于 0")
+    @NotNull(message = "{validation.crm.quote-line.quantity-required}")
+    @DecimalMin(value = "0.0001", message = "{validation.crm.quote-line.quantity-min}")
     private BigDecimal quantity;
 
     /** 单价 */
-    @NotNull(message = "单价不能为空")
-    @DecimalMin(value = "0", message = "单价不能为负数")
+    @NotNull(message = "{validation.crm.quote-line.unit-price-required}")
+    @DecimalMin(value = "0", message = "{validation.crm.quote-line.unit-price-min}")
     private BigDecimal unitPrice;
 
     /** 行折扣率 */
-    @DecimalMin(value = "0", message = "行折扣率不能为负数")
-    @DecimalMax(value = "100", message = "行折扣率不能超过 100")
+    @DecimalMin(value = "0", message = "{validation.crm.quote-line.discount-rate-min}")
+    @DecimalMax(value = "100", message = "{validation.crm.quote-line.discount-rate-max}")
     private BigDecimal discountRate = BigDecimal.ZERO;
 
     /** 税率 */
-    @DecimalMin(value = "0", message = "税率不能为负数")
-    @DecimalMax(value = "100", message = "税率不能超过 100")
+    @DecimalMin(value = "0", message = "{validation.crm.quote-line.tax-rate-min}")
+    @DecimalMax(value = "100", message = "{validation.crm.quote-line.tax-rate-max}")
     private BigDecimal taxRate = new BigDecimal("13");
 
     /** 行备注 */
-    @Size(max = 255, message = "行备注最多 255 个字符")
+    @Size(max = 255, message = "{validation.crm.quote-line.remark-size}")
     private String remark;
 }

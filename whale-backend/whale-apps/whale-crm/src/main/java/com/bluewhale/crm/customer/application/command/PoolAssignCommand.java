@@ -12,7 +12,7 @@ import lombok.Data;
 public class PoolAssignCommand {
 
     /** 新负责人 */
-    @NotNull(message = "新负责人不能为空")
+    @NotNull(message = "{validation.crm.pool-assign.owner-id-required}")
     private Long ownerId;
 
     /** 新归属部门 */

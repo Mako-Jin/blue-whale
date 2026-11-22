@@ -17,14 +17,14 @@ import java.math.BigDecimal;
 public class MesTaskActionRequest {
 
     /** 动作数量（报废时必填） */
-    @DecimalMin(value = "0.0001", message = "动作数量必须大于 0")
+    @DecimalMin(value = "0.0001", message = "{validation.mes.mes-task-action.quantity-min}")
     private BigDecimal quantity;
 
     /** 原因 / 备注 */
-    @Size(max = 255, message = "原因长度不能超过 255")
+    @Size(max = 255, message = "{validation.mes.mes-task-action.remark-size}")
     private String remark;
 
     /** 开工设备编码（可选，填写时执行开工门禁） */
-    @Size(max = 64, message = "设备编码长度不能超过 64")
+    @Size(max = 64, message = "{validation.mes.mes-task-action.equipment-code-size}")
     private String equipmentCode;
 }

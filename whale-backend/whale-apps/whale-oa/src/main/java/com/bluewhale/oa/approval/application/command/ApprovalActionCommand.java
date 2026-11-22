@@ -14,7 +14,7 @@ import java.util.Map;
 public class ApprovalActionCommand {
 
     /** 审批意见 */
-    @Size(max = 500, message = "审批意见长度不能超过 500")
+    @Size(max = 500, message = "{validation.oa.approval-action.comment-size}")
     private String comment;
 
     /** 追加流程变量 */

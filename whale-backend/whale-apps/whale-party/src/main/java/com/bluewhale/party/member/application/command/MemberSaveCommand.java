@@ -21,20 +21,20 @@ import java.time.LocalDate;
 public class MemberSaveCommand {
 
     /** 员工编号（引用 ERP，一人一档） */
-    @NotBlank(message = "员工编号不能为空")
-    @Size(max = 64, message = "员工编号不得超过 64 字符")
+    @NotBlank(message = "{validation.party.member.employee-no-required}")
+    @Size(max = 64, message = "{validation.party.member.employee-no-size}")
     private String employeeNo;
 
     /** 平台用户 ID（未开通账号可空） */
     private Long userId;
 
     /** 党员姓名 */
-    @NotBlank(message = "党员姓名不能为空")
-    @Size(max = 64, message = "党员姓名不得超过 64 字符")
+    @NotBlank(message = "{validation.party.member.member-name-required}")
+    @Size(max = 64, message = "{validation.party.member.member-name-size}")
     private String memberName;
 
     /** 所属支部 ID */
-    @NotNull(message = "所属支部不能为空")
+    @NotNull(message = "{validation.party.member.branch-id-required}")
     private Long branchId;
 
     /** 政治面貌：FULL_MEMBER / PROBATIONARY */
@@ -44,22 +44,22 @@ public class MemberSaveCommand {
     private LocalDate birthDate;
 
     /** 学历编码（DOCTOR/MASTER/BACHELOR/COLLEGE/SECONDARY/OTHER，可空） */
-    @Size(max = 32, message = "学历编码不得超过 32 字符")
+    @Size(max = 32, message = "{validation.party.member.education-size}")
     private String education;
 
     /** 入党日期 */
-    @NotNull(message = "入党日期不能为空")
+    @NotNull(message = "{validation.party.member.join-party-date-required}")
     private LocalDate joinPartyDate;
 
     /** 党费基数 */
-    @DecimalMin(value = "0", message = "党费基数不能为负")
+    @DecimalMin(value = "0", message = "{validation.party.member.dues-base-min}")
     private BigDecimal duesBase;
 
     /** 联系电话 */
-    @Size(max = 32, message = "联系电话不得超过 32 字符")
+    @Size(max = 32, message = "{validation.party.member.phone-size}")
     private String phone;
 
     /** 备注 */
-    @Size(max = 255, message = "备注不得超过 255 字符")
+    @Size(max = 255, message = "{validation.party.member.remark-size}")
     private String remark;
 }

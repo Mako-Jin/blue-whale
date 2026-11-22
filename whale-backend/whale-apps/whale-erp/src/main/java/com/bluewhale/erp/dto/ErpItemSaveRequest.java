@@ -18,21 +18,21 @@ public class ErpItemSaveRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 物料编码（租户内唯一） */
-    @NotBlank(message = "物料编码不能为空")
-    @Size(max = 64, message = "物料编码长度不能超过 64")
+    @NotBlank(message = "{validation.erp.erp-item.code-required}")
+    @Size(max = 64, message = "{validation.erp.erp-item.code-size}")
     private String code;
 
     /** 物料名称 */
-    @NotBlank(message = "物料名称不能为空")
-    @Size(max = 128, message = "物料名称长度不能超过 128")
+    @NotBlank(message = "{validation.erp.erp-item.name-required}")
+    @Size(max = 128, message = "{validation.erp.erp-item.name-size}")
     private String name;
 
     /** 状态：ENABLED / DISABLED */
-    @NotBlank(message = "状态不能为空")
-    @Pattern(regexp = "ENABLED|DISABLED", message = "状态仅支持 ENABLED / DISABLED")
+    @NotBlank(message = "{validation.erp.erp-item.status-required}")
+    @Pattern(regexp = "ENABLED|DISABLED", message = "{validation.erp.erp-item.status-pattern}")
     private String status;
 
     /** 备注 */
-    @Size(max = 255, message = "备注长度不能超过 255")
+    @Size(max = 255, message = "{validation.erp.erp-item.remark-size}")
     private String remark;
 }

@@ -23,17 +23,17 @@ import java.util.List;
 public class CouponSaveCommand {
 
     /** 券编码（租户内唯一） */
-    @NotBlank(message = "券编码不能为空")
-    @Size(max = 64, message = "券编码不得超过 64 字符")
+    @NotBlank(message = "{validation.mall.coupon.coupon-code-required}")
+    @Size(max = 64, message = "{validation.mall.coupon.coupon-code-size}")
     private String couponCode;
 
     /** 券名称 */
-    @NotBlank(message = "券名称不能为空")
-    @Size(max = 128, message = "券名称不得超过 128 字符")
+    @NotBlank(message = "{validation.mall.coupon.coupon-name-required}")
+    @Size(max = 128, message = "{validation.mall.coupon.coupon-name-size}")
     private String couponName;
 
     /** 券类型：FULL_REDUCTION / DISCOUNT */
-    @NotBlank(message = "必须指定券类型")
+    @NotBlank(message = "{validation.mall.coupon.coupon-type-required}")
     private String couponType;
 
     /** 使用门槛 */
@@ -67,12 +67,12 @@ public class CouponSaveCommand {
     private Integer perUserLimit;
 
     /** 生效时间 */
-    @NotNull(message = "必须指定生效时间")
+    @NotNull(message = "{validation.mall.coupon.valid-from-required}")
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime validFrom;
 
     /** 失效时间 */
-    @NotNull(message = "必须指定失效时间")
+    @NotNull(message = "{validation.mall.coupon.valid-to-required}")
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime validTo;
 
@@ -80,6 +80,6 @@ public class CouponSaveCommand {
     private String status;
 
     /** 备注 */
-    @Size(max = 255, message = "备注不得超过 255 字符")
+    @Size(max = 255, message = "{validation.mall.coupon.remark-size}")
     private String remark;
 }

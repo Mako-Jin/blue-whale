@@ -15,7 +15,7 @@ public class CustomerSaveCommand {
     private String customerCode;
 
     /** 客户名称 */
-    @NotBlank(message = "客户名称不能为空")
+    @NotBlank(message = "{validation.crm.customer.name-required}")
     private String name;
 
     /** 客户简称 */

@@ -14,13 +14,13 @@ import lombok.Data;
 public class MesPerformanceLockRequest {
 
     /** 期间编码：月 YYYYMM */
-    @NotBlank(message = "期间编码不能为空")
-    @Pattern(regexp = "\\d{6}", message = "期间编码必须为 YYYYMM")
+    @NotBlank(message = "{validation.mes.mes-performance-lock.period-code-required}")
+    @Pattern(regexp = "\\d{6}", message = "{validation.mes.mes-performance-lock.period-code-pattern}")
     private String periodCode;
 
     /** 锁定人 */
-    @NotBlank(message = "锁定人不能为空")
-    @Size(max = 64, message = "锁定人长度不能超过 64")
+    @NotBlank(message = "{validation.mes.mes-performance-lock.locked-by-required}")
+    @Size(max = 64, message = "{validation.mes.mes-performance-lock.locked-by-size}")
     private String lockedBy;
 
     /** 班组 ID（可选，为空锁定全租户） */

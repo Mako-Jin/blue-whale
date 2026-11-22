@@ -17,8 +17,8 @@ import java.math.BigDecimal;
 public class SalesTargetSaveCommand {
 
     /** 周期：yyyy-MM 或 yyyy-Qn */
-    @NotBlank(message = "目标周期不能为空")
-    @Size(max = 10, message = "目标周期长度不能超过 10")
+    @NotBlank(message = "{validation.crm.sales-target.period-required}")
+    @Size(max = 10, message = "{validation.crm.sales-target.period-size}")
     private String period;
 
     /** 周期类型：MONTH / QUARTER，默认 MONTH */
@@ -34,11 +34,11 @@ public class SalesTargetSaveCommand {
     private Long deptId;
 
     /** 目标金额 */
-    @NotNull(message = "目标金额不能为空")
-    @DecimalMin(value = "0", message = "目标金额不得为负数")
+    @NotNull(message = "{validation.crm.sales-target.target-amount-required}")
+    @DecimalMin(value = "0", message = "{validation.crm.sales-target.target-amount-min}")
     private BigDecimal targetAmount;
 
     /** 备注 */
-    @Size(max = 500, message = "备注长度不能超过 500")
+    @Size(max = 500, message = "{validation.crm.sales-target.remark-size}")
     private String remark;
 }

@@ -20,23 +20,23 @@ public class MesTeamMemberSaveRequest {
     private Long id;
 
     /** 班组 ID */
-    @NotNull(message = "班组不能为空")
+    @NotNull(message = "{validation.mes.mes-team-member.team-id-required}")
     private Long teamId;
 
     /** 员工 ID */
-    @NotNull(message = "员工不能为空")
+    @NotNull(message = "{validation.mes.mes-team-member.employee-id-required}")
     private Long employeeId;
 
     /** 员工姓名 */
-    @NotBlank(message = "员工姓名不能为空")
-    @Size(max = 64, message = "员工姓名长度不能超过 64")
+    @NotBlank(message = "{validation.mes.mes-team-member.employee-name-required}")
+    @Size(max = 64, message = "{validation.mes.mes-team-member.employee-name-size}")
     private String employeeName;
 
     /** 是否主操作员：0 否 / 1 是 */
     private Integer primaryOperator;
 
     /** 技能等级 */
-    @Pattern(regexp = "JUNIOR|MIDDLE|SENIOR|EXPERT", message = "技能等级不合法")
+    @Pattern(regexp = "JUNIOR|MIDDLE|SENIOR|EXPERT", message = "{validation.mes.mes-team-member.skill-level-pattern}")
     private String skillLevel;
 
     /** 入组日期 */
@@ -46,10 +46,10 @@ public class MesTeamMemberSaveRequest {
     private LocalDate leaveDate;
 
     /** 状态：ENABLED/DISABLED */
-    @Pattern(regexp = "ENABLED|DISABLED", message = "状态不合法")
+    @Pattern(regexp = "ENABLED|DISABLED", message = "{validation.mes.mes-team-member.status-pattern}")
     private String status;
 
     /** 备注 */
-    @Size(max = 255, message = "备注长度不能超过 255")
+    @Size(max = 255, message = "{validation.mes.mes-team-member.remark-size}")
     private String remark;
 }

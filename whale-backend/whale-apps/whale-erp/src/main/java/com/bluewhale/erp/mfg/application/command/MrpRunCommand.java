@@ -25,7 +25,7 @@ public class MrpRunCommand {
 
     /** 需求行 */
     @Valid
-    @NotEmpty(message = "至少需要一条需求行")
+    @NotEmpty(message = "{validation.erp.mrp-run.lines-required}")
     private List<Line> lines = new ArrayList<>();
 
     /**
@@ -35,24 +35,24 @@ public class MrpRunCommand {
     public static class Line {
 
         /** 需求物料编码（须与 BOM 快照产品编码一致） */
-        @NotBlank(message = "需求物料编码不能为空")
+        @NotBlank(message = "{validation.erp.mfg-line.item-code-required}")
         private String itemCode;
 
         /** PDM BOM 编号 */
-        @NotBlank(message = "BOM 编号不能为空")
+        @NotBlank(message = "{validation.erp.line.bom-no-required}")
         private String bomNo;
 
         /** PDM BOM 版本 */
-        @NotBlank(message = "BOM 版本不能为空")
+        @NotBlank(message = "{validation.erp.line.version-no-required}")
         private String versionNo;
 
         /** 需求数量 */
-        @NotNull(message = "需求数量不能为空")
-        @DecimalMin(value = "0.0001", message = "需求数量必须大于 0")
+        @NotNull(message = "{validation.erp.mfg-line.quantity-required}")
+        @DecimalMin(value = "0.0001", message = "{validation.erp.line.quantity-min}")
         private BigDecimal quantity;
 
         /** 需求日期 */
-        @NotNull(message = "需求日期不能为空")
+        @NotNull(message = "{validation.erp.line.due-date-required}")
         private LocalDate dueDate;
     }
 }

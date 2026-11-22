@@ -18,7 +18,7 @@ import java.util.List;
 public class ActivitySigninCommand {
 
     /** 签到明细 */
-    @NotEmpty(message = "签到明细不能为空")
+    @NotEmpty(message = "{validation.party.activity-signin.items-required}")
     @Valid
     private List<SigninItem> items;
 

@@ -14,32 +14,32 @@ import lombok.Data;
 public class PdmDocDocumentSaveRequest {
 
     /** 所属目录 */
-    @NotNull(message = "所属目录不能为空")
+    @NotNull(message = "{validation.pdm.pdm-doc-document.folder-id-required}")
     private Long folderId;
 
     /** 文档编号，为空时自动生成 */
-    @Size(max = 64, message = "文档编号不能超过 64 个字符")
+    @Size(max = 64, message = "{validation.pdm.pdm-doc-document.doc-no-size}")
     private String docNo;
 
     /** 文档标题 */
-    @NotBlank(message = "文档标题不能为空")
-    @Size(max = 255, message = "文档标题不能超过 255 个字符")
+    @NotBlank(message = "{validation.pdm.pdm-doc-document.title-required}")
+    @Size(max = 255, message = "{validation.pdm.pdm-doc-document.title-size}")
     private String title;
 
     /** 文档类型：DRAWING/DOC/SPEC/REPORT */
-    @NotBlank(message = "文档类型不能为空")
-    @Size(max = 32, message = "文档类型不能超过 32 个字符")
+    @NotBlank(message = "{validation.pdm.pdm-doc-document.doc-type-required}")
+    @Size(max = 32, message = "{validation.pdm.pdm-doc-document.doc-type-size}")
     private String docType;
 
     /** 关联零件号 */
-    @Size(max = 64, message = "零件号不能超过 64 个字符")
+    @Size(max = 64, message = "{validation.pdm.pdm-doc-document.part-no-size}")
     private String partNo;
 
     /** 说明 */
-    @Size(max = 500, message = "说明不能超过 500 个字符")
+    @Size(max = 500, message = "{validation.pdm.pdm-doc-document.description-size}")
     private String description;
 
     /** 标签，逗号分隔 */
-    @Size(max = 255, message = "标签不能超过 255 个字符")
+    @Size(max = 255, message = "{validation.pdm.pdm-doc-document.tags-size}")
     private String tags;
 }

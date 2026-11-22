@@ -30,23 +30,23 @@ public final class AdministrativeCommands {
     @Data
     public static class VehicleSaveCommand {
 
-        @NotBlank(message = "车牌号不能为空")
-        @Size(max = 32, message = "车牌号长度不能超过 32")
+        @NotBlank(message = "{validation.oa.vehicle.plate-no-required}")
+        @Size(max = 32, message = "{validation.oa.vehicle.plate-no-size}")
         private String plateNo;
 
-        @Size(max = 32, message = "车型长度不能超过 32")
+        @Size(max = 32, message = "{validation.oa.vehicle.vehicle-type-size}")
         private String vehicleType;
 
         private Integer seats;
 
         private String status;
 
-        @DecimalMin(value = "0.0", message = "当前里程不能为负数")
+        @DecimalMin(value = "0.0", message = "{validation.oa.vehicle.current-mileage-min}")
         private BigDecimal currentMileage;
 
         private LocalDate purchaseDate;
 
-        @Size(max = 255, message = "备注长度不能超过 255")
+        @Size(max = 255, message = "{validation.oa.vehicle.remark-size}")
         private String remark;
     }
 
@@ -56,23 +56,23 @@ public final class AdministrativeCommands {
     @Data
     public static class DriverSaveCommand {
 
-        @NotBlank(message = "司机姓名不能为空")
-        @Size(max = 64, message = "姓名长度不能超过 64")
+        @NotBlank(message = "{validation.oa.driver.name-required}")
+        @Size(max = 64, message = "{validation.oa.driver.name-size}")
         private String name;
 
-        @Size(max = 32, message = "联系电话长度不能超过 32")
+        @Size(max = 32, message = "{validation.oa.driver.phone-size}")
         private String phone;
 
-        @NotBlank(message = "驾驶证号不能为空")
-        @Size(max = 64, message = "驾驶证号长度不能超过 64")
+        @NotBlank(message = "{validation.oa.driver.license-no-required}")
+        @Size(max = 64, message = "{validation.oa.driver.license-no-size}")
         private String licenseNo;
 
-        @Size(max = 16, message = "准驾车型长度不能超过 16")
+        @Size(max = 16, message = "{validation.oa.driver.license-type-size}")
         private String licenseType;
 
         private String status;
 
-        @Size(max = 255, message = "备注长度不能超过 255")
+        @Size(max = 255, message = "{validation.oa.driver.remark-size}")
         private String remark;
     }
 
@@ -82,30 +82,30 @@ public final class AdministrativeCommands {
     @Data
     public static class BookingSaveCommand {
 
-        @NotBlank(message = "申请人不能为空")
-        @Size(max = 64, message = "申请人账号长度不能超过 64")
+        @NotBlank(message = "{validation.oa.booking.applicant-required}")
+        @Size(max = 64, message = "{validation.oa.booking.applicant-size}")
         private String applicant;
 
         private Long applicantId;
 
         private Long deptId;
 
-        @NotNull(message = "用车开始时间不能为空")
+        @NotNull(message = "{validation.oa.booking.start-time-required}")
         private LocalDateTime startTime;
 
-        @NotNull(message = "用车结束时间不能为空")
+        @NotNull(message = "{validation.oa.booking.end-time-required}")
         private LocalDateTime endTime;
 
-        @Size(max = 128, message = "起点长度不能超过 128")
+        @Size(max = 128, message = "{validation.oa.booking.origin-size}")
         private String origin;
 
-        @Size(max = 128, message = "终点长度不能超过 128")
+        @Size(max = 128, message = "{validation.oa.booking.destination-size}")
         private String destination;
 
-        @Size(max = 255, message = "用车事由长度不能超过 255")
+        @Size(max = 255, message = "{validation.oa.booking.reason-size}")
         private String reason;
 
-        @Size(max = 255, message = "备注长度不能超过 255")
+        @Size(max = 255, message = "{validation.oa.booking.remark-size}")
         private String remark;
     }
 
@@ -115,7 +115,7 @@ public final class AdministrativeCommands {
     @Data
     public static class BookingStatusCommand {
 
-        @NotBlank(message = "状态不能为空")
+        @NotBlank(message = "{validation.oa.booking-status.status-required}")
         private String status;
     }
 
@@ -125,10 +125,10 @@ public final class AdministrativeCommands {
     @Data
     public static class DispatchCommand {
 
-        @NotNull(message = "车辆不能为空")
+        @NotNull(message = "{validation.oa.dispatch.vehicle-id-required}")
         private Long vehicleId;
 
-        @NotNull(message = "司机不能为空")
+        @NotNull(message = "{validation.oa.dispatch.driver-id-required}")
         private Long driverId;
     }
 
@@ -138,18 +138,18 @@ public final class AdministrativeCommands {
     @Data
     public static class ReturnCommand {
 
-        @NotNull(message = "出车里程不能为空")
-        @DecimalMin(value = "0.0", message = "出车里程不能为负数")
+        @NotNull(message = "{validation.oa.return.start-mileage-required}")
+        @DecimalMin(value = "0.0", message = "{validation.oa.return.start-mileage-min}")
         private BigDecimal startMileage;
 
-        @NotNull(message = "回车里程不能为空")
-        @DecimalMin(value = "0.0", message = "回车里程不能为负数")
+        @NotNull(message = "{validation.oa.return.end-mileage-required}")
+        @DecimalMin(value = "0.0", message = "{validation.oa.return.end-mileage-min}")
         private BigDecimal endMileage;
 
-        @DecimalMin(value = "0.0", message = "油费不能为负数")
+        @DecimalMin(value = "0.0", message = "{validation.oa.return.fuel-cost-min}")
         private BigDecimal fuelCost;
 
-        @Size(max = 255, message = "备注长度不能超过 255")
+        @Size(max = 255, message = "{validation.oa.return.remark-size}")
         private String remark;
     }
 
@@ -159,27 +159,27 @@ public final class AdministrativeCommands {
     @Data
     public static class SealUseSaveCommand {
 
-        @NotBlank(message = "申请人不能为空")
-        @Size(max = 64, message = "申请人账号长度不能超过 64")
+        @NotBlank(message = "{validation.oa.seal-use.applicant-required}")
+        @Size(max = 64, message = "{validation.oa.seal-use.applicant-size}")
         private String applicant;
 
         private Long applicantId;
 
         private Long deptId;
 
-        @NotNull(message = "印章不能为空")
+        @NotNull(message = "{validation.oa.seal-use.seal-id-required}")
         private Long sealId;
 
-        @Size(max = 64, message = "印章名称长度不能超过 64")
+        @Size(max = 64, message = "{validation.oa.seal-use.seal-name-size}")
         private String sealName;
 
-        @NotBlank(message = "用章事由不能为空")
-        @Size(max = 255, message = "用章事由长度不能超过 255")
+        @NotBlank(message = "{validation.oa.seal-use.reason-required}")
+        @Size(max = 255, message = "{validation.oa.seal-use.reason-size}")
         private String reason;
 
         private LocalDateTime useTime;
 
-        @Size(max = 255, message = "备注长度不能超过 255")
+        @Size(max = 255, message = "{validation.oa.seal-use.remark-size}")
         private String remark;
 
         @Valid
@@ -194,8 +194,8 @@ public final class AdministrativeCommands {
 
         private Long fileId;
 
-        @NotBlank(message = "文件名不能为空")
-        @Size(max = 255, message = "文件名长度不能超过 255")
+        @NotBlank(message = "{validation.oa.seal-use-file.file-name-required}")
+        @Size(max = 255, message = "{validation.oa.seal-use-file.file-name-size}")
         private String fileName;
     }
 
@@ -205,7 +205,7 @@ public final class AdministrativeCommands {
     @Data
     public static class SealUseStatusCommand {
 
-        @NotBlank(message = "状态不能为空")
+        @NotBlank(message = "{validation.oa.seal-use-status.status-required}")
         private String status;
     }
 
@@ -215,16 +215,16 @@ public final class AdministrativeCommands {
     @Data
     public static class PurchaseSaveCommand {
 
-        @NotBlank(message = "申请人不能为空")
-        @Size(max = 64, message = "申请人账号长度不能超过 64")
+        @NotBlank(message = "{validation.oa.purchase.applicant-required}")
+        @Size(max = 64, message = "{validation.oa.purchase.applicant-size}")
         private String applicant;
 
         private Long applicantId;
 
         private Long deptId;
 
-        @NotBlank(message = "采购事由不能为空")
-        @Size(max = 255, message = "采购事由长度不能超过 255")
+        @NotBlank(message = "{validation.oa.purchase.reason-required}")
+        @Size(max = 255, message = "{validation.oa.purchase.reason-size}")
         private String reason;
 
         private LocalDate expectedDate;
@@ -233,13 +233,13 @@ public final class AdministrativeCommands {
 
         private Long warehouseId;
 
-        @Size(max = 8, message = "币种长度不能超过 8")
+        @Size(max = 8, message = "{validation.oa.purchase.currency-size}")
         private String currency;
 
-        @Size(max = 255, message = "备注长度不能超过 255")
+        @Size(max = 255, message = "{validation.oa.purchase.remark-size}")
         private String remark;
 
-        @NotEmpty(message = "采购明细不能为空")
+        @NotEmpty(message = "{validation.oa.purchase.items-required}")
         @Valid
         private List<PurchaseItemCommand> items;
     }
@@ -250,22 +250,22 @@ public final class AdministrativeCommands {
     @Data
     public static class PurchaseItemCommand {
 
-        @NotBlank(message = "物料编码不能为空")
-        @Size(max = 64, message = "物料编码长度不能超过 64")
+        @NotBlank(message = "{validation.oa.purchase-item.item-code-required}")
+        @Size(max = 64, message = "{validation.oa.purchase-item.item-code-size}")
         private String itemCode;
 
-        @Size(max = 128, message = "物料名称长度不能超过 128")
+        @Size(max = 128, message = "{validation.oa.purchase-item.item-name-size}")
         private String itemName;
 
-        @NotNull(message = "数量不能为空")
-        @DecimalMin(value = "0.01", message = "数量必须大于 0")
+        @NotNull(message = "{validation.oa.purchase-item.quantity-required}")
+        @DecimalMin(value = "0.01", message = "{validation.oa.purchase-item.quantity-min}")
         private BigDecimal quantity;
 
-        @NotNull(message = "单价不能为空")
-        @DecimalMin(value = "0.0", message = "单价不能为负数")
+        @NotNull(message = "{validation.oa.purchase-item.unit-price-required}")
+        @DecimalMin(value = "0.0", message = "{validation.oa.purchase-item.unit-price-min}")
         private BigDecimal unitPrice;
 
-        @Size(max = 255, message = "供应商建议长度不能超过 255")
+        @Size(max = 255, message = "{validation.oa.purchase-item.supplier-advice-size}")
         private String supplierAdvice;
     }
 
@@ -275,7 +275,7 @@ public final class AdministrativeCommands {
     @Data
     public static class PurchaseStatusCommand {
 
-        @NotBlank(message = "状态不能为空")
+        @NotBlank(message = "{validation.oa.purchase-status.status-required}")
         private String status;
     }
 }

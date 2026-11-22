@@ -74,6 +74,13 @@
             <artifactId>whale-spring-boot-starter</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- 国际化 SDK：按请求 Locale 解析 {validation.*} 校验文案键，本应用自带 i18n 文案 -->
+        <dependency>
+            <groupId>com.bluewhale</groupId>
+            <artifactId>whale-i18n-sdk</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
         <dependency>
             <groupId>com.bluewhale</groupId>
             <artifactId>whale-tools</artifactId>

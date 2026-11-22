@@ -21,29 +21,29 @@ public class TripItineraryCommand implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 行程序号（从 1 开始） */
-    @NotNull(message = "行程序号不能为空")
-    @Min(value = 1, message = "行程序号必须从 1 开始")
+    @NotNull(message = "{validation.oa.trip-itinerary.day-no-required}")
+    @Min(value = 1, message = "{validation.oa.trip-itinerary.day-no-min}")
     private Integer dayNo;
 
     /** 行程日期 */
-    @NotNull(message = "行程日期不能为空")
+    @NotNull(message = "{validation.oa.trip-itinerary.trip-date-required}")
     private LocalDate tripDate;
 
     /** 出发地 */
-    @NotBlank(message = "行程出发地不能为空")
-    @Size(max = 128, message = "行程出发地长度不能超过 128")
+    @NotBlank(message = "{validation.oa.trip-itinerary.from-place-required}")
+    @Size(max = 128, message = "{validation.oa.trip-itinerary.from-place-size}")
     private String fromPlace;
 
     /** 到达地 */
-    @NotBlank(message = "行程到达地不能为空")
-    @Size(max = 128, message = "行程到达地长度不能超过 128")
+    @NotBlank(message = "{validation.oa.trip-itinerary.to-place-required}")
+    @Size(max = 128, message = "{validation.oa.trip-itinerary.to-place-size}")
     private String toPlace;
 
     /** 交通方式 */
-    @Pattern(regexp = "TRAIN|PLANE|CAR|OTHER", message = "行程交通方式仅支持 TRAIN / PLANE / CAR / OTHER")
+    @Pattern(regexp = "TRAIN|PLANE|CAR|OTHER", message = "{validation.oa.trip-itinerary.transport-pattern}")
     private String transport;
 
     /** 备注 */
-    @Size(max = 255, message = "行程备注长度不能超过 255")
+    @Size(max = 255, message = "{validation.oa.trip-itinerary.remark-size}")
     private String remark;
 }

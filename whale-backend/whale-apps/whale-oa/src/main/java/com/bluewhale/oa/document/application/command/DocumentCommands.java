@@ -26,39 +26,39 @@ public class DocumentCommands {
     public static class TemplateSave {
 
         /** 模板编码 */
-        @NotBlank(message = "模板编码不能为空")
-        @Size(max = 64, message = "模板编码不能超过 64 字")
+        @NotBlank(message = "{validation.oa.template-save.code-required}")
+        @Size(max = 64, message = "{validation.oa.template-save.code-size}")
         private String code;
 
         /** 模板名称 */
-        @NotBlank(message = "模板名称不能为空")
-        @Size(max = 128, message = "模板名称不能超过 128 字")
+        @NotBlank(message = "{validation.oa.template-save.name-required}")
+        @Size(max = 128, message = "{validation.oa.template-save.name-size}")
         private String name;
 
         /** 适用范围 */
-        @NotBlank(message = "适用范围不能为空")
+        @NotBlank(message = "{validation.oa.template-save.doc-type-required}")
         private String docType;
 
         /** 版本号 */
-        @Min(value = 1, message = "版本号最小为 1")
+        @Min(value = 1, message = "{validation.oa.template-save.version-min}")
         private Integer version;
 
         /** 状态 */
         private String status;
 
         /** 红头文字 */
-        @Size(max = 512, message = "红头文字不能超过 512 字")
+        @Size(max = 512, message = "{validation.oa.template-save.header-text-size}")
         private String headerText;
 
         /** 版记文字 */
-        @Size(max = 512, message = "版记文字不能超过 512 字")
+        @Size(max = 512, message = "{validation.oa.template-save.footer-text-size}")
         private String footerText;
 
         /** 正文模板 */
         private String bodyTemplate;
 
         /** 备注 */
-        @Size(max = 255, message = "备注不能超过 255 字")
+        @Size(max = 255, message = "{validation.oa.template-save.remark-size}")
         private String remark;
     }
 
@@ -69,40 +69,40 @@ public class DocumentCommands {
     public static class NoRuleSave {
 
         /** 规则编码 */
-        @NotBlank(message = "规则编码不能为空")
-        @Size(max = 64, message = "规则编码不能超过 64 字")
+        @NotBlank(message = "{validation.oa.no-rule-save.code-required}")
+        @Size(max = 64, message = "{validation.oa.no-rule-save.code-size}")
         private String code;
 
         /** 规则名称 */
-        @NotBlank(message = "规则名称不能为空")
-        @Size(max = 128, message = "规则名称不能超过 128 字")
+        @NotBlank(message = "{validation.oa.no-rule-save.name-required}")
+        @Size(max = 128, message = "{validation.oa.no-rule-save.name-size}")
         private String name;
 
         /** 适用范围 */
-        @NotBlank(message = "适用范围不能为空")
+        @NotBlank(message = "{validation.oa.no-rule-save.doc-type-required}")
         private String docType;
 
         /** 文号前缀 */
-        @Size(max = 64, message = "文号前缀不能超过 64 字")
+        @Size(max = 64, message = "{validation.oa.no-rule-save.prefix-size}")
         private String prefix;
 
         /** 期间格式 */
         private String periodFormat;
 
         /** 流水位数 */
-        @Min(value = 3, message = "流水位数最小为 3")
-        @Max(value = 6, message = "流水位数最大为 6")
+        @Min(value = 3, message = "{validation.oa.no-rule-save.serial-length-min}")
+        @Max(value = 6, message = "{validation.oa.no-rule-save.serial-length-max}")
         private Integer serialLength;
 
         /** 分隔符 */
-        @Size(max = 8, message = "分隔符不能超过 8 字")
+        @Size(max = 8, message = "{validation.oa.no-rule-save.separator-size}")
         private String separator;
 
         /** 是否启用 */
         private Integer enabled;
 
         /** 备注 */
-        @Size(max = 255, message = "备注不能超过 255 字")
+        @Size(max = 255, message = "{validation.oa.no-rule-save.remark-size}")
         private String remark;
     }
 
@@ -113,11 +113,11 @@ public class DocumentCommands {
     public static class AttachmentSave {
 
         /** whale-file 文件ID */
-        @NotNull(message = "附件文件ID不能为空")
+        @NotNull(message = "{validation.oa.attachment-save.file-id-required}")
         private Long fileId;
 
         /** 文件名 */
-        @Size(max = 255, message = "附件文件名不能超过 255 字")
+        @Size(max = 255, message = "{validation.oa.attachment-save.file-name-size}")
         private String fileName;
 
         /** 文件大小 */
@@ -134,21 +134,21 @@ public class DocumentCommands {
     public static class OutgoingSave {
 
         /** 标题 */
-        @NotBlank(message = "公文标题不能为空")
-        @Size(max = 255, message = "公文标题不能超过 255 字")
+        @NotBlank(message = "{validation.oa.outgoing-save.title-required}")
+        @Size(max = 255, message = "{validation.oa.outgoing-save.title-size}")
         private String title;
 
         /** 文种 */
         private String docType;
 
         /** 密级 */
-        @Min(value = 1, message = "密级取值 1-3")
-        @Max(value = 3, message = "密级取值 1-3")
+        @Min(value = 1, message = "{validation.oa.outgoing-save.security-level-min}")
+        @Max(value = 3, message = "{validation.oa.outgoing-save.security-level-max}")
         private Integer securityLevel;
 
         /** 紧急度 */
-        @Min(value = 1, message = "紧急度取值 1-3")
-        @Max(value = 3, message = "紧急度取值 1-3")
+        @Min(value = 1, message = "{validation.oa.outgoing-save.urgency-min}")
+        @Max(value = 3, message = "{validation.oa.outgoing-save.urgency-max}")
         private Integer urgency;
 
         /** 模板ID */
@@ -158,18 +158,18 @@ public class DocumentCommands {
         private Long deptId;
 
         /** 主送 */
-        @Size(max = 512, message = "主送不能超过 512 字")
+        @Size(max = 512, message = "{validation.oa.outgoing-save.main-recipients-size}")
         private String mainRecipients;
 
         /** 抄送 */
-        @Size(max = 512, message = "抄送不能超过 512 字")
+        @Size(max = 512, message = "{validation.oa.outgoing-save.copy-recipients-size}")
         private String copyRecipients;
 
         /** 正文 */
         private String content;
 
         /** 备注 */
-        @Size(max = 255, message = "备注不能超过 255 字")
+        @Size(max = 255, message = "{validation.oa.outgoing-save.remark-size}")
         private String remark;
 
         /** 附件 */
@@ -184,7 +184,7 @@ public class DocumentCommands {
     public static class OutgoingAudit {
 
         /** 是否通过 */
-        @NotNull(message = "审核结论不能为空")
+        @NotNull(message = "{validation.oa.outgoing-audit.approved-required}")
         private Boolean approved;
     }
 
@@ -195,7 +195,7 @@ public class DocumentCommands {
     public static class OutgoingSign {
 
         /** 签发人 */
-        @Size(max = 64, message = "签发人不能超过 64 字")
+        @Size(max = 64, message = "{validation.oa.outgoing-sign.signer-size}")
         private String signer;
 
         /** 签发日期 */
@@ -209,27 +209,27 @@ public class DocumentCommands {
     public static class IncomingSave {
 
         /** 来文单位 */
-        @NotBlank(message = "来文单位不能为空")
-        @Size(max = 128, message = "来文单位不能超过 128 字")
+        @NotBlank(message = "{validation.oa.incoming-save.source-unit-required}")
+        @Size(max = 128, message = "{validation.oa.incoming-save.source-unit-size}")
         private String sourceUnit;
 
         /** 来文文号 */
-        @Size(max = 128, message = "来文文号不能超过 128 字")
+        @Size(max = 128, message = "{validation.oa.incoming-save.source-no-size}")
         private String sourceNo;
 
         /** 标题 */
-        @NotBlank(message = "公文标题不能为空")
-        @Size(max = 255, message = "公文标题不能超过 255 字")
+        @NotBlank(message = "{validation.oa.incoming-save.title-required}")
+        @Size(max = 255, message = "{validation.oa.incoming-save.title-size}")
         private String title;
 
         /** 密级 */
-        @Min(value = 1, message = "密级取值 1-3")
-        @Max(value = 3, message = "密级取值 1-3")
+        @Min(value = 1, message = "{validation.oa.incoming-save.security-level-min}")
+        @Max(value = 3, message = "{validation.oa.incoming-save.security-level-max}")
         private Integer securityLevel;
 
         /** 紧急度 */
-        @Min(value = 1, message = "紧急度取值 1-3")
-        @Max(value = 3, message = "紧急度取值 1-3")
+        @Min(value = 1, message = "{validation.oa.incoming-save.urgency-min}")
+        @Max(value = 3, message = "{validation.oa.incoming-save.urgency-max}")
         private Integer urgency;
 
         /** 收文日期 */
@@ -239,7 +239,7 @@ public class DocumentCommands {
         private LocalDate dueDate;
 
         /** 备注 */
-        @Size(max = 255, message = "备注不能超过 255 字")
+        @Size(max = 255, message = "{validation.oa.incoming-save.remark-size}")
         private String remark;
 
         /** 附件 */
@@ -254,15 +254,15 @@ public class DocumentCommands {
     public static class IncomingReview {
 
         /** 批阅意见 */
-        @NotBlank(message = "批阅意见不能为空")
-        @Size(max = 1024, message = "批阅意见不能超过 1024 字")
+        @NotBlank(message = "{validation.oa.incoming-review.instruction-required}")
+        @Size(max = 1024, message = "{validation.oa.incoming-review.instruction-size}")
         private String instruction;
 
         /** 承办人用户ID */
         private Long assigneeId;
 
         /** 承办人姓名 */
-        @Size(max = 64, message = "承办人姓名不能超过 64 字")
+        @Size(max = 64, message = "{validation.oa.incoming-review.assignee-name-size}")
         private String assigneeName;
     }
 
@@ -276,11 +276,11 @@ public class DocumentCommands {
         private Long assigneeId;
 
         /** 承办人姓名 */
-        @Size(max = 64, message = "承办人姓名不能超过 64 字")
+        @Size(max = 64, message = "{validation.oa.incoming-forward.assignee-name-size}")
         private String assigneeName;
 
         /** 备注 */
-        @Size(max = 255, message = "备注不能超过 255 字")
+        @Size(max = 255, message = "{validation.oa.incoming-forward.remark-size}")
         private String remark;
     }
 }

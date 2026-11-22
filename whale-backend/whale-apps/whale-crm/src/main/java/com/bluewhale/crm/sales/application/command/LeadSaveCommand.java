@@ -12,7 +12,7 @@ import lombok.Data;
 public class LeadSaveCommand {
 
     /** 线索名称 */
-    @NotBlank(message = "线索名称不能为空")
+    @NotBlank(message = "{validation.crm.lead.name-required}")
     private String name;
 
     /** 来源 */

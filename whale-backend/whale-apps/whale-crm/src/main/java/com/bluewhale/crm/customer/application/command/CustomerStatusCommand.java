@@ -12,6 +12,6 @@ import lombok.Data;
 public class CustomerStatusCommand {
 
     /** 状态 ACTIVE / INACTIVE */
-    @NotBlank(message = "客户状态不能为空")
+    @NotBlank(message = "{validation.crm.customer-status.status-required}")
     private String status;
 }

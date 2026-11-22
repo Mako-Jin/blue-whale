@@ -16,11 +16,11 @@ import java.math.BigDecimal;
 public class PriceCommand {
 
     /** 价目类型：RETAIL / B2B / POINTS */
-    @NotBlank(message = "价目类型不能为空")
+    @NotBlank(message = "{validation.mall.price.price-type-required}")
     private String priceType;
 
     /** 价格（积分价必须为整数） */
-    @NotNull(message = "价格不能为空")
-    @DecimalMin(value = "0.01", message = "价格必须大于 0")
+    @NotNull(message = "{validation.mall.price.price-required}")
+    @DecimalMin(value = "0.01", message = "{validation.mall.price.price-min}")
     private BigDecimal price;
 }

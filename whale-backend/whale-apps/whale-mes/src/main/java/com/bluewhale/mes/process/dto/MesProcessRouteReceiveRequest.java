@@ -24,11 +24,11 @@ public class MesProcessRouteReceiveRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** PDM 工艺路线编号 */
-    @NotBlank(message = "工艺路线编号不能为空")
+    @NotBlank(message = "{validation.mes.mes-process-route-receive.route-no-required}")
     private String routeNo;
 
     /** PDM 工艺路线版本号 */
-    @NotBlank(message = "工艺路线版本号不能为空")
+    @NotBlank(message = "{validation.mes.mes-process-route-receive.version-no-required}")
     private String versionNo;
 
     /** 零件编码 */
@@ -42,7 +42,7 @@ public class MesProcessRouteReceiveRequest implements Serializable {
 
     /** 工序列表 */
     @Valid
-    @NotNull(message = "工序列表不能为空")
+    @NotNull(message = "{validation.mes.mes-process-route-receive.steps-required}")
     private List<Step> steps = new ArrayList<>();
 
     /**

@@ -14,6 +14,6 @@ import java.util.List;
 public class SprintItemRequest {
 
     /** 工作项ID列表 */
-    @NotEmpty(message = "工作项ID列表不能为空")
+    @NotEmpty(message = "{validation.pm.sprint-item.item-ids-required}")
     private List<Long> itemIds;
 }

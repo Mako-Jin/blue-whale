@@ -21,28 +21,28 @@ import java.util.List;
 public class ShipmentCreateCommand {
 
     /** 订单 ID */
-    @NotNull(message = "请指定订单")
+    @NotNull(message = "{validation.mall.shipment.order-id-required}")
     private Long orderId;
 
     /** 承运商编码（{@code CarrierType}） */
-    @NotBlank(message = "请选择承运商")
+    @NotBlank(message = "{validation.mall.shipment.carrier-code-required}")
     private String carrierCode;
 
     /** 承运商名称：{@code OTHER} 时用于显示自定名称，其余可空（取枚举默认名） */
-    @Size(max = 64, message = "承运商名称不得超过 64 字符")
+    @Size(max = 64, message = "{validation.mall.shipment.carrier-name-size}")
     private String carrierName;
 
     /** 运单号（必填，自送也填内部单号） */
-    @NotBlank(message = "请填写运单号")
-    @Size(max = 64, message = "运单号不得超过 64 字符")
+    @NotBlank(message = "{validation.mall.shipment.tracking-no-required}")
+    @Size(max = 64, message = "{validation.mall.shipment.tracking-no-size}")
     private String trackingNo;
 
     /** 备注 */
-    @Size(max = 255, message = "备注不得超过 255 字符")
+    @Size(max = 255, message = "{validation.mall.shipment.remark-size}")
     private String remark;
 
     /** 发货明细 */
     @Valid
-    @NotEmpty(message = "请至少选择一行商品发货")
+    @NotEmpty(message = "{validation.mall.shipment.items-required}")
     private List<ShipmentLineCommand> items;
 }

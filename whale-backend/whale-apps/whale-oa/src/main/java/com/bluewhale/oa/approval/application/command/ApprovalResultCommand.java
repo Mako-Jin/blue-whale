@@ -14,12 +14,12 @@ import lombok.Data;
 public class ApprovalResultCommand {
 
     /** 目标状态：APPROVED / REJECTED / CANCELLED / BROKEN */
-    @NotBlank(message = "审批结果不能为空")
+    @NotBlank(message = "{validation.oa.approval-result.status-required}")
     @Pattern(regexp = "APPROVED|REJECTED|CANCELLED|BROKEN",
-            message = "审批结果仅支持 APPROVED / REJECTED / CANCELLED / BROKEN")
+            message = "{validation.oa.approval-result.status-pattern}")
     private String status;
 
     /** 备注 */
-    @Size(max = 255, message = "备注长度不能超过 255")
+    @Size(max = 255, message = "{validation.oa.approval-result.remark-size}")
     private String remark;
 }

@@ -17,14 +17,14 @@ public class PdmPartMergeRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 源零件ID（合并后停用） */
-    @NotNull(message = "源零件不能为空")
+    @NotNull(message = "{validation.pdm.pdm-part-merge.source-id-required}")
     private Long sourceId;
 
     /** 保留零件ID（存活并承接 BOM 引用） */
-    @NotNull(message = "保留零件不能为空")
+    @NotNull(message = "{validation.pdm.pdm-part-merge.target-id-required}")
     private Long targetId;
 
     /** 合并说明 */
-    @Size(max = 200, message = "合并说明长度不能超过 200")
+    @Size(max = 200, message = "{validation.pdm.pdm-part-merge.remark-size}")
     private String remark;
 }

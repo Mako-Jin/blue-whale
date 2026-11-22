@@ -14,11 +14,11 @@ import java.time.LocalDateTime;
 public class LeadActivityCreateCommand {
 
     /** 渠道：CALL / VISIT / EMAIL / IM / WECHAT / OTHER */
-    @NotBlank(message = "活动渠道不能为空")
+    @NotBlank(message = "{validation.crm.lead-activity.channel-required}")
     private String channel;
 
     /** 活动内容 */
-    @NotBlank(message = "活动内容不能为空")
+    @NotBlank(message = "{validation.crm.lead-activity.content-required}")
     private String content;
 
     /** 活动结果 */

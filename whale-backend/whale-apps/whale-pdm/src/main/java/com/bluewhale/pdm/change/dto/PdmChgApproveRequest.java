@@ -16,6 +16,6 @@ public class PdmChgApproveRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 审批意见（驳回必填） */
-    @Size(max = 500, message = "审批意见长度不能超过 500")
+    @Size(max = 500, message = "{validation.pdm.pdm-chg-approve.comment-size}")
     private String comment;
 }

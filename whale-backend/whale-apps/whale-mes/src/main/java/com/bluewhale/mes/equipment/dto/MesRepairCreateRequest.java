@@ -17,26 +17,26 @@ import java.time.LocalDateTime;
 public class MesRepairCreateRequest {
 
     /** 设备 ID */
-    @NotNull(message = "设备不能为空")
+    @NotNull(message = "{validation.mes.mes-repair.equipment-id-required}")
     private Long equipmentId;
 
     /** 故障描述 */
-    @NotBlank(message = "故障描述不能为空")
-    @Size(max = 255, message = "故障描述长度不能超过 255")
+    @NotBlank(message = "{validation.mes.mes-repair.fault-desc-required}")
+    @Size(max = 255, message = "{validation.mes.mes-repair.fault-desc-size}")
     private String faultDesc;
 
     /** 严重度：MINOR / MAJOR / CRITICAL */
-    @Pattern(regexp = "MINOR|MAJOR|CRITICAL", message = "严重度不合法")
+    @Pattern(regexp = "MINOR|MAJOR|CRITICAL", message = "{validation.mes.mes-repair.severity-pattern}")
     private String severity;
 
     /** 报修人 */
-    @Size(max = 64, message = "报修人长度不能超过 64")
+    @Size(max = 64, message = "{validation.mes.mes-repair.reported-by-size}")
     private String reportedBy;
 
     /** 报修时间（空则当前时间） */
     private LocalDateTime reportedAt;
 
     /** 备注 */
-    @Size(max = 255, message = "备注长度不能超过 255")
+    @Size(max = 255, message = "{validation.mes.mes-repair.remark-size}")
     private String remark;
 }

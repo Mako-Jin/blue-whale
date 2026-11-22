@@ -15,18 +15,18 @@ import lombok.Data;
 public class BoardColumnSaveRequest {
 
     /** 映射状态ID */
-    @NotNull(message = "状态ID不能为空")
+    @NotNull(message = "{validation.pm.board-column.status-id-required}")
     private Long statusId;
 
     /** 列名称 */
-    @NotBlank(message = "列名称不能为空")
-    @Size(max = 64, message = "列名称长度不能超过 64")
+    @NotBlank(message = "{validation.pm.board-column.name-required}")
+    @Size(max = 64, message = "{validation.pm.board-column.name-size}")
     private String name;
 
     /** 排序号（为空时追加到末尾） */
     private Integer sortNo;
 
     /** WIP 上限（0 表示不限） */
-    @Min(value = 0, message = "WIP 上限不能为负数")
+    @Min(value = 0, message = "{validation.pm.board-column.wip-limit-min}")
     private Integer wipLimit;
 }

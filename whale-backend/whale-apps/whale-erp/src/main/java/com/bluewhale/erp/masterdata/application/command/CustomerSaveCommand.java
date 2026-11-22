@@ -14,11 +14,11 @@ import java.math.BigDecimal;
 public class CustomerSaveCommand {
 
     /** 客户编码 */
-    @NotBlank(message = "客户编码不能为空")
+    @NotBlank(message = "{validation.erp.customer.code-required}")
     private String code;
 
     /** 客户名称 */
-    @NotBlank(message = "客户名称不能为空")
+    @NotBlank(message = "{validation.erp.customer.name-required}")
     private String name;
 
     /** 客户简称 */

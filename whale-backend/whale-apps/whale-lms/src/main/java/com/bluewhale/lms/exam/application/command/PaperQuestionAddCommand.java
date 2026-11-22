@@ -15,10 +15,10 @@ import java.math.BigDecimal;
 public class PaperQuestionAddCommand {
 
     /** 题目 ID */
-    @NotNull(message = "题目 ID 不能为空")
+    @NotNull(message = "{validation.lms.paper-question-add.question-id-required}")
     private Long questionId;
 
     /** 本题分值（为空取题目默认分值） */
-    @DecimalMin(value = "0.1", message = "本题分值必须大于 0")
+    @DecimalMin(value = "0.1", message = "{validation.lms.paper-question-add.score-min}")
     private BigDecimal score;
 }

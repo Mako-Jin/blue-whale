@@ -16,16 +16,16 @@ import java.util.List;
 public class MesInspectionResultSubmitRequest {
 
     /** 检验员 */
-    @Size(max = 64, message = "检验员长度不能超过 64")
+    @Size(max = 64, message = "{validation.mes.mes-inspection-result-submit.inspector-size}")
     private String inspector;
 
     /** 备注 */
-    @Size(max = 255, message = "备注长度不能超过 255")
+    @Size(max = 255, message = "{validation.mes.mes-inspection-result-submit.remark-size}")
     private String remark;
 
     /** 检验结果明细 */
     @Valid
-    @NotEmpty(message = "检验结果不能为空")
+    @NotEmpty(message = "{validation.mes.mes-inspection-result-submit.results-required}")
     private List<MesInspectionResultItemRequest> results;
 
     /** 不良明细 */

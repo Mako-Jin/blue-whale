@@ -18,8 +18,8 @@ public class SealSaveRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 印章名称 */
-    @NotBlank(message = "印章名称不能为空")
-    @Size(max = 128, message = "印章名称长度不能超过 128")
+    @NotBlank(message = "{validation.contract.seal.name-required}")
+    @Size(max = 128, message = "{validation.contract.seal.name-size}")
     private String name;
 
     /** 印章类型：COMPANY/CONTRACT/LEGAL/FINANCE */

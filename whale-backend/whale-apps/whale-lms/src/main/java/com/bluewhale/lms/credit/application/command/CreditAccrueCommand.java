@@ -19,25 +19,25 @@ import java.time.LocalDateTime;
 public class CreditAccrueCommand {
 
     /** 学员用户 ID */
-    @NotNull(message = "学员不能为空")
+    @NotNull(message = "{validation.lms.credit-accrue.user-id-required}")
     private Long userId;
 
     /** 学员用户名 */
-    @Size(max = 64, message = "学员用户名不得超过 64 字符")
+    @Size(max = 64, message = "{validation.lms.credit-accrue.username-size}")
     private String username;
 
     /** 来源类型：COURSE / EXAM / TRAINING */
-    @NotNull(message = "学分来源不能为空")
+    @NotNull(message = "{validation.lms.credit-accrue.source-type-required}")
     private String sourceType;
 
     /** 来源业务 ID（课程 / 考试 / 培训班 ID） */
-    @NotNull(message = "来源业务 ID 不能为空")
+    @NotNull(message = "{validation.lms.credit-accrue.source-id-required}")
     private Long sourceId;
 
     /** 业务发生时间（不传取当前时间，用于跨年补记） */
     private LocalDateTime occurredAt;
 
     /** 备注 */
-    @Size(max = 500, message = "备注不得超过 500 字符")
+    @Size(max = 500, message = "{validation.lms.credit-accrue.remark-size}")
     private String remark;
 }

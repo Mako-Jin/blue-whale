@@ -17,11 +17,11 @@ public class PdmChgOrderAssessRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 影响评估 */
-    @NotBlank(message = "影响评估不能为空")
-    @Size(max = 2000, message = "影响评估长度不能超过 2000")
+    @NotBlank(message = "{validation.pdm.pdm-chg-order-assess.impact-assessment-required}")
+    @Size(max = 2000, message = "{validation.pdm.pdm-chg-order-assess.impact-assessment-size}")
     private String impactAssessment;
 
     /** 执行计划 */
-    @Size(max = 2000, message = "执行计划长度不能超过 2000")
+    @Size(max = 2000, message = "{validation.pdm.pdm-chg-order-assess.execute-plan-size}")
     private String executePlan;
 }

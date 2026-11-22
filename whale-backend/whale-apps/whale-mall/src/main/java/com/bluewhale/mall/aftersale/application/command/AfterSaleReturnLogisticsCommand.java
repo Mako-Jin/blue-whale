@@ -20,7 +20,7 @@ public class AfterSaleReturnLogisticsCommand implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 退货物流单号 */
-    @NotBlank(message = "退货物流单号不能为空")
-    @Size(max = 64, message = "退货物流单号不得超过 64 字符")
+    @NotBlank(message = "{validation.mall.after-sale-return-logistics.return-logistics-no-required}")
+    @Size(max = 64, message = "{validation.mall.after-sale-return-logistics.return-logistics-no-size}")
     private String returnLogisticsNo;
 }

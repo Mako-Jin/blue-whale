@@ -13,7 +13,7 @@ import lombok.Data;
 public class ProposalHandleCommand {
 
     /** 办理人 */
-    @NotBlank(message = "办理人不能为空")
-    @Size(max = 64, message = "办理人不得超过 64 字符")
+    @NotBlank(message = "{validation.party.proposal-handle.handler-required}")
+    @Size(max = 64, message = "{validation.party.proposal-handle.handler-size}")
     private String handler;
 }

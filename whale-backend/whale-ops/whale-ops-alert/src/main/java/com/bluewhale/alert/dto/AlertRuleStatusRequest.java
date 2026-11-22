@@ -16,6 +16,6 @@ public class AlertRuleStatusRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 状态：1 启用 / 0 停用 */
-    @NotNull(message = "状态不能为空")
+    @NotNull(message = "{validation.alert.alert-rule-status.status-required}")
     private Integer status;
 }

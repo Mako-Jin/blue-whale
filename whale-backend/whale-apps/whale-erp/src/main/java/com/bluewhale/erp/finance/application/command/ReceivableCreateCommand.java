@@ -15,22 +15,22 @@ import java.time.LocalDate;
 public class ReceivableCreateCommand {
 
     /** 客户 ID */
-    @NotNull(message = "客户不能为空")
+    @NotNull(message = "{validation.erp.receivable.customer-id-required}")
     private Long customerId;
 
     /** 单号（为空时自动生成） */
     private String docNo;
 
     /** 单据日期 */
-    @NotNull(message = "单据日期不能为空")
+    @NotNull(message = "{validation.erp.receivable.doc-date-required}")
     private LocalDate docDate;
 
     /** 到期日 */
-    @NotNull(message = "到期日不能为空")
+    @NotNull(message = "{validation.erp.receivable.due-date-required}")
     private LocalDate dueDate;
 
     /** 应收金额 */
-    @NotNull(message = "应收金额不能为空")
+    @NotNull(message = "{validation.erp.receivable.amount-required}")
     private BigDecimal amount;
 
     /** 币种 */

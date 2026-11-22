@@ -12,6 +12,6 @@ import lombok.Data;
 public class NurtureStatusCommand {
 
     /** 目标状态：DONE / CANCELLED */
-    @NotBlank(message = "目标状态不能为空")
+    @NotBlank(message = "{validation.crm.nurture-status.status-required}")
     private String status;
 }

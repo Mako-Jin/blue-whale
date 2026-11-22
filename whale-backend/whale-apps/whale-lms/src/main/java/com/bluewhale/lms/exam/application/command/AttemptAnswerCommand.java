@@ -17,10 +17,10 @@ import lombok.Data;
 public class AttemptAnswerCommand {
 
     /** 题目 ID */
-    @NotNull(message = "题目不能为空")
+    @NotNull(message = "{validation.lms.attempt-answer.question-id-required}")
     private Long questionId;
 
     /** 学员作答 */
-    @Size(max = 2000, message = "作答内容最长 2000 字符")
+    @Size(max = 2000, message = "{validation.lms.attempt-answer.answer-size}")
     private String answer;
 }

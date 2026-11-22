@@ -17,7 +17,7 @@ public class PdmChgTaskCompleteRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 执行结果版本号 */
-    @NotBlank(message = "结果版本号不能为空")
-    @Size(max = 32, message = "结果版本号长度不能超过 32")
+    @NotBlank(message = "{validation.pdm.pdm-chg-task-complete.result-version-no-required}")
+    @Size(max = 32, message = "{validation.pdm.pdm-chg-task-complete.result-version-no-size}")
     private String resultVersionNo;
 }

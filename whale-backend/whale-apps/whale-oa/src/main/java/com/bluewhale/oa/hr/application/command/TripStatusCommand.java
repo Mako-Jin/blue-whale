@@ -16,6 +16,6 @@ public class TripStatusCommand implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 目标状态：APPROVED / REJECTED / CANCELLED */
-    @NotBlank(message = "目标状态不能为空")
+    @NotBlank(message = "{validation.oa.trip-status.status-required}")
     private String status;
 }

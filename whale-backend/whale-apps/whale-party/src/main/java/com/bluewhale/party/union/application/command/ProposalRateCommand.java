@@ -14,8 +14,8 @@ import lombok.Data;
 public class ProposalRateCommand {
 
     /** 评分（1–5） */
-    @NotNull(message = "评分不能为空")
-    @Min(value = 1, message = "评分不能低于 1")
-    @Max(value = 5, message = "评分不能高于 5")
+    @NotNull(message = "{validation.party.proposal-rate.rating-required}")
+    @Min(value = 1, message = "{validation.party.proposal-rate.rating-min}")
+    @Max(value = 5, message = "{validation.party.proposal-rate.rating-max}")
     private Integer rating;
 }

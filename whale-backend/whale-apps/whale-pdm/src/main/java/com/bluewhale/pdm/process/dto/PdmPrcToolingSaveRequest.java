@@ -22,24 +22,24 @@ public class PdmPrcToolingSaveRequest implements Serializable {
     private Long stepId;
 
     /** 类型：TOOL/FIXTURE/MOLD/GAUGE */
-    @NotBlank(message = "工装类型不能为空")
-    @Pattern(regexp = "TOOL|FIXTURE|MOLD|GAUGE", message = "工装类型仅支持 TOOL/FIXTURE/MOLD/GAUGE")
+    @NotBlank(message = "{validation.pdm.pdm-prc-tooling.tooling-type-required}")
+    @Pattern(regexp = "TOOL|FIXTURE|MOLD|GAUGE", message = "{validation.pdm.pdm-prc-tooling.tooling-type-pattern}")
     private String toolingType;
 
     /** 工装编码 */
-    @NotBlank(message = "工装编码不能为空")
-    @Size(max = 64, message = "工装编码长度不能超过 64")
+    @NotBlank(message = "{validation.pdm.pdm-prc-tooling.tooling-code-required}")
+    @Size(max = 64, message = "{validation.pdm.pdm-prc-tooling.tooling-code-size}")
     private String toolingCode;
 
     /** 规格 */
-    @Size(max = 128, message = "规格长度不能超过 128")
+    @Size(max = 128, message = "{validation.pdm.pdm-prc-tooling.spec-size}")
     private String spec;
 
     /** 数量 */
-    @Min(value = 1, message = "数量必须大于 0")
+    @Min(value = 1, message = "{validation.pdm.pdm-prc-tooling.quantity-min}")
     private Integer quantity;
 
     /** 备注 */
-    @Size(max = 255, message = "备注长度不能超过 255")
+    @Size(max = 255, message = "{validation.pdm.pdm-prc-tooling.remark-size}")
     private String remark;
 }

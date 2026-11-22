@@ -12,6 +12,6 @@ import lombok.Data;
 public class CustomerLevelCommand {
 
     /** 等级 A/B/C/D */
-    @NotBlank(message = "客户等级不能为空")
+    @NotBlank(message = "{validation.crm.customer-level.level-required}")
     private String level;
 }

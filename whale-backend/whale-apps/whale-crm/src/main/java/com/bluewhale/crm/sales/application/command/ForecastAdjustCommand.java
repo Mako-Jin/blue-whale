@@ -17,16 +17,16 @@ import java.math.BigDecimal;
 public class ForecastAdjustCommand {
 
     /** 调整字段：PIPELINE / BEST / COMMIT */
-    @NotBlank(message = "调整字段不能为空")
+    @NotBlank(message = "{validation.crm.forecast-adjust.field-code-required}")
     private String fieldCode;
 
     /** 调整后金额 */
-    @NotNull(message = "调整后金额不能为空")
-    @DecimalMin(value = "0", message = "调整后金额不得为负数")
+    @NotNull(message = "{validation.crm.forecast-adjust.amount-required}")
+    @DecimalMin(value = "0", message = "{validation.crm.forecast-adjust.amount-min}")
     private BigDecimal amount;
 
     /** 调整原因 */
-    @NotBlank(message = "调整原因不能为空")
-    @Size(max = 500, message = "调整原因长度不能超过 500")
+    @NotBlank(message = "{validation.crm.forecast-adjust.reason-required}")
+    @Size(max = 500, message = "{validation.crm.forecast-adjust.reason-size}")
     private String reason;
 }

@@ -34,8 +34,8 @@ public final class ExpenseCommands {
     public static class ExpenseSaveCommand {
 
         /** 申请人账号 */
-        @NotBlank(message = "申请人不能为空")
-        @Size(max = 64, message = "申请人账号长度不能超过 64")
+        @NotBlank(message = "{validation.oa.expense.applicant-required}")
+        @Size(max = 64, message = "{validation.oa.expense.applicant-size}")
         private String applicant;
 
         /** 申请人用户ID */
@@ -45,28 +45,28 @@ public final class ExpenseCommands {
         private Long deptId;
 
         /** 主费用类别编码 */
-        @NotBlank(message = "费用类别不能为空")
-        @Size(max = 32, message = "费用类别编码长度不能超过 32")
+        @NotBlank(message = "{validation.oa.expense.category-code-required}")
+        @Size(max = 32, message = "{validation.oa.expense.category-code-size}")
         private String categoryCode;
 
         /** 报销事由标题 */
-        @NotBlank(message = "报销事由不能为空")
-        @Size(max = 128, message = "报销事由长度不能超过 128")
+        @NotBlank(message = "{validation.oa.expense.title-required}")
+        @Size(max = 128, message = "{validation.oa.expense.title-size}")
         private String title;
 
         /** 币种 */
-        @Size(max = 8, message = "币种长度不能超过 8")
+        @Size(max = 8, message = "{validation.oa.expense.currency-size}")
         private String currency;
 
         /** 备注 */
-        @Size(max = 255, message = "备注长度不能超过 255")
+        @Size(max = 255, message = "{validation.oa.expense.remark-size}")
         private String remark;
 
         /** 关联出差单ID（可选） */
         private Long tripId;
 
         /** 明细 */
-        @NotEmpty(message = "报销明细不能为空")
+        @NotEmpty(message = "{validation.oa.expense.items-required}")
         @Valid
         private List<ExpenseItemCommand> items;
 
@@ -82,26 +82,26 @@ public final class ExpenseCommands {
     public static class ExpenseItemCommand {
 
         /** 费用类别编码 */
-        @NotBlank(message = "明细费用类别不能为空")
-        @Size(max = 32, message = "费用类别编码长度不能超过 32")
+        @NotBlank(message = "{validation.oa.expense-item.category-code-required}")
+        @Size(max = 32, message = "{validation.oa.expense-item.category-code-size}")
         private String categoryCode;
 
         /** 费用发生日期 */
-        @NotNull(message = "费用发生日期不能为空")
-        @PastOrPresent(message = "费用发生日期不能晚于今天")
+        @NotNull(message = "{validation.oa.expense-item.expense-date-required}")
+        @PastOrPresent(message = "{validation.oa.expense-item.expense-date-pattern}")
         private LocalDate expenseDate;
 
         /** 金额 */
-        @NotNull(message = "明细金额不能为空")
-        @DecimalMin(value = "0.01", message = "明细金额必须大于 0")
+        @NotNull(message = "{validation.oa.expense-item.amount-required}")
+        @DecimalMin(value = "0.01", message = "{validation.oa.expense-item.amount-min}")
         private BigDecimal amount;
 
         /** 税额 */
-        @DecimalMin(value = "0.00", message = "税额不能为负")
+        @DecimalMin(value = "0.00", message = "{validation.oa.expense-item.tax-amount-min}")
         private BigDecimal taxAmount;
 
         /** 费用说明 */
-        @Size(max = 255, message = "费用说明长度不能超过 255")
+        @Size(max = 255, message = "{validation.oa.expense-item.description-size}")
         private String description;
     }
 
@@ -112,24 +112,24 @@ public final class ExpenseCommands {
     public static class ExpenseInvoiceCommand {
 
         /** 发票代码 */
-        @Size(max = 32, message = "发票代码长度不能超过 32")
+        @Size(max = 32, message = "{validation.oa.expense-invoice.invoice-code-size}")
         private String invoiceCode;
 
         /** 发票号码 */
-        @NotBlank(message = "发票号码不能为空")
-        @Size(max = 64, message = "发票号码长度不能超过 64")
+        @NotBlank(message = "{validation.oa.expense-invoice.invoice-no-required}")
+        @Size(max = 64, message = "{validation.oa.expense-invoice.invoice-no-size}")
         private String invoiceNo;
 
         /** 开票日期 */
         private LocalDate invoiceDate;
 
         /** 发票金额 */
-        @NotNull(message = "发票金额不能为空")
-        @DecimalMin(value = "0.01", message = "发票金额必须大于 0")
+        @NotNull(message = "{validation.oa.expense-invoice.amount-required}")
+        @DecimalMin(value = "0.01", message = "{validation.oa.expense-invoice.amount-min}")
         private BigDecimal amount;
 
         /** 发票税额 */
-        @DecimalMin(value = "0.00", message = "发票税额不能为负")
+        @DecimalMin(value = "0.00", message = "{validation.oa.expense-invoice.tax-amount-min}")
         private BigDecimal taxAmount;
 
         /** 发票影像文件ID */
@@ -143,9 +143,9 @@ public final class ExpenseCommands {
     public static class ExpenseStatusCommand {
 
         /** 目标状态 */
-        @NotBlank(message = "状态不能为空")
+        @NotBlank(message = "{validation.oa.expense-status.status-required}")
         @Pattern(regexp = "APPROVED|REJECTED|CANCELLED",
-                message = "状态仅支持 APPROVED / REJECTED / CANCELLED")
+                message = "{validation.oa.expense-status.status-pattern}")
         private String status;
     }
 
@@ -159,24 +159,24 @@ public final class ExpenseCommands {
         private Long id;
 
         /** 类别编码 */
-        @NotBlank(message = "类别编码不能为空")
-        @Size(max = 32, message = "类别编码长度不能超过 32")
+        @NotBlank(message = "{validation.oa.category.code-required}")
+        @Size(max = 32, message = "{validation.oa.category.code-size}")
         private String code;
 
         /** 类别名称 */
-        @NotBlank(message = "类别名称不能为空")
-        @Size(max = 64, message = "类别名称长度不能超过 64")
+        @NotBlank(message = "{validation.oa.category.name-required}")
+        @Size(max = 64, message = "{validation.oa.category.name-size}")
         private String name;
 
         /** 会计科目 */
-        @Size(max = 64, message = "会计科目长度不能超过 64")
+        @Size(max = 64, message = "{validation.oa.category.account-subject-size}")
         private String accountSubject;
 
         /** 是否需要发票 */
         private Boolean requireInvoice;
 
         /** 单笔限额 */
-        @DecimalMin(value = "0.00", message = "单笔限额不能为负")
+        @DecimalMin(value = "0.00", message = "{validation.oa.category.single-limit-min}")
         private BigDecimal singleLimit;
 
         /** 排序号 */
@@ -196,24 +196,24 @@ public final class ExpenseCommands {
         private Long id;
 
         /** 费用类别ID */
-        @NotNull(message = "费用类别不能为空")
+        @NotNull(message = "{validation.oa.standard.category-id-required}")
         private Long categoryId;
 
         /** 适用职级/城市编码 */
-        @NotBlank(message = "适用范围不能为空")
-        @Size(max = 32, message = "适用范围编码长度不能超过 32")
+        @NotBlank(message = "{validation.oa.standard.level-code-required}")
+        @Size(max = 32, message = "{validation.oa.standard.level-code-size}")
         private String levelCode;
 
         /** 限额 */
-        @NotNull(message = "限额不能为空")
-        @DecimalMin(value = "0.00", message = "限额不能为负")
+        @NotNull(message = "{validation.oa.standard.limit-amount-required}")
+        @DecimalMin(value = "0.00", message = "{validation.oa.standard.limit-amount-min}")
         private BigDecimal limitAmount;
 
         /** 是否启用 */
         private Boolean enabled;
 
         /** 备注 */
-        @Size(max = 255, message = "备注长度不能超过 255")
+        @Size(max = 255, message = "{validation.oa.standard.remark-size}")
         private String remark;
     }
 }

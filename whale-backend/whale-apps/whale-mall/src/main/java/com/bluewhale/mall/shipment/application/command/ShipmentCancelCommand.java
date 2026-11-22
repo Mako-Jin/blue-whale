@@ -12,6 +12,6 @@ import lombok.Data;
 public class ShipmentCancelCommand {
 
     /** 作废原因 */
-    @Size(max = 255, message = "作废原因不得超过 255 字符")
+    @Size(max = 255, message = "{validation.mall.shipment-cancel.reason-size}")
     private String reason;
 }

@@ -21,28 +21,28 @@ import java.math.BigDecimal;
 public class PaperSaveCommand {
 
     /** 试卷编码（新增必填） */
-    @Size(max = 64, message = "试卷编码最长 64 字符")
+    @Size(max = 64, message = "{validation.lms.paper.paper-code-size}")
     private String paperCode;
 
     /** 试卷名称 */
-    @NotBlank(message = "试卷名称不能为空")
-    @Size(max = 128, message = "试卷名称最长 128 字符")
+    @NotBlank(message = "{validation.lms.paper.title-required}")
+    @Size(max = 128, message = "{validation.lms.paper.title-size}")
     private String title;
 
     /** 关联课程 ID */
     private Long courseId;
 
     /** 考试时长（分钟） */
-    @NotNull(message = "考试时长不能为空")
-    @Min(value = 1, message = "考试时长至少 1 分钟")
-    @Max(value = 600, message = "考试时长最多 600 分钟")
+    @NotNull(message = "{validation.lms.paper.duration-minutes-required}")
+    @Min(value = 1, message = "{validation.lms.paper.duration-minutes-min}")
+    @Max(value = 600, message = "{validation.lms.paper.duration-minutes-max}")
     private Integer durationMinutes;
 
     /** 及格分 */
-    @DecimalMin(value = "0.0", message = "及格分不能为负")
+    @DecimalMin(value = "0.0", message = "{validation.lms.paper.pass-score-min}")
     private BigDecimal passScore;
 
     /** 备注 */
-    @Size(max = 500, message = "备注最长 500 字符")
+    @Size(max = 500, message = "{validation.lms.paper.remark-size}")
     private String remark;
 }

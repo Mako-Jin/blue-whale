@@ -15,10 +15,10 @@ public class ContractVersionSaveRequest {
     private Long fileId;
 
     /** 新版本正文 SHA-256（可选） */
-    @Size(max = 64, message = "SHA-256 长度不能超过 64")
+    @Size(max = 64, message = "{validation.contract.contract-version.sha256-size}")
     private String sha256;
 
     /** 变更说明 */
-    @Size(max = 255, message = "变更说明长度不能超过 255")
+    @Size(max = 255, message = "{validation.contract.contract-version.change-note-size}")
     private String changeNote;
 }

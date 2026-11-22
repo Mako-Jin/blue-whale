@@ -20,7 +20,7 @@ public class MesMetricIngestRequest {
 
     /** 样本列表 */
     @Valid
-    @NotEmpty(message = "样本列表不能为空")
+    @NotEmpty(message = "{validation.mes.mes-metric-ingest.samples-required}")
     private List<SampleItem> samples;
 
     /**
@@ -30,12 +30,12 @@ public class MesMetricIngestRequest {
     public static class SampleItem {
 
         /** 指标值 */
-        @NotNull(message = "指标值不能为空")
-        @DecimalMin(value = "0.0000", message = "指标值不能为负")
+        @NotNull(message = "{validation.mes.sample-item.metric-value-required}")
+        @DecimalMin(value = "0.0000", message = "{validation.mes.sample-item.metric-value-min}")
         private BigDecimal metricValue;
 
         /** 采样时间 */
-        @NotNull(message = "采样时间不能为空")
+        @NotNull(message = "{validation.mes.sample-item.sampled-at-required}")
         private LocalDateTime sampledAt;
 
         /** 同采样时间的序号（幂等键组成，默认 1） */

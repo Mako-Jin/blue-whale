@@ -12,6 +12,6 @@ import lombok.Data;
 public class MesScheduleActionRequest {
 
     /** 备注 */
-    @Size(max = 255, message = "备注长度不能超过 255")
+    @Size(max = 255, message = "{validation.mes.mes-schedule-action.remark-size}")
     private String remark;
 }

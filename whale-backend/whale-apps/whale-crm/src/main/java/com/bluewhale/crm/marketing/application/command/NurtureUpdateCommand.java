@@ -35,7 +35,7 @@ public class NurtureUpdateCommand {
     private String assigneeName;
 
     /** 备注 */
-    @Size(max = 500, message = "备注最多 500 字")
+    @Size(max = 500, message = "{validation.crm.nurture.note-size}")
     private String note;
 
     /** 负责人 */

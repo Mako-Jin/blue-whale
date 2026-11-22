@@ -21,43 +21,43 @@ public class OvertimeSaveCommand implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 申请单号（租户内唯一） */
-    @NotBlank(message = "申请单号不能为空")
-    @Size(max = 64, message = "申请单号长度不能超过 64")
+    @NotBlank(message = "{validation.oa.overtime.code-required}")
+    @Size(max = 64, message = "{validation.oa.overtime.code-size}")
     private String code;
 
     /** 申请人账号 */
-    @NotBlank(message = "申请人不能为空")
-    @Size(max = 64, message = "申请人长度不能超过 64")
+    @NotBlank(message = "{validation.oa.overtime.applicant-required}")
+    @Size(max = 64, message = "{validation.oa.overtime.applicant-size}")
     private String applicant;
 
     /** 申请人用户ID（用于档案校验与调休入账） */
     private Long applicantId;
 
     /** 加班日期 */
-    @NotNull(message = "加班日期不能为空")
+    @NotNull(message = "{validation.oa.overtime.overtime-date-required}")
     private LocalDate overtimeDate;
 
     /** 加班开始时间 */
-    @NotNull(message = "加班开始时间不能为空")
+    @NotNull(message = "{validation.oa.overtime.start-time-required}")
     private LocalTime startTime;
 
     /** 加班结束时间 */
-    @NotNull(message = "加班结束时间不能为空")
+    @NotNull(message = "{validation.oa.overtime.end-time-required}")
     private LocalTime endTime;
 
     /** 补偿方式：COMP_TIME 调休 / PAY 加班费 */
-    @Pattern(regexp = "COMP_TIME|PAY", message = "补偿方式仅支持 COMP_TIME / PAY")
+    @Pattern(regexp = "COMP_TIME|PAY", message = "{validation.oa.overtime.compensation-pattern}")
     private String compensation;
 
     /** 关联项目名称 */
-    @Size(max = 128, message = "项目名称长度不能超过 128")
+    @Size(max = 128, message = "{validation.oa.overtime.project-name-size}")
     private String projectName;
 
     /** 加班事由 */
-    @Size(max = 512, message = "加班事由长度不能超过 512")
+    @Size(max = 512, message = "{validation.oa.overtime.reason-size}")
     private String reason;
 
     /** 备注 */
-    @Size(max = 255, message = "备注长度不能超过 255")
+    @Size(max = 255, message = "{validation.oa.overtime.remark-size}")
     private String remark;
 }

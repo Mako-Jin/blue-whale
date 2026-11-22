@@ -18,12 +18,12 @@ public class WorkItemLinkSaveRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 目标工作项ID */
-    @NotNull(message = "目标工作项ID不能为空")
+    @NotNull(message = "{validation.pm.work-item-link.target-item-id-required}")
     private Long targetItemId;
 
     /** 关联类型：BLOCKS / BLOCKED_BY / RELATES / DUPLICATES / DUPLICATED_BY */
-    @NotBlank(message = "关联类型不能为空")
+    @NotBlank(message = "{validation.pm.work-item-link.link-type-required}")
     @Pattern(regexp = "BLOCKS|BLOCKED_BY|RELATES|DUPLICATES|DUPLICATED_BY",
-            message = "关联类型仅支持 BLOCKS / BLOCKED_BY / RELATES / DUPLICATES / DUPLICATED_BY")
+            message = "{validation.pm.work-item-link.link-type-pattern}")
     private String linkType;
 }

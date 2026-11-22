@@ -30,6 +30,6 @@ public class OrderPreviewCommand {
     private List<Long> couponIds;
 
     /** 收货区域（省/直辖市名，可空；区域运费模板按此计收，未传按兜底运费） */
-    @Size(max = 64, message = "收货区域不得超过 64 字符")
+    @Size(max = 64, message = "{validation.mall.order-preview.region-size}")
     private String region;
 }

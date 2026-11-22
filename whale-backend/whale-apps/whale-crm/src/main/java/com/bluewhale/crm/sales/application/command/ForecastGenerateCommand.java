@@ -13,8 +13,8 @@ import lombok.Data;
 public class ForecastGenerateCommand {
 
     /** 周期：yyyy-MM 或 yyyy-Qn */
-    @NotBlank(message = "预测周期不能为空")
-    @Size(max = 10, message = "预测周期长度不能超过 10")
+    @NotBlank(message = "{validation.crm.forecast-generate.period-required}")
+    @Size(max = 10, message = "{validation.crm.forecast-generate.period-size}")
     private String period;
 
     /** 周期类型：MONTH / QUARTER，默认 MONTH */

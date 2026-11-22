@@ -14,7 +14,7 @@ import java.math.BigDecimal;
 public class OpportunityStageCommand {
 
     /** 目标阶段：PROPOSAL / NEGOTIATION / WON / LOST */
-    @NotBlank(message = "目标阶段不能为空")
+    @NotBlank(message = "{validation.crm.opportunity-stage.stage-required}")
     private String stage;
 
     /** 输单原因（转 LOST 必填） */

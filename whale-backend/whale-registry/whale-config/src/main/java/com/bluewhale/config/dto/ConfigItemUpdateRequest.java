@@ -17,16 +17,16 @@ public class ConfigItemUpdateRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 配置值 */
-    @Size(max = 65535, message = "配置值长度不能超过 65535")
+    @Size(max = 65535, message = "{validation.config.config-item.config-value-size}")
     private String configValue;
 
     /** 值类型：STRING / NUMBER / BOOLEAN / JSON */
-    @Pattern(regexp = "^(?i)(STRING|NUMBER|BOOLEAN|JSON)$", message = "值类型仅支持 STRING / NUMBER / BOOLEAN / JSON")
-    @Size(max = 16, message = "值类型长度不能超过 16")
+    @Pattern(regexp = "^(?i)(STRING|NUMBER|BOOLEAN|JSON)$", message = "{validation.config.config-item.value-type-pattern}")
+    @Size(max = 16, message = "{validation.config.config-item.value-type-size}")
     private String valueType;
 
     /** 配置说明 */
-    @Size(max = 255, message = "配置说明长度不能超过 255")
+    @Size(max = 255, message = "{validation.config.config-item.description-size}")
     private String description;
 
     /** 状态：1 启用 / 0 停用 */

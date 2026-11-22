@@ -18,11 +18,11 @@ public class ProjectMemberSaveRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 成员用户ID */
-    @NotNull(message = "成员用户ID不能为空")
+    @NotNull(message = "{validation.pm.project-member.user-id-required}")
     private Long userId;
 
     /** 项目角色：ADMIN / MEMBER / VIEWER */
-    @NotBlank(message = "项目角色不能为空")
-    @Pattern(regexp = "ADMIN|MEMBER|VIEWER", message = "项目角色仅支持 ADMIN / MEMBER / VIEWER")
+    @NotBlank(message = "{validation.pm.project-member.project-role-required}")
+    @Pattern(regexp = "ADMIN|MEMBER|VIEWER", message = "{validation.pm.project-member.project-role-pattern}")
     private String projectRole;
 }

@@ -31,7 +31,7 @@ public class KbRefCommand {
     private String faultTags;
 
     /** 可见范围：PUBLIC / INTERNAL */
-    @Pattern(regexp = "PUBLIC|INTERNAL", message = "可见范围只允许 PUBLIC / INTERNAL")
+    @Pattern(regexp = "PUBLIC|INTERNAL", message = "{validation.crm.kb-ref.visible-scope-pattern}")
     private String visibleScope;
 
     /** whale-doc 文档 ID */
@@ -41,7 +41,7 @@ public class KbRefCommand {
     private Integer docVersion;
 
     /** 状态：ENABLED / DISABLED */
-    @Pattern(regexp = "ENABLED|DISABLED", message = "状态只允许 ENABLED / DISABLED")
+    @Pattern(regexp = "ENABLED|DISABLED", message = "{validation.crm.kb-ref.status-pattern}")
     private String status;
 
     /** 负责人 */

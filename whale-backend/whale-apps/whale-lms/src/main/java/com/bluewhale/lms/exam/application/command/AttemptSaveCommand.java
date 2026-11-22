@@ -23,11 +23,11 @@ public class AttemptSaveCommand {
 
     /** 本次提交的答案 */
     @Valid
-    @NotNull(message = "答案列表不能为空")
+    @NotNull(message = "{validation.lms.attempt.answers-required}")
     private List<AttemptAnswerCommand> answers = new ArrayList<>();
 
     /** 前端统计的切屏次数（服务端只增不减） */
-    @Min(value = 0, message = "切屏次数不能为负")
-    @Max(value = 999, message = "切屏次数异常")
+    @Min(value = 0, message = "{validation.lms.attempt.switch-count-min}")
+    @Max(value = 999, message = "{validation.lms.attempt.switch-count-max}")
     private Integer switchCount;
 }

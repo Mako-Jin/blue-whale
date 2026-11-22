@@ -21,10 +21,10 @@ public class AssignmentBatchCommand {
     private String scopeType;
 
     /** 范围取值（部门编码 / 角色编码，USER 可空） */
-    @Size(max = 128, message = "范围取值不得超过 128 字")
+    @Size(max = 128, message = "{validation.lms.assignment-batch.scope-value-size}")
     private String scopeValue;
 
     /** 学员用户 ID 列表 */
-    @NotEmpty(message = "必修分配名单不能为空")
+    @NotEmpty(message = "{validation.lms.assignment-batch.user-ids-required}")
     private List<Long> userIds;
 }

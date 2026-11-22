@@ -16,8 +16,8 @@ import java.time.LocalDateTime;
 public class ShipmentDeliveredCommand {
 
     /** 发货单号 */
-    @NotBlank(message = "请提供发货单号")
-    @Size(max = 32, message = "发货单号不得超过 32 字符")
+    @NotBlank(message = "{validation.mall.shipment-delivered.shipment-no-required}")
+    @Size(max = 32, message = "{validation.mall.shipment-delivered.shipment-no-size}")
     private String shipmentNo;
 
     /** 签收时间：为空取服务端当前时间 */

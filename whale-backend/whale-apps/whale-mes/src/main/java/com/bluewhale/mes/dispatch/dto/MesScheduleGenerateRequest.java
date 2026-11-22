@@ -22,14 +22,14 @@ public class MesScheduleGenerateRequest {
     private LocalDate planDate;
 
     /** 排程天数，缺省 7 天 */
-    @Min(value = 1, message = "排程天数至少 1 天")
-    @Max(value = 30, message = "排程天数不能超过 30 天")
+    @Min(value = 1, message = "{validation.mes.mes-schedule-generate.days-min}")
+    @Max(value = 30, message = "{validation.mes.mes-schedule-generate.days-max}")
     private Integer days;
 
     /** 限定工作中心 ID 列表，缺省全部启用工作中心 */
     private List<Long> workCenterIds;
 
     /** 排程人 */
-    @Size(max = 64, message = "排程人长度不能超过 64")
+    @Size(max = 64, message = "{validation.mes.mes-schedule-generate.planned-by-size}")
     private String plannedBy;
 }

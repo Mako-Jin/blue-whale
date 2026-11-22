@@ -17,15 +17,15 @@ import lombok.Data;
 public class CertificateIssueCommand {
 
     /** 证书模板 ID */
-    @NotNull(message = "证书模板不能为空")
+    @NotNull(message = "{validation.lms.certificate-issue.template-id-required}")
     private Long templateId;
 
     /** 持证人用户 ID */
-    @NotNull(message = "持证人不能为空")
+    @NotNull(message = "{validation.lms.certificate-issue.user-id-required}")
     private Long userId;
 
     /** 持证人用户名 */
-    @Size(max = 64, message = "持证人用户名不得超过 64 字符")
+    @Size(max = 64, message = "{validation.lms.certificate-issue.username-size}")
     private String username;
 
     /** 来源类型：MANUAL / COURSE / EXAM / TRAINING */
@@ -35,10 +35,10 @@ public class CertificateIssueCommand {
     private Long sourceId;
 
     /** 来源业务标题快照 */
-    @Size(max = 200, message = "来源标题不得超过 200 字符")
+    @Size(max = 200, message = "{validation.lms.certificate-issue.source-title-size}")
     private String sourceTitle;
 
     /** 备注 */
-    @Size(max = 500, message = "备注不得超过 500 字符")
+    @Size(max = 500, message = "{validation.lms.certificate-issue.remark-size}")
     private String remark;
 }

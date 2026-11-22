@@ -14,12 +14,12 @@ import lombok.Data;
 public class BoardSaveRequest {
 
     /** 项目ID（仅创建时使用） */
-    @NotNull(message = "项目ID不能为空")
+    @NotNull(message = "{validation.pm.board.project-id-required}")
     private Long projectId;
 
     /** 看板名称 */
-    @NotBlank(message = "看板名称不能为空")
-    @Size(max = 64, message = "看板名称长度不能超过 64")
+    @NotBlank(message = "{validation.pm.board.name-required}")
+    @Size(max = 64, message = "{validation.pm.board.name-size}")
     private String name;
 
     /** 看板类型：SCRUM / KANBAN */

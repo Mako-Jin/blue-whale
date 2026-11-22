@@ -12,6 +12,6 @@ import lombok.Data;
 public class LeadInvalidCommand {
 
     /** 无效原因 */
-    @NotBlank(message = "无效原因不能为空")
+    @NotBlank(message = "{validation.crm.lead-invalid.reason-required}")
     private String reason;
 }

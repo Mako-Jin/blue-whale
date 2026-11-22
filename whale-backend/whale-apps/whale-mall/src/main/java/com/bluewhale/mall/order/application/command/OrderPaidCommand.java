@@ -14,11 +14,11 @@ import java.math.BigDecimal;
 public class OrderPaidCommand {
 
     /** 订单号 */
-    @NotBlank(message = "订单号不能为空")
+    @NotBlank(message = "{validation.mall.order-paid.order-no-required}")
     private String orderNo;
 
     /** 支付单号 */
-    @NotBlank(message = "支付单号不能为空")
+    @NotBlank(message = "{validation.mall.order-paid.pay-no-required}")
     private String payNo;
 
     /** 实付金额（用于对账校验，可为空表示不校验） */

@@ -12,7 +12,7 @@ import lombok.Data;
 public class PartnerUpdateCommand {
 
     /** 伙伴名称 */
-    @NotBlank(message = "伙伴名称不能为空")
+    @NotBlank(message = "{validation.crm.partner.partner-name-required}")
     private String partnerName;
 
     /** 伙伴类型：AGENT / DEALER / OTHER */

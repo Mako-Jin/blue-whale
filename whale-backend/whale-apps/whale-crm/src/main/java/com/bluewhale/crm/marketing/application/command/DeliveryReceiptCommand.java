@@ -24,31 +24,31 @@ public class DeliveryReceiptCommand {
     private Long receiptId;
 
     /** 业务标识（消息服务侧为触达任务ID，作为 messageId 缺失时的兜底匹配依据） */
-    @Size(max = 64, message = "业务标识长度不能超过 64")
+    @Size(max = 64, message = "{validation.crm.delivery-receipt.biz-id-size}")
     private String bizId;
 
     /** 渠道：EMAIL / SMS / INBOX / IM */
-    @NotBlank(message = "回执渠道不能为空")
-    @Size(max = 16, message = "回执渠道长度不能超过 16")
+    @NotBlank(message = "{validation.crm.delivery-receipt.channel-required}")
+    @Size(max = 16, message = "{validation.crm.delivery-receipt.channel-size}")
     private String channel;
 
     /** 回执状态：DELIVERED / READ / BOUNCED */
-    @NotBlank(message = "回执状态不能为空")
-    @Size(max = 16, message = "回执状态长度不能超过 16")
+    @NotBlank(message = "{validation.crm.delivery-receipt.status-required}")
+    @Size(max = 16, message = "{validation.crm.delivery-receipt.status-size}")
     private String status;
 
     /** 收件人（messageId 缺失时的兜底匹配依据） */
-    @Size(max = 255, message = "收件人长度不能超过 255")
+    @Size(max = 255, message = "{validation.crm.delivery-receipt.recipient-size}")
     private String recipient;
 
     /** 渠道回执时间 */
     private LocalDateTime receiptTime;
 
     /** 退信/失败错误码 */
-    @Size(max = 64, message = "错误码长度不能超过 64")
+    @Size(max = 64, message = "{validation.crm.delivery-receipt.error-code-size}")
     private String errorCode;
 
     /** 退信/失败说明 */
-    @Size(max = 512, message = "错误说明长度不能超过 512")
+    @Size(max = 512, message = "{validation.crm.delivery-receipt.error-message-size}")
     private String errorMessage;
 }

@@ -20,31 +20,31 @@ import java.time.LocalDateTime;
 public class ActivitySaveCommand {
 
     /** 活动名称 */
-    @NotBlank(message = "活动名称不能为空")
-    @Size(max = 128, message = "活动名称不得超过 128 字符")
+    @NotBlank(message = "{validation.party.union-activity.title-required}")
+    @Size(max = 128, message = "{validation.party.union-activity.title-size}")
     private String title;
 
     /** 活动类型 */
-    @Size(max = 32, message = "活动类型不得超过 32 字符")
+    @Size(max = 32, message = "{validation.party.activity.activity-type-size}")
     private String activityType;
 
     /** 开始时间 */
-    @NotNull(message = "开始时间不能为空")
+    @NotNull(message = "{validation.party.activity.start-time-required}")
     private LocalDateTime startTime;
 
     /** 结束时间 */
-    @NotNull(message = "结束时间不能为空")
+    @NotNull(message = "{validation.party.activity.end-time-required}")
     private LocalDateTime endTime;
 
     /** 活动地点 */
-    @Size(max = 255, message = "活动地点不得超过 255 字符")
+    @Size(max = 255, message = "{validation.party.union-activity.location-size}")
     private String location;
 
     /** 名额上限，0 表示不限 */
-    @Min(value = 0, message = "名额不能为负数")
+    @Min(value = 0, message = "{validation.party.activity.quota-min}")
     private Integer quota;
 
     /** 备注 */
-    @Size(max = 255, message = "备注不得超过 255 字符")
+    @Size(max = 255, message = "{validation.party.activity.remark-size}")
     private String remark;
 }

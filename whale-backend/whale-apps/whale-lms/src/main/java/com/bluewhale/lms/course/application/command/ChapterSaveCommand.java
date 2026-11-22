@@ -13,14 +13,14 @@ import lombok.Data;
 public class ChapterSaveCommand {
 
     /** 章节标题 */
-    @NotBlank(message = "章节标题不能为空")
-    @Size(max = 128, message = "章节标题最长 128 字符")
+    @NotBlank(message = "{validation.lms.chapter.title-required}")
+    @Size(max = 128, message = "{validation.lms.chapter.title-size}")
     private String title;
 
     /** 排序号（为空时追加到末尾） */
     private Integer sortNo;
 
     /** 简介备注 */
-    @Size(max = 500, message = "备注最长 500 字符")
+    @Size(max = 500, message = "{validation.lms.chapter.remark-size}")
     private String remark;
 }

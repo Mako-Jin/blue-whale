@@ -15,6 +15,6 @@ import lombok.Data;
 public class CertificateRenewCommand {
 
     /** 换发备注（复核依据） */
-    @Size(max = 500, message = "备注不得超过 500 字符")
+    @Size(max = 500, message = "{validation.lms.certificate-renew.remark-size}")
     private String remark;
 }

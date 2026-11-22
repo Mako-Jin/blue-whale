@@ -26,11 +26,11 @@ public class PdmIntCadEbomImportRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 外部幂等键（CAD 装配文件唯一标识） */
-    @NotBlank(message = "外部幂等键不能为空")
+    @NotBlank(message = "{validation.pdm.pdm-int-cad-ebom-import.external-key-required}")
     private String externalKey;
 
     /** 产品编码 */
-    @NotBlank(message = "产品编码不能为空")
+    @NotBlank(message = "{validation.pdm.pdm-int-cad-ebom-import.part-no-required}")
     private String partNo;
 
     /** BOM 编号，留空按产品编码自动生成 */
@@ -44,7 +44,7 @@ public class PdmIntCadEbomImportRequest implements Serializable {
 
     /** 子件行 */
     @Valid
-    @NotEmpty(message = "子件行不能为空")
+    @NotEmpty(message = "{validation.pdm.pdm-int-cad-ebom-import.lines-required}")
     private List<Line> lines = new ArrayList<>();
 
     /**
@@ -56,12 +56,12 @@ public class PdmIntCadEbomImportRequest implements Serializable {
         private static final long serialVersionUID = 1L;
 
         /** 子件编码 */
-        @NotBlank(message = "子件编码不能为空")
+        @NotBlank(message = "{validation.pdm.line.child-part-no-required}")
         private String childPartNo;
 
         /** 用量 */
-        @NotNull(message = "用量不能为空")
-        @DecimalMin(value = "0.0001", message = "用量必须大于 0")
+        @NotNull(message = "{validation.pdm.line.qty-required}")
+        @DecimalMin(value = "0.0001", message = "{validation.pdm.line.qty-min}")
         private BigDecimal qty;
 
         /** 单位 */

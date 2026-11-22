@@ -28,19 +28,19 @@ public final class EmployeeChangeCommands {
         private static final long serialVersionUID = 1L;
 
         /** 异动类型 */
-        @NotBlank(message = "异动类型不能为空")
+        @NotBlank(message = "{validation.oa.save.change-type-required}")
         private String changeType;
 
         /** 目标用户ID（入职未建号时为空） */
         private Long userId;
 
         /** 员工姓名 */
-        @NotBlank(message = "员工姓名不能为空")
-        @Size(max = 64, message = "员工姓名长度不能超过 64")
+        @NotBlank(message = "{validation.oa.save.employee-name-required}")
+        @Size(max = 64, message = "{validation.oa.save.employee-name-size}")
         private String employeeName;
 
         /** 登录账号（入职建号时填写） */
-        @Size(max = 64, message = "登录账号长度不能超过 64")
+        @Size(max = 64, message = "{validation.oa.save.username-size}")
         private String username;
 
         /** 原部门ID */
@@ -50,11 +50,11 @@ public final class EmployeeChangeCommands {
         private Long toDeptId;
 
         /** 原在职状态 */
-        @Size(max = 16, message = "原在职状态长度不能超过 16")
+        @Size(max = 16, message = "{validation.oa.save.from-status-size}")
         private String fromStatus;
 
         /** 目标在职状态 */
-        @Size(max = 16, message = "目标在职状态长度不能超过 16")
+        @Size(max = 16, message = "{validation.oa.save.to-status-size}")
         private String toStatus;
 
         /** 生效日期 */
@@ -62,11 +62,11 @@ public final class EmployeeChangeCommands {
         private LocalDate effectiveDate;
 
         /** 异动原因 */
-        @Size(max = 512, message = "异动原因长度不能超过 512")
+        @Size(max = 512, message = "{validation.oa.save.reason-size}")
         private String reason;
 
         /** 备注 */
-        @Size(max = 255, message = "备注长度不能超过 255")
+        @Size(max = 255, message = "{validation.oa.save.remark-size}")
         private String remark;
     }
 
@@ -79,7 +79,7 @@ public final class EmployeeChangeCommands {
         private static final long serialVersionUID = 1L;
 
         /** 备注 */
-        @Size(max = 255, message = "备注长度不能超过 255")
+        @Size(max = 255, message = "{validation.oa.task-done.remark-size}")
         private String remark;
     }
 }

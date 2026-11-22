@@ -13,20 +13,20 @@ import lombok.Data;
 public class WareSaveCommand {
 
     /** 课件名称 */
-    @NotBlank(message = "课件名称不能为空")
-    @Size(max = 128, message = "课件名称最长 128 字符")
+    @NotBlank(message = "{validation.lms.ware.name-required}")
+    @Size(max = 128, message = "{validation.lms.ware.name-size}")
     private String name;
 
     /** 类型：DOCUMENT / VIDEO / LINK */
-    @NotBlank(message = "课件类型不能为空")
+    @NotBlank(message = "{validation.lms.ware.ware-type-required}")
     private String wareType;
 
     /** whale-file 文件引用 ID（DOCUMENT / VIDEO 必填） */
-    @Size(max = 64, message = "文件引用 ID 最长 64 字符")
+    @Size(max = 64, message = "{validation.lms.ware.file-ref-id-size}")
     private String fileRefId;
 
     /** 外部链接（LINK 必填） */
-    @Size(max = 512, message = "外链最长 512 字符")
+    @Size(max = 512, message = "{validation.lms.ware.link-url-size}")
     private String linkUrl;
 
     /** 排序号（为空时追加到末尾） */

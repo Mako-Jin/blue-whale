@@ -16,19 +16,19 @@ import java.math.BigDecimal;
 public class PartnerReportCreateCommand {
 
     /** 渠道伙伴 ID */
-    @NotNull(message = "渠道伙伴不能为空")
+    @NotNull(message = "{validation.crm.partner-report.partner-id-required}")
     private Long partnerId;
 
     /** CRM 客户 ID */
-    @NotNull(message = "客户不能为空")
+    @NotNull(message = "{validation.crm.partner-report.customer-id-required}")
     private Long customerId;
 
     /** 项目名称 */
-    @NotBlank(message = "项目名称不能为空")
+    @NotBlank(message = "{validation.crm.partner-report.project-name-required}")
     private String projectName;
 
     /** 预计金额 */
-    @DecimalMin(value = "0", message = "预计金额不得为负数")
+    @DecimalMin(value = "0", message = "{validation.crm.partner-report.estimated-amount-min}")
     private BigDecimal estimatedAmount;
 
     /** 负责人 */

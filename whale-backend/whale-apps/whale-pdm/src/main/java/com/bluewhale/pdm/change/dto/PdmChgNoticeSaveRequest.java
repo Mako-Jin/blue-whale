@@ -17,12 +17,12 @@ import java.util.List;
 public class PdmChgNoticeSaveRequest {
 
     /** 来源变更单ID */
-    @NotNull(message = "来源变更单不能为空")
+    @NotNull(message = "{validation.pdm.pdm-chg-notice.eco-id-required}")
     private Long ecoId;
 
     /** 通知标题 */
-    @NotBlank(message = "通知标题不能为空")
-    @Size(max = 200, message = "通知标题不能超过 200 字")
+    @NotBlank(message = "{validation.pdm.pdm-chg-notice.title-required}")
+    @Size(max = 200, message = "{validation.pdm.pdm-chg-notice.title-size}")
     private String title;
 
     /** 通知内容 */
@@ -35,6 +35,6 @@ public class PdmChgNoticeSaveRequest {
     private List<String> notifyChannels;
 
     /** 生效日期 */
-    @NotNull(message = "生效日期不能为空")
+    @NotNull(message = "{validation.pdm.pdm-chg-notice.effective-from-required}")
     private LocalDateTime effectiveFrom;
 }

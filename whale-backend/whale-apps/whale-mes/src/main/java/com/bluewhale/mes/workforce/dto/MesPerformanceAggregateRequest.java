@@ -13,11 +13,11 @@ import lombok.Data;
 public class MesPerformanceAggregateRequest {
 
     /** 统计层级：DAILY/MONTHLY，默认 MONTHLY */
-    @Pattern(regexp = "DAILY|MONTHLY", message = "统计层级不合法")
+    @Pattern(regexp = "DAILY|MONTHLY", message = "{validation.mes.mes-performance-aggregate.stat-level-pattern}")
     private String statLevel;
 
     /** 期间编码：日 YYYYMMDD，月 YYYYMM */
-    @NotBlank(message = "期间编码不能为空")
+    @NotBlank(message = "{validation.mes.mes-performance-aggregate.period-code-required}")
     private String periodCode;
 
     /** 班组 ID（可选，为空统计全租户） */

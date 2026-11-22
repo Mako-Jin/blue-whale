@@ -18,10 +18,10 @@ public class MesProcessRouteWithdrawRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** PDM 工艺路线编号 */
-    @NotBlank(message = "工艺路线编号不能为空")
+    @NotBlank(message = "{validation.mes.mes-process-route-withdraw.route-no-required}")
     private String routeNo;
 
     /** PDM 工艺路线版本号 */
-    @NotBlank(message = "工艺路线版本号不能为空")
+    @NotBlank(message = "{validation.mes.mes-process-route-withdraw.version-no-required}")
     private String versionNo;
 }

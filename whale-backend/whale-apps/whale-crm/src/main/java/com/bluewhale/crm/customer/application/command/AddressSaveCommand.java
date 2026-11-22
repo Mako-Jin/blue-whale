@@ -27,7 +27,7 @@ public class AddressSaveCommand {
     private String district;
 
     /** 详细地址 */
-    @NotBlank(message = "详细地址不能为空")
+    @NotBlank(message = "{validation.crm.address.detail-required}")
     private String detail;
 
     /** 是否默认收货地址 */

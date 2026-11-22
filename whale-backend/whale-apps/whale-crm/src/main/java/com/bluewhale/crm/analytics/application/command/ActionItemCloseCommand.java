@@ -13,7 +13,7 @@ import lombok.Data;
 public class ActionItemCloseCommand {
 
     /** 关闭原因（必填） */
-    @NotBlank(message = "关闭行动项必须填写原因")
-    @Size(max = 500, message = "关闭原因最多 500 字")
+    @NotBlank(message = "{validation.crm.action-item-close.reason-required}")
+    @Size(max = 500, message = "{validation.crm.action-item-close.reason-size}")
     private String reason;
 }

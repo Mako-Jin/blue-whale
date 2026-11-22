@@ -17,7 +17,7 @@ public class SprintQueryRequest extends PageQuery {
     private static final long serialVersionUID = 1L;
 
     /** 项目ID */
-    @NotNull(message = "项目ID不能为空")
+    @NotNull(message = "{validation.pm.sprint.project-id-required}")
     private Long projectId;
 
     /** 状态：FUTURE / ACTIVE / CLOSED */

@@ -15,7 +15,7 @@ import java.time.LocalDate;
 public class NurtureCreateCommand {
 
     /** CRM 客户 ID */
-    @NotNull(message = "客户不能为空")
+    @NotNull(message = "{validation.crm.nurture.customer-id-required}")
     private Long customerId;
 
     /** 关联线索 ID */
@@ -40,7 +40,7 @@ public class NurtureCreateCommand {
     private String assigneeName;
 
     /** 备注 */
-    @Size(max = 500, message = "备注最多 500 字")
+    @Size(max = 500, message = "{validation.crm.nurture.note-size}")
     private String note;
 
     /** 负责人 */

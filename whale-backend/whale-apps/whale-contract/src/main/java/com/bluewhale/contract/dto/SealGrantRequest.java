@@ -18,7 +18,7 @@ public class SealGrantRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 被授权用户ID */
-    @NotNull(message = "被授权用户不能为空")
+    @NotNull(message = "{validation.contract.seal-grant.grantee-user-id-required}")
     private Long granteeUserId;
 
     /** 适用合同类别（空表示全类别） */

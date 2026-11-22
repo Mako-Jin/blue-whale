@@ -18,15 +18,15 @@ public class PdmPrcSopSaveRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 工序ID */
-    @NotNull(message = "工序不能为空")
+    @NotNull(message = "{validation.pdm.pdm-prc-sop.step-id-required}")
     private Long stepId;
 
     /** 文档ID */
-    @NotNull(message = "SOP 文档不能为空")
+    @NotNull(message = "{validation.pdm.pdm-prc-sop.document-id-required}")
     private Long documentId;
 
     /** 文档版本号 */
-    @NotBlank(message = "SOP 文档版本不能为空")
-    @Size(max = 32, message = "文档版本号长度不能超过 32")
+    @NotBlank(message = "{validation.pdm.pdm-prc-sop.document-version-no-required}")
+    @Size(max = 32, message = "{validation.pdm.pdm-prc-sop.document-version-no-size}")
     private String documentVersionNo;
 }

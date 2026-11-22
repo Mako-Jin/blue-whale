@@ -14,10 +14,10 @@ import java.math.BigDecimal;
 public class ProductionOperationReportCommand {
 
     /** 本次合格数量 */
-    @DecimalMin(value = "0", message = "合格数量不能为负")
+    @DecimalMin(value = "0", message = "{validation.erp.production-operation-report.qualified-quantity-min}")
     private BigDecimal qualifiedQuantity;
 
     /** 本次报废数量 */
-    @DecimalMin(value = "0", message = "报废数量不能为负")
+    @DecimalMin(value = "0", message = "{validation.erp.production-operation-report.scrapped-quantity-min}")
     private BigDecimal scrappedQuantity;
 }

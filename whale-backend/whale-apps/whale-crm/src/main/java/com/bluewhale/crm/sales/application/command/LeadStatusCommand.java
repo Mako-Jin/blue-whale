@@ -12,6 +12,6 @@ import lombok.Data;
 public class LeadStatusCommand {
 
     /** 目标状态 */
-    @NotBlank(message = "目标状态不能为空")
+    @NotBlank(message = "{validation.crm.lead-status.status-required}")
     private String status;
 }

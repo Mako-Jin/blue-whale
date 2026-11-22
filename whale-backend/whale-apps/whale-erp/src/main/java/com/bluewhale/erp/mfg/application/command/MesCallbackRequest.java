@@ -12,10 +12,10 @@ import lombok.Data;
 public class MesCallbackRequest {
 
     /** MES 事件幂等键 */
-    @NotBlank(message = "事件键不能为空")
+    @NotBlank(message = "{validation.erp.mes-callback.event-id-required}")
     private String eventId;
 
     /** JSON 报文 */
-    @NotBlank(message = "报文不能为空")
+    @NotBlank(message = "{validation.erp.mes-callback.payload-required}")
     private String payload;
 }

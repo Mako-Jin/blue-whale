@@ -15,7 +15,7 @@ import java.time.LocalDate;
 public class SettleCommand {
 
     /** 金额 */
-    @NotNull(message = "金额不能为空")
+    @NotNull(message = "{validation.erp.settle.amount-required}")
     private BigDecimal amount;
 
     /** 业务日期 */

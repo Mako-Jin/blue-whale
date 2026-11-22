@@ -17,7 +17,7 @@ public class SignExecuteRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 使用印章ID */
-    @NotNull(message = "请选择印章")
+    @NotNull(message = "{validation.contract.sign-execute.seal-id-required}")
     private Long sealId;
 
     /** 页码（从 1 起；骑缝章忽略） */
@@ -45,7 +45,7 @@ public class SignExecuteRequest implements Serializable {
      * 签署意愿确认（必填 true）。
      * <p>本地签署以此作为意愿认证证据：未勾选直接拒绝，避免「无意愿证据的静默签署」。</p>
      */
-    @NotNull(message = "请确认签署意愿")
-    @AssertTrue(message = "请确认签署意愿")
+    @NotNull(message = "{validation.contract.sign-execute.confirm-willingness-required}")
+    @AssertTrue(message = "{validation.contract.sign-execute.confirm-willingness-pattern}")
     private Boolean confirmWillingness;
 }

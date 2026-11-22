@@ -12,6 +12,6 @@ import lombok.Data;
 public class QuestionStatusCommand {
 
     /** 动作：ACTIVATE（启用）/ DISABLE（停用） */
-    @NotBlank(message = "状态动作不能为空")
+    @NotBlank(message = "{validation.lms.question-status.action-required}")
     private String action;
 }

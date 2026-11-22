@@ -12,6 +12,6 @@ import lombok.Data;
 public class TrainingClassStatusCommand {
 
     /** 目标动作：PUBLISH（发布）/ CLOSE（结课） */
-    @NotBlank(message = "状态动作不能为空")
+    @NotBlank(message = "{validation.lms.training-class-status.action-required}")
     private String action;
 }

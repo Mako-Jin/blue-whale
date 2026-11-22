@@ -12,6 +12,6 @@ import lombok.Data;
 public class MesTraceReverseRequest {
 
     /** 冲销原因 */
-    @Size(max = 255, message = "冲销原因长度不能超过 255")
+    @Size(max = 255, message = "{validation.mes.mes-trace-reverse.remark-size}")
     private String remark;
 }

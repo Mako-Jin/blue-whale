@@ -24,7 +24,7 @@ public class AfterSaleApplyCommand implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 订单 ID */
-    @NotNull(message = "订单不能为空")
+    @NotNull(message = "{validation.mall.after-sale-apply.order-id-required}")
     private Long orderId;
 
     /** 售后类型：REFUND_ONLY 仅退款 / RETURN_REFUND 退货退款 / EXCHANGE 换货 */
@@ -44,7 +44,7 @@ public class AfterSaleApplyCommand implements Serializable {
 
     /** 售后明细 */
     @Valid
-    @NotEmpty(message = "请选择要退的商品")
+    @NotEmpty(message = "{validation.mall.after-sale-apply.lines-required}")
     private List<ApplyLine> lines = new ArrayList<>();
 
     /**
@@ -56,12 +56,12 @@ public class AfterSaleApplyCommand implements Serializable {
         private static final long serialVersionUID = 1L;
 
         /** 订单明细 ID */
-        @NotNull(message = "订单明细不能为空")
+        @NotNull(message = "{validation.mall.apply-line.order-item-id-required}")
         private Long orderItemId;
 
         /** 本次退数量 */
-        @NotNull(message = "退数量不能为空")
-        @Positive(message = "退数量必须大于 0")
+        @NotNull(message = "{validation.mall.apply-line.quantity-required}")
+        @Positive(message = "{validation.mall.apply-line.quantity-min}")
         private Integer quantity;
     }
 }

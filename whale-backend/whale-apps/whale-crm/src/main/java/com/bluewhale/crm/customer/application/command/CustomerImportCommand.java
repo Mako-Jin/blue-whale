@@ -12,6 +12,6 @@ import lombok.Data;
 public class CustomerImportCommand {
 
     /** CSV 文件内容（UTF-8 文本） */
-    @NotBlank(message = "导入内容不能为空")
+    @NotBlank(message = "{validation.crm.customer-import.content-required}")
     private String content;
 }

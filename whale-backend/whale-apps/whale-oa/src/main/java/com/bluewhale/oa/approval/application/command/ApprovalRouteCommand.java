@@ -13,24 +13,24 @@ import lombok.Data;
 public class ApprovalRouteCommand {
 
     /** Workflow 节点标识 */
-    @NotBlank(message = "节点标识不能为空")
-    @Size(max = 64, message = "节点标识长度不能超过 64")
+    @NotBlank(message = "{validation.oa.approval-route.node-key-required}")
+    @Size(max = 64, message = "{validation.oa.approval-route.node-key-size}")
     private String nodeKey;
 
     /** 节点名称 */
-    @Size(max = 64, message = "节点名称长度不能超过 64")
+    @Size(max = 64, message = "{validation.oa.approval-route.node-name-size}")
     private String nodeName;
 
     /** 审批人用户ID */
     private Long assigneeId;
 
     /** 审批人账号 */
-    @NotBlank(message = "审批人账号不能为空")
-    @Size(max = 64, message = "审批人账号长度不能超过 64")
+    @NotBlank(message = "{validation.oa.approval-route.assignee-account-required}")
+    @Size(max = 64, message = "{validation.oa.approval-route.assignee-account-size}")
     private String assigneeAccount;
 
     /** 解析来源类型 */
-    @Size(max = 32, message = "解析来源类型长度不能超过 32")
+    @Size(max = 32, message = "{validation.oa.approval-route.resolver-type-size}")
     private String resolverType;
 
     /** 排序号 */

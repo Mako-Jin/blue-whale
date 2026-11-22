@@ -12,7 +12,7 @@ import lombok.Data;
 public class ContactSaveCommand {
 
     /** 姓名 */
-    @NotBlank(message = "联系人姓名不能为空")
+    @NotBlank(message = "{validation.crm.contact.name-required}")
     private String name;
 
     /** 电话 */

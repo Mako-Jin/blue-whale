@@ -13,23 +13,23 @@ import lombok.Data;
 public class OutboxAppendCommand {
 
     /** 事件幂等键（租户内唯一） */
-    @NotBlank(message = "事件键不能为空")
-    @Size(max = 128, message = "事件键长度不能超过 128")
+    @NotBlank(message = "{validation.oa.outbox-append.event-key-required}")
+    @Size(max = 128, message = "{validation.oa.outbox-append.event-key-size}")
     private String eventKey;
 
     /** 事件类型 */
-    @NotBlank(message = "事件类型不能为空")
-    @Size(max = 64, message = "事件类型长度不能超过 64")
+    @NotBlank(message = "{validation.oa.outbox-append.event-type-required}")
+    @Size(max = 64, message = "{validation.oa.outbox-append.event-type-size}")
     private String eventType;
 
     /** 聚合类型 */
-    @NotBlank(message = "聚合类型不能为空")
-    @Size(max = 64, message = "聚合类型长度不能超过 64")
+    @NotBlank(message = "{validation.oa.outbox-append.aggregate-type-required}")
+    @Size(max = 64, message = "{validation.oa.outbox-append.aggregate-type-size}")
     private String aggregateType;
 
     /** 聚合ID */
-    @NotBlank(message = "聚合ID不能为空")
-    @Size(max = 64, message = "聚合ID长度不能超过 64")
+    @NotBlank(message = "{validation.oa.outbox-append.aggregate-id-required}")
+    @Size(max = 64, message = "{validation.oa.outbox-append.aggregate-id-size}")
     private String aggregateId;
 
     /** 事件体（JSON） */

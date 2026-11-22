@@ -20,32 +20,32 @@ public class MesShiftAssignmentSaveRequest {
     private Long id;
 
     /** 排班日期 */
-    @NotNull(message = "排班日期不能为空")
+    @NotNull(message = "{validation.mes.mes-shift-assignment.shift-date-required}")
     private LocalDate shiftDate;
 
     /** 班次编码 */
-    @NotBlank(message = "班次编码不能为空")
-    @Size(max = 64, message = "班次编码长度不能超过 64")
+    @NotBlank(message = "{validation.mes.mes-shift-assignment.shift-code-required}")
+    @Size(max = 64, message = "{validation.mes.mes-shift-assignment.shift-code-size}")
     private String shiftCode;
 
     /** 班组 ID */
-    @NotNull(message = "班组不能为空")
+    @NotNull(message = "{validation.mes.mes-shift-assignment.team-id-required}")
     private Long teamId;
 
     /** 工位 ID */
-    @NotNull(message = "工位不能为空")
+    @NotNull(message = "{validation.mes.mes-shift-assignment.station-id-required}")
     private Long stationId;
 
     /** 工作中心 ID（为空时取工位所属工作中心） */
     private Long workCenterId;
 
     /** 员工 ID */
-    @NotNull(message = "员工不能为空")
+    @NotNull(message = "{validation.mes.mes-shift-assignment.employee-id-required}")
     private Long employeeId;
 
     /** 员工姓名 */
-    @NotBlank(message = "员工姓名不能为空")
-    @Size(max = 64, message = "员工姓名长度不能超过 64")
+    @NotBlank(message = "{validation.mes.mes-shift-assignment.employee-name-required}")
+    @Size(max = 64, message = "{validation.mes.mes-shift-assignment.employee-name-size}")
     private String employeeName;
 
     /** 是否主操作：0 否 / 1 是 */
@@ -58,6 +58,6 @@ public class MesShiftAssignmentSaveRequest {
     private LocalDateTime endAt;
 
     /** 备注 */
-    @Size(max = 255, message = "备注长度不能超过 255")
+    @Size(max = 255, message = "{validation.mes.mes-shift-assignment.remark-size}")
     private String remark;
 }

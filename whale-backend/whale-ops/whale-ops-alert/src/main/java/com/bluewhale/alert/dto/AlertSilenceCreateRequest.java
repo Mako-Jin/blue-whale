@@ -21,30 +21,30 @@ public class AlertSilenceCreateRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 规则编码，空表示全部规则 */
-    @Size(max = 64, message = "规则编码长度不能超过 64")
+    @Size(max = 64, message = "{validation.alert.alert-silence.rule-code-size}")
     private String ruleCode;
 
     /** 告警级别，空表示全部级别 */
-    @Size(max = 16, message = "告警级别长度不能超过 16")
+    @Size(max = 16, message = "{validation.alert.alert-silence.alert-level-size}")
     private String alertLevel;
 
     /** 内容关键字，空表示全部内容 */
-    @Size(max = 128, message = "关键字长度不能超过 128")
+    @Size(max = 128, message = "{validation.alert.alert-silence.keyword-size}")
     private String keyword;
 
     /** 静默开始时间 */
-    @NotNull(message = "静默开始时间不能为空")
+    @NotNull(message = "{validation.alert.alert-silence.start-time-required}")
     private LocalDateTime startTime;
 
     /** 静默结束时间 */
-    @NotNull(message = "静默结束时间不能为空")
+    @NotNull(message = "{validation.alert.alert-silence.end-time-required}")
     private LocalDateTime endTime;
 
     /** 静默原因 */
-    @Size(max = 255, message = "静默原因长度不能超过 255")
+    @Size(max = 255, message = "{validation.alert.alert-silence.reason-size}")
     private String reason;
 
     /** 创建人ID */
-    @Size(max = 64, message = "创建人长度不能超过 64")
+    @Size(max = 64, message = "{validation.alert.alert-silence.created-by-size}")
     private String createdBy;
 }

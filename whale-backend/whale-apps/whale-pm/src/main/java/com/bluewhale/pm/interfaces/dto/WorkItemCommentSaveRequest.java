@@ -17,8 +17,8 @@ public class WorkItemCommentSaveRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 评论内容 */
-    @NotBlank(message = "评论内容不能为空")
-    @Size(max = 2000, message = "评论内容长度不能超过 2000")
+    @NotBlank(message = "{validation.pm.work-item-comment.content-required}")
+    @Size(max = 2000, message = "{validation.pm.work-item-comment.content-size}")
     private String content;
 
     /** 父评论ID（回复时填写） */

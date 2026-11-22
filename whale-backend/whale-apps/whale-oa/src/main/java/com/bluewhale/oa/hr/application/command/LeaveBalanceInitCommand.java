@@ -18,12 +18,12 @@ public class LeaveBalanceInitCommand implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 用户ID */
-    @NotNull(message = "用户ID不能为空")
+    @NotNull(message = "{validation.oa.leave-balance-init.user-id-required}")
     private Long userId;
 
     /** 额度年份 */
-    @NotNull(message = "额度年份不能为空")
-    @Min(value = 2000, message = "额度年份不能早于 2000")
-    @Max(value = 2100, message = "额度年份不能晚于 2100")
+    @NotNull(message = "{validation.oa.leave-balance-init.year-required}")
+    @Min(value = 2000, message = "{validation.oa.leave-balance-init.year-min}")
+    @Max(value = 2100, message = "{validation.oa.leave-balance-init.year-max}")
     private Integer year;
 }

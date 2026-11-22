@@ -12,11 +12,11 @@ import lombok.Data;
 public class WarehouseSaveCommand {
 
     /** 仓库编码 */
-    @NotBlank(message = "仓库编码不能为空")
+    @NotBlank(message = "{validation.erp.warehouse.code-required}")
     private String code;
 
     /** 仓库名称 */
-    @NotBlank(message = "仓库名称不能为空")
+    @NotBlank(message = "{validation.erp.warehouse.name-required}")
     private String name;
 
     /** 负责人 */

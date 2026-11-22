@@ -17,43 +17,43 @@ import java.math.BigDecimal;
 public class MesLineSideOperationRequest {
 
     /** 产线 ID */
-    @NotNull(message = "产线不能为空")
+    @NotNull(message = "{validation.mes.mes-line-side-operation.line-id-required}")
     private Long lineId;
 
     /** 产线编码快照 */
-    @NotBlank(message = "产线编码不能为空")
-    @Size(max = 64, message = "产线编码长度不能超过 64")
+    @NotBlank(message = "{validation.mes.mes-line-side-operation.line-code-required}")
+    @Size(max = 64, message = "{validation.mes.mes-line-side-operation.line-code-size}")
     private String lineCode;
 
     /** 线边仓编码 */
-    @NotBlank(message = "线边仓编码不能为空")
-    @Size(max = 64, message = "线边仓编码长度不能超过 64")
+    @NotBlank(message = "{validation.mes.mes-line-side-operation.warehouse-code-required}")
+    @Size(max = 64, message = "{validation.mes.mes-line-side-operation.warehouse-code-size}")
     private String warehouseCode;
 
     /** 物料编码 */
-    @NotBlank(message = "物料编码不能为空")
-    @Size(max = 64, message = "物料编码长度不能超过 64")
+    @NotBlank(message = "{validation.mes.mes-line-side-operation.item-code-required}")
+    @Size(max = 64, message = "{validation.mes.mes-line-side-operation.item-code-size}")
     private String itemCode;
 
     /** 物料名称 */
-    @Size(max = 128, message = "物料名称长度不能超过 128")
+    @Size(max = 128, message = "{validation.mes.mes-line-side-operation.item-name-size}")
     private String itemName;
 
     /** 批次号 */
-    @Size(max = 64, message = "批次号长度不能超过 64")
+    @Size(max = 64, message = "{validation.mes.mes-line-side-operation.batch-no-size}")
     private String batchNo;
 
     /** 数量 */
-    @NotNull(message = "数量不能为空")
-    @DecimalMin(value = "0.0001", message = "数量必须大于 0")
+    @NotNull(message = "{validation.mes.mes-line-side-operation.quantity-required}")
+    @DecimalMin(value = "0.0001", message = "{validation.mes.mes-line-side-operation.quantity-min}")
     private BigDecimal quantity;
 
     /** 计量单位 */
-    @Size(max = 16, message = "计量单位长度不能超过 16")
+    @Size(max = 16, message = "{validation.mes.mes-line-side-operation.uom-size}")
     private String uom;
 
     /** 入库类型：INBOUND 入库 / RETURN 退料退回 */
-    @Size(max = 16, message = "入库类型长度不能超过 16")
+    @Size(max = 16, message = "{validation.mes.mes-line-side-operation.movement-type-size}")
     private String movementType;
 
     /** 关联工单 ID */
@@ -63,10 +63,10 @@ public class MesLineSideOperationRequest {
     private Long taskId;
 
     /** 操作人 */
-    @Size(max = 64, message = "操作人长度不能超过 64")
+    @Size(max = 64, message = "{validation.mes.mes-line-side-operation.operator-size}")
     private String operator;
 
     /** 备注 */
-    @Size(max = 255, message = "备注长度不能超过 255")
+    @Size(max = 255, message = "{validation.mes.mes-line-side-operation.remark-size}")
     private String remark;
 }

@@ -17,28 +17,28 @@ public class PdmChgTaskSaveRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 任务名称 */
-    @NotBlank(message = "任务名称不能为空")
-    @Size(max = 200, message = "任务名称长度不能超过 200")
+    @NotBlank(message = "{validation.pdm.pdm-chg-task.task-name-required}")
+    @Size(max = 200, message = "{validation.pdm.pdm-chg-task.task-name-size}")
     private String taskName;
 
     /** 任务类型 */
-    @NotBlank(message = "任务类型不能为空")
-    @Size(max = 32, message = "任务类型长度不能超过 32")
+    @NotBlank(message = "{validation.pdm.pdm-chg-task.task-type-required}")
+    @Size(max = 32, message = "{validation.pdm.pdm-chg-task.task-type-size}")
     private String taskType;
 
     /** 目标对象类型：DOCUMENT/BOM/PART */
-    @Size(max = 16, message = "目标对象类型长度不能超过 16")
+    @Size(max = 16, message = "{validation.pdm.pdm-chg-task.target-type-size}")
     private String targetType;
 
     /** 目标对象ID */
     private Long targetId;
 
     /** 目标对象编码 */
-    @Size(max = 64, message = "目标对象编码长度不能超过 64")
+    @Size(max = 64, message = "{validation.pdm.pdm-chg-task.target-code-size}")
     private String targetCode;
 
     /** 单任务执行说明 */
-    @Size(max = 500, message = "执行说明长度不能超过 500")
+    @Size(max = 500, message = "{validation.pdm.pdm-chg-task.plan-desc-size}")
     private String planDesc;
 
     /** 负责人 */

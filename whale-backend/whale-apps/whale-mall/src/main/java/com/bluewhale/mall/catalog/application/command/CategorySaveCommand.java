@@ -16,8 +16,8 @@ public class CategorySaveCommand {
     private Long parentId;
 
     /** 类目名称 */
-    @NotBlank(message = "类目名称不能为空")
-    @Size(max = 64, message = "类目名称不得超过 64 字符")
+    @NotBlank(message = "{validation.mall.category.category-name-required}")
+    @Size(max = 64, message = "{validation.mall.category.category-name-size}")
     private String categoryName;
 
     /** 排序号 */
@@ -27,6 +27,6 @@ public class CategorySaveCommand {
     private String status;
 
     /** 备注 */
-    @Size(max = 255, message = "备注不得超过 255 字符")
+    @Size(max = 255, message = "{validation.mall.category.remark-size}")
     private String remark;
 }

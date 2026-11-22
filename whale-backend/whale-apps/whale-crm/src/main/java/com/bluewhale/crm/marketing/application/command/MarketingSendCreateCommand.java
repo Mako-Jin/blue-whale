@@ -14,22 +14,22 @@ import lombok.Data;
 public class MarketingSendCreateCommand {
 
     /** 营销活动 ID */
-    @NotNull(message = "营销活动不能为空")
+    @NotNull(message = "{validation.crm.marketing-send.campaign-id-required}")
     private Long campaignId;
 
     /** 人群快照 ID */
-    @NotNull(message = "人群快照不能为空")
+    @NotNull(message = "{validation.crm.marketing-send.audience-id-required}")
     private Long audienceId;
 
     /** 触达渠道：EMAIL / SMS / INBOX */
-    @NotBlank(message = "触达渠道不能为空")
+    @NotBlank(message = "{validation.crm.marketing-send.channel-required}")
     private String channel;
 
     /** 消息模板编码 */
     private String templateCode;
 
     /** 消息主题 */
-    @Size(max = 255, message = "消息主题最多 255 字")
+    @Size(max = 255, message = "{validation.crm.marketing-send.subject-size}")
     private String subject;
 
     /** 内容文档 ID */

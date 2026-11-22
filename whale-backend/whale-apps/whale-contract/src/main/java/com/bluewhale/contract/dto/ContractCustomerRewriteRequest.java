@@ -12,10 +12,10 @@ import lombok.Data;
 public class ContractCustomerRewriteRequest {
 
     /** 源客户 ID */
-    @NotNull(message = "源客户 ID 不能为空")
+    @NotNull(message = "{validation.contract.contract-customer-rewrite.source-id-required}")
     private Long sourceId;
 
     /** 目标客户 ID */
-    @NotNull(message = "目标客户 ID 不能为空")
+    @NotNull(message = "{validation.contract.contract-customer-rewrite.target-id-required}")
     private Long targetId;
 }

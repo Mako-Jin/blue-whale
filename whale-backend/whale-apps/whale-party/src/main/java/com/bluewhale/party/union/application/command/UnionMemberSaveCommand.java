@@ -22,35 +22,35 @@ import java.time.LocalDate;
 public class UnionMemberSaveCommand {
 
     /** 员工编号（引用 ERP） */
-    @NotBlank(message = "员工编号不能为空")
-    @Size(max = 64, message = "员工编号不得超过 64 字符")
+    @NotBlank(message = "{validation.party.union-member.employee-no-required}")
+    @Size(max = 64, message = "{validation.party.union-member.employee-no-size}")
     private String employeeNo;
 
     /** 平台用户 ID（未开通账号可为空） */
     private Long userId;
 
     /** 会员姓名 */
-    @NotBlank(message = "会员姓名不能为空")
-    @Size(max = 64, message = "会员姓名不得超过 64 字符")
+    @NotBlank(message = "{validation.party.union-member.member-name-required}")
+    @Size(max = 64, message = "{validation.party.union-member.member-name-size}")
     private String memberName;
 
     /** 所属部门名称（ERP 快照） */
-    @Size(max = 128, message = "所属部门不得超过 128 字符")
+    @Size(max = 128, message = "{validation.party.union-member.dept-name-size}")
     private String deptName;
 
     /** 入会日期（不晚于今天由领域层校验） */
-    @NotNull(message = "入会日期不能为空")
+    @NotNull(message = "{validation.party.union-member.join-date-required}")
     private LocalDate joinDate;
 
     /** 会费基数（月收入口径，可为 0） */
-    @DecimalMin(value = "0.00", message = "会费基数不能为负数")
+    @DecimalMin(value = "0.00", message = "{validation.party.union-member.dues-base-min}")
     private BigDecimal duesBase;
 
     /** 会费缴至月份（yyyy-MM） */
-    @Pattern(regexp = "^\\d{4}-(0[1-9]|1[0-2])$", message = "会费缴至月份格式应为 yyyy-MM")
+    @Pattern(regexp = "^\\d{4}-(0[1-9]|1[0-2])$", message = "{validation.party.union-member.dues-paid-to-pattern}")
     private String duesPaidTo;
 
     /** 备注 */
-    @Size(max = 255, message = "备注不得超过 255 字符")
+    @Size(max = 255, message = "{validation.party.union-member.remark-size}")
     private String remark;
 }

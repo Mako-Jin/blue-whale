@@ -16,17 +16,17 @@ import java.util.List;
 public class MesDispatchRequest {
 
     /** 任务 ID 列表 */
-    @NotEmpty(message = "派工任务不能为空")
+    @NotEmpty(message = "{validation.mes.mes-dispatch.task-ids-required}")
     private List<Long> taskIds;
 
     /** 派工产线 ID */
-    @NotNull(message = "派工产线不能为空")
+    @NotNull(message = "{validation.mes.mes-dispatch.line-id-required}")
     private Long lineId;
 
     /** 派工班组 ID */
     private Long teamId;
 
     /** 备注 */
-    @Size(max = 255, message = "备注长度不能超过 255")
+    @Size(max = 255, message = "{validation.mes.mes-dispatch.remark-size}")
     private String remark;
 }

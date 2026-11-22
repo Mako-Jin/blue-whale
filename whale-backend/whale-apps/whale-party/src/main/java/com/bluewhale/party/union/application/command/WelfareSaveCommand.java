@@ -20,20 +20,20 @@ import java.math.BigDecimal;
 public class WelfareSaveCommand {
 
     /** 福利名称 */
-    @NotBlank(message = "福利名称不能为空")
-    @Size(max = 128, message = "福利名称不得超过 128 字符")
+    @NotBlank(message = "{validation.party.welfare.title-required}")
+    @Size(max = 128, message = "{validation.party.welfare.title-size}")
     private String title;
 
     /** 福利年度 */
-    @NotNull(message = "福利年度不能为空")
+    @NotNull(message = "{validation.party.welfare.welfare-year-required}")
     private Integer welfareYear;
 
     /** 发放标准 */
-    @NotNull(message = "发放标准不能为空")
-    @DecimalMin(value = "0.00", message = "发放标准不能为负数")
+    @NotNull(message = "{validation.party.welfare.standard-amount-required}")
+    @DecimalMin(value = "0.00", message = "{validation.party.welfare.standard-amount-min}")
     private BigDecimal standardAmount;
 
     /** 备注 */
-    @Size(max = 255, message = "备注不得超过 255 字符")
+    @Size(max = 255, message = "{validation.party.welfare.remark-size}")
     private String remark;
 }

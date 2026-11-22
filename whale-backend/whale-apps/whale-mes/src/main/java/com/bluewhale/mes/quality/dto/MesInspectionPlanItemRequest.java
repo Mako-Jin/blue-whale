@@ -21,21 +21,21 @@ public class MesInspectionPlanItemRequest {
     private Long id;
 
     /** 检验项序号 */
-    @NotNull(message = "检验项序号不能为空")
-    @Min(value = 1, message = "检验项序号必须大于 0")
+    @NotNull(message = "{validation.mes.mes-inspection-plan-item.item-no-required}")
+    @Min(value = 1, message = "{validation.mes.mes-inspection-plan-item.item-no-min}")
     private Integer itemNo;
 
     /** 检验项名称 */
-    @NotBlank(message = "检验项名称不能为空")
-    @Size(max = 128, message = "检验项名称长度不能超过 128")
+    @NotBlank(message = "{validation.mes.mes-inspection-plan-item.item-name-required}")
+    @Size(max = 128, message = "{validation.mes.mes-inspection-plan-item.item-name-size}")
     private String itemName;
 
     /** 检验方式：VISUAL / MEASURE / FUNCTION / TEST */
-    @Pattern(regexp = "VISUAL|MEASURE|FUNCTION|TEST", message = "检验方式不合法")
+    @Pattern(regexp = "VISUAL|MEASURE|FUNCTION|TEST", message = "{validation.mes.mes-inspection-plan-item.inspection-method-pattern}")
     private String inspectionMethod;
 
     /** 标准描述 */
-    @Size(max = 255, message = "标准描述长度不能超过 255")
+    @Size(max = 255, message = "{validation.mes.mes-inspection-plan-item.standard-text-size}")
     private String standardText;
 
     /** 下限 */
@@ -45,7 +45,7 @@ public class MesInspectionPlanItemRequest {
     private BigDecimal maxValue;
 
     /** 计量单位 */
-    @Size(max = 16, message = "计量单位长度不能超过 16")
+    @Size(max = 16, message = "{validation.mes.mes-inspection-plan-item.unit-size}")
     private String unit;
 
     /** 是否关键项：0 否 / 1 是 */

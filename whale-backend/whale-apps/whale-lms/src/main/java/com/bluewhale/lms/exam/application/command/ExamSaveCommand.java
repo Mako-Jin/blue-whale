@@ -23,53 +23,53 @@ import java.time.LocalDateTime;
 public class ExamSaveCommand {
 
     /** 考试编码（新增必填） */
-    @Size(max = 64, message = "考试编码最长 64 字符")
+    @Size(max = 64, message = "{validation.lms.exam.exam-code-size}")
     private String examCode;
 
     /** 考试名称 */
-    @NotBlank(message = "考试名称不能为空")
-    @Size(max = 128, message = "考试名称最长 128 字符")
+    @NotBlank(message = "{validation.lms.exam.title-required}")
+    @Size(max = 128, message = "{validation.lms.exam.title-size}")
     private String title;
 
     /** 试卷 ID */
-    @NotNull(message = "试卷不能为空")
+    @NotNull(message = "{validation.lms.exam.paper-id-required}")
     private Long paperId;
 
     /** 关联课程 ID */
     private Long courseId;
 
     /** 开考时间 */
-    @NotNull(message = "开考时间不能为空")
+    @NotNull(message = "{validation.lms.exam.start-time-required}")
     private LocalDateTime startTime;
 
     /** 截止时间 */
-    @NotNull(message = "截止时间不能为空")
+    @NotNull(message = "{validation.lms.exam.end-time-required}")
     private LocalDateTime endTime;
 
     /** 单次作答时长（分钟） */
-    @NotNull(message = "单次作答时长不能为空")
-    @Min(value = 1, message = "单次作答时长至少 1 分钟")
-    @Max(value = 600, message = "单次作答时长最多 600 分钟")
+    @NotNull(message = "{validation.lms.exam.duration-minutes-required}")
+    @Min(value = 1, message = "{validation.lms.exam.duration-minutes-min}")
+    @Max(value = 600, message = "{validation.lms.exam.duration-minutes-max}")
     private Integer durationMinutes;
 
     /** 最大作答次数 */
-    @NotNull(message = "最大作答次数不能为空")
-    @Min(value = 1, message = "最大作答次数至少 1 次")
-    @Max(value = 20, message = "最大作答次数最多 20 次")
+    @NotNull(message = "{validation.lms.exam.max-attempts-required}")
+    @Min(value = 1, message = "{validation.lms.exam.max-attempts-min}")
+    @Max(value = 20, message = "{validation.lms.exam.max-attempts-max}")
     private Integer maxAttempts;
 
     /** 是否乱序（只打乱呈现次序，不影响判分） */
     private Boolean shuffle;
 
     /** 及格分 */
-    @DecimalMin(value = "0.0", message = "及格分不能为负")
+    @DecimalMin(value = "0.0", message = "{validation.lms.exam.pass-score-min}")
     private BigDecimal passScore;
 
     /** 切屏次数上限（0 不限） */
-    @Min(value = 0, message = "切屏次数上限不能为负")
+    @Min(value = 0, message = "{validation.lms.exam.switch-limit-min}")
     private Integer switchLimit;
 
     /** 备注 */
-    @Size(max = 500, message = "备注最长 500 字符")
+    @Size(max = 500, message = "{validation.lms.exam.remark-size}")
     private String remark;
 }

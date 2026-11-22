@@ -97,18 +97,18 @@ public class ErpInternalOaController {
         private String sourceType;
 
         /** 来源采购申请ID */
-        @NotNull(message = "来源单据ID不能为空")
+        @NotNull(message = "{validation.erp.oa-purchase-order-draft.source-id-required}")
         private Long sourceId;
 
         /** 来源单号 */
         private String sourceCode;
 
         /** 供应商ID（ERP 主数据，必填） */
-        @NotNull(message = "供应商ID不能为空，请先在 ERP 维护供应商主数据")
+        @NotNull(message = "{validation.erp.oa-purchase-order-draft.supplier-id-required}")
         private Long supplierId;
 
         /** 收货仓库ID（ERP 主数据，必填） */
-        @NotNull(message = "收货仓库ID不能为空，请先在 ERP 维护仓库主数据")
+        @NotNull(message = "{validation.erp.oa-purchase-order-draft.warehouse-id-required}")
         private Long warehouseId;
 
         /** 单据日期 */
@@ -125,7 +125,7 @@ public class ErpInternalOaController {
 
         /** 明细 */
         @Valid
-        @NotEmpty(message = "采购明细不能为空")
+        @NotEmpty(message = "{validation.erp.oa-purchase-order-draft.lines-required}")
         private List<Line> lines;
 
         /**
@@ -135,14 +135,14 @@ public class ErpInternalOaController {
         public static class Line {
 
             /** 物料编码 */
-            @NotBlank(message = "物料编码不能为空")
+            @NotBlank(message = "{validation.erp.line.item-code-required}")
             private String itemCode;
 
             /** 物料名称 */
             private String itemName;
 
             /** 数量 */
-            @NotNull(message = "数量不能为空")
+            @NotNull(message = "{validation.erp.line.quantity-required}")
             private BigDecimal quantity;
 
             /** 单价 */

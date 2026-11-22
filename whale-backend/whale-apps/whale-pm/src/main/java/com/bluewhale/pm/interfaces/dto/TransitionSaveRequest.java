@@ -18,22 +18,22 @@ public class TransitionSaveRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 源状态ID */
-    @NotNull(message = "源状态ID不能为空")
+    @NotNull(message = "{validation.pm.transition.from-status-id-required}")
     private Long fromStatusId;
 
     /** 目标状态ID */
-    @NotNull(message = "目标状态ID不能为空")
+    @NotNull(message = "{validation.pm.transition.to-status-id-required}")
     private Long toStatusId;
 
     /** 流转动作名称 */
-    @NotBlank(message = "流转动作名称不能为空")
-    @Size(max = 64, message = "流转动作名称长度不能超过 64")
+    @NotBlank(message = "{validation.pm.transition.name-required}")
+    @Size(max = 64, message = "{validation.pm.transition.name-size}")
     private String name;
 
     /** 是否要求填写评论 */
     private Boolean requireComment;
 
     /** 附加权限编码（可选） */
-    @Size(max = 128, message = "附加权限编码长度不能超过 128")
+    @Size(max = 128, message = "{validation.pm.transition.require-permission-size}")
     private String requirePermission;
 }

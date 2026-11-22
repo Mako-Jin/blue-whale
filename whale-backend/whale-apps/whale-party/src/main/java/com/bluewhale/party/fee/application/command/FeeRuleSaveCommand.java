@@ -16,19 +16,19 @@ import java.math.BigDecimal;
 public class FeeRuleSaveCommand {
 
     /** 档位名称 */
-    @NotBlank(message = "档位名称不能为空")
-    @Size(max = 64, message = "档位名称不得超过 64 字符")
+    @NotBlank(message = "{validation.party.fee-rule.rule-name-required}")
+    @Size(max = 64, message = "{validation.party.fee-rule.rule-name-size}")
     private String ruleName;
 
     /** 基数下限（含） */
-    @NotNull(message = "基数下限不能为空")
+    @NotNull(message = "{validation.party.fee-rule.min-base-required}")
     private BigDecimal minBase;
 
     /** 基数上限（不含，空表示无上限） */
     private BigDecimal maxBase;
 
     /** 缴费比例 */
-    @NotNull(message = "缴费比例不能为空")
+    @NotNull(message = "{validation.party.fee-rule.rate-required}")
     private BigDecimal rate;
 
     /** 状态：ACTIVE / INACTIVE */
@@ -38,6 +38,6 @@ public class FeeRuleSaveCommand {
     private Integer sortNo;
 
     /** 备注 */
-    @Size(max = 255, message = "备注不得超过 255 字符")
+    @Size(max = 255, message = "{validation.party.fee-rule.remark-size}")
     private String remark;
 }

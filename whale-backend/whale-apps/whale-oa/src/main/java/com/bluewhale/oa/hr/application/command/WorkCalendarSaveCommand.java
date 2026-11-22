@@ -19,18 +19,18 @@ public class WorkCalendarSaveCommand implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 是否工作日 */
-    @NotNull(message = "是否工作日不能为空")
+    @NotNull(message = "{validation.oa.work-calendar.workday-required}")
     private Boolean workday;
 
     /** 当日标准工时 */
-    @DecimalMin(value = "0.0", message = "当日标准工时不能为负数")
+    @DecimalMin(value = "0.0", message = "{validation.oa.work-calendar.work-hours-min}")
     private BigDecimal workHours;
 
     /** 节假日名称 */
-    @Size(max = 64, message = "节假日名称长度不能超过 64")
+    @Size(max = 64, message = "{validation.oa.work-calendar.holiday-name-size}")
     private String holidayName;
 
     /** 备注 */
-    @Size(max = 255, message = "备注长度不能超过 255")
+    @Size(max = 255, message = "{validation.oa.work-calendar.remark-size}")
     private String remark;
 }

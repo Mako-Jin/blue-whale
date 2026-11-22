@@ -19,30 +19,30 @@ public class PdmBomLineSaveRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 父件ID（根产品或其子件） */
-    @NotNull(message = "父件不能为空")
+    @NotNull(message = "{validation.pdm.pdm-bom-line.parent-part-id-required}")
     private Long parentPartId;
 
     /** 子件ID */
-    @NotNull(message = "子件不能为空")
+    @NotNull(message = "{validation.pdm.pdm-bom-line.child-part-id-required}")
     private Long childPartId;
 
     /** 同级行序号，缺省自动追加 */
     private Integer lineNo;
 
     /** 用量 */
-    @NotNull(message = "用量不能为空")
-    @DecimalMin(value = "0.000001", message = "用量必须大于 0")
+    @NotNull(message = "{validation.pdm.pdm-bom-line.qty-required}")
+    @DecimalMin(value = "0.000001", message = "{validation.pdm.pdm-bom-line.qty-min}")
     private BigDecimal qty;
 
     /** 单位，缺省取子件单位 */
-    @Size(max = 16, message = "单位长度不能超过 16")
+    @Size(max = 16, message = "{validation.pdm.pdm-bom-line.uom-size}")
     private String uom;
 
     /** 损耗率（0-100） */
-    @DecimalMin(value = "0", message = "损耗率不能小于 0")
+    @DecimalMin(value = "0", message = "{validation.pdm.pdm-bom-line.loss-rate-min}")
     private BigDecimal lossRate;
 
     /** 备注 */
-    @Size(max = 255, message = "备注长度不能超过 255")
+    @Size(max = 255, message = "{validation.pdm.pdm-bom-line.remark-size}")
     private String remark;
 }

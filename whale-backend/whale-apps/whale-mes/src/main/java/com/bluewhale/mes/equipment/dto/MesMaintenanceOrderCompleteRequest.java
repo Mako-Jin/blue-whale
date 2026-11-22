@@ -16,15 +16,15 @@ import java.util.List;
 public class MesMaintenanceOrderCompleteRequest {
 
     /** 完工登记人 */
-    @NotBlank(message = "完工登记人不能为空")
-    @Size(max = 64, message = "完工登记人长度不能超过 64")
+    @NotBlank(message = "{validation.mes.mes-maintenance-order-complete.completed-by-required}")
+    @Size(max = 64, message = "{validation.mes.mes-maintenance-order-complete.completed-by-size}")
     private String completedBy;
 
     /** 保养项结论列表（项名=结论） */
-    @NotEmpty(message = "保养项结论不能为空")
+    @NotEmpty(message = "{validation.mes.mes-maintenance-order-complete.checklist-results-required}")
     private List<String> checklistResults;
 
     /** 完工说明 */
-    @Size(max = 255, message = "完工说明长度不能超过 255")
+    @Size(max = 255, message = "{validation.mes.mes-maintenance-order-complete.remark-size}")
     private String remark;
 }

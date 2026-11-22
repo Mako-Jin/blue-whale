@@ -22,29 +22,29 @@ public class MesSpcRuleSaveRequest {
     private Long id;
 
     /** 规则编码（空则自动生成） */
-    @Size(max = 64, message = "规则编码长度不能超过 64")
+    @Size(max = 64, message = "{validation.mes.mes-spc-rule.rule-code-size}")
     private String ruleCode;
 
     /** 规则名称 */
-    @NotBlank(message = "规则名称不能为空")
-    @Size(max = 128, message = "规则名称长度不能超过 128")
+    @NotBlank(message = "{validation.mes.mes-spc-rule.rule-name-required}")
+    @Size(max = 128, message = "{validation.mes.mes-spc-rule.rule-name-size}")
     private String ruleName;
 
     /** 关联检验计划项 ID */
-    @NotNull(message = "检验计划项 ID 不能为空")
+    @NotNull(message = "{validation.mes.mes-spc-rule.plan-item-id-required}")
     private Long planItemId;
 
     /** 工序编码 */
-    @Size(max = 64, message = "工序编码长度不能超过 64")
+    @Size(max = 64, message = "{validation.mes.mes-spc-rule.operation-code-size}")
     private String operationCode;
 
     /** 控制图类型：XBAR_R */
-    @Pattern(regexp = "XBAR_R", message = "控制图类型仅支持 XBAR_R")
+    @Pattern(regexp = "XBAR_R", message = "{validation.mes.mes-spc-rule.chart-type-pattern}")
     private String chartType;
 
     /** 子组大小（2–10） */
-    @Min(value = 2, message = "子组大小不能小于 2")
-    @Max(value = 10, message = "子组大小不能大于 10")
+    @Min(value = 2, message = "{validation.mes.mes-spc-rule.subgroup-size-min}")
+    @Max(value = 10, message = "{validation.mes.mes-spc-rule.subgroup-size-max}")
     private Integer subgroupSize;
 
     /** 中心线 CL */
@@ -63,14 +63,14 @@ public class MesSpcRuleSaveRequest {
     private BigDecimal rLcl;
 
     /** 命中处理：WARN / BLOCK */
-    @Pattern(regexp = "WARN|BLOCK", message = "命中处理仅支持 WARN / BLOCK")
+    @Pattern(regexp = "WARN|BLOCK", message = "{validation.mes.mes-spc-rule.alert-action-pattern}")
     private String alertAction;
 
     /** 状态：ENABLED / DISABLED */
-    @Pattern(regexp = "ENABLED|DISABLED", message = "状态仅支持 ENABLED / DISABLED")
+    @Pattern(regexp = "ENABLED|DISABLED", message = "{validation.mes.mes-spc-rule.status-pattern}")
     private String status;
 
     /** 备注 */
-    @Size(max = 255, message = "备注长度不能超过 255")
+    @Size(max = 255, message = "{validation.mes.mes-spc-rule.remark-size}")
     private String remark;
 }

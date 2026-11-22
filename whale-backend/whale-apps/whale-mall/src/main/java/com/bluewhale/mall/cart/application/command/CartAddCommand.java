@@ -13,15 +13,15 @@ import lombok.Data;
 public class CartAddCommand {
 
     /** 渠道 ID */
-    @NotNull(message = "必须指定商城渠道")
+    @NotNull(message = "{validation.mall.cart-add.channel-id-required}")
     private Long channelId;
 
     /** SKU ID */
-    @NotNull(message = "必须指定商品规格")
+    @NotNull(message = "{validation.mall.cart-add.sku-id-required}")
     private Long skuId;
 
     /** 数量 */
-    @NotNull(message = "数量不能为空")
-    @Min(value = 1, message = "数量必须大于 0")
+    @NotNull(message = "{validation.mall.cart-add.quantity-required}")
+    @Min(value = 1, message = "{validation.mall.cart-add.quantity-min}")
     private Integer quantity;
 }

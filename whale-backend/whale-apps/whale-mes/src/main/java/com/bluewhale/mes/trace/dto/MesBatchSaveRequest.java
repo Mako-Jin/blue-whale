@@ -18,43 +18,43 @@ import java.time.LocalDate;
 public class MesBatchSaveRequest {
 
     /** 批次号（空则自动生成） */
-    @Size(max = 64, message = "批次号长度不能超过 64")
+    @Size(max = 64, message = "{validation.mes.mes-batch.batch-no-size}")
     private String batchNo;
 
     /** 物料编码 */
-    @NotBlank(message = "物料编码不能为空")
-    @Size(max = 64, message = "物料编码长度不能超过 64")
+    @NotBlank(message = "{validation.mes.mes-batch.item-code-required}")
+    @Size(max = 64, message = "{validation.mes.mes-batch.item-code-size}")
     private String itemCode;
 
     /** 物料名称 */
-    @Size(max = 128, message = "物料名称长度不能超过 128")
+    @Size(max = 128, message = "{validation.mes.mes-batch.item-name-size}")
     private String itemName;
 
     /** 批次类型：RAW / SEMI / FINISHED */
-    @Pattern(regexp = "RAW|SEMI|FINISHED", message = "批次类型仅支持 RAW / SEMI / FINISHED")
+    @Pattern(regexp = "RAW|SEMI|FINISHED", message = "{validation.mes.mes-batch.batch-type-pattern}")
     private String batchType;
 
     /** 来源：PURCHASE / PRODUCTION / RETURN */
-    @Pattern(regexp = "PURCHASE|PRODUCTION|RETURN", message = "来源仅支持 PURCHASE / PRODUCTION / RETURN")
+    @Pattern(regexp = "PURCHASE|PRODUCTION|RETURN", message = "{validation.mes.mes-batch.source-type-pattern}")
     private String sourceType;
 
     /** 来源工单 ID */
     private Long workOrderId;
 
     /** 来源工单编码 */
-    @Size(max = 64, message = "工单编码长度不能超过 64")
+    @Size(max = 64, message = "{validation.mes.mes-batch.work-order-code-size}")
     private String workOrderCode;
 
     /** 供应商编码 */
-    @Size(max = 64, message = "供应商编码长度不能超过 64")
+    @Size(max = 64, message = "{validation.mes.mes-batch.supplier-code-size}")
     private String supplierCode;
 
     /** 批次初始数量 */
-    @DecimalMin(value = "0.0001", message = "批次数量必须大于 0")
+    @DecimalMin(value = "0.0001", message = "{validation.mes.mes-batch.quantity-min}")
     private BigDecimal quantity;
 
     /** 计量单位 */
-    @Size(max = 16, message = "计量单位长度不能超过 16")
+    @Size(max = 16, message = "{validation.mes.mes-batch.uom-size}")
     private String uom;
 
     /** 生产/到货日期 */
@@ -64,6 +64,6 @@ public class MesBatchSaveRequest {
     private LocalDate expiryDate;
 
     /** 备注 */
-    @Size(max = 255, message = "备注长度不能超过 255")
+    @Size(max = 255, message = "{validation.mes.mes-batch.remark-size}")
     private String remark;
 }

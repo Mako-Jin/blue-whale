@@ -15,18 +15,18 @@ import java.time.LocalDateTime;
 public class FollowUpCreateCommand {
 
     /** 客户 ID */
-    @NotNull(message = "客户 ID 不能为空")
+    @NotNull(message = "{validation.crm.follow-up.customer-id-required}")
     private Long customerId;
 
     /** 商机 ID */
     private Long opportunityId;
 
     /** 渠道 */
-    @NotBlank(message = "跟进渠道不能为空")
+    @NotBlank(message = "{validation.crm.follow-up.channel-required}")
     private String channel;
 
     /** 内容 */
-    @NotBlank(message = "跟进内容不能为空")
+    @NotBlank(message = "{validation.crm.follow-up.content-required}")
     private String content;
 
     /** 结果 */

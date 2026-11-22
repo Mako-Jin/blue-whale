@@ -15,17 +15,17 @@ import java.time.LocalDateTime;
 public class MesMaintenanceOrderCreateRequest {
 
     /** 保养计划 ID */
-    @NotNull(message = "保养计划不能为空")
+    @NotNull(message = "{validation.mes.mes-maintenance-order.plan-id-required}")
     private Long planId;
 
     /** 应完成时间（空则按计划到期时间） */
     private LocalDateTime dueAt;
 
     /** 执行人 */
-    @Size(max = 64, message = "执行人长度不能超过 64")
+    @Size(max = 64, message = "{validation.mes.mes-maintenance-order.assignee-size}")
     private String assignee;
 
     /** 备注 */
-    @Size(max = 255, message = "备注长度不能超过 255")
+    @Size(max = 255, message = "{validation.mes.mes-maintenance-order.remark-size}")
     private String remark;
 }

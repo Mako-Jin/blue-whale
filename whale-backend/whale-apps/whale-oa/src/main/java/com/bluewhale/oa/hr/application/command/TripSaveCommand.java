@@ -24,49 +24,49 @@ public class TripSaveCommand implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 申请单号（租户内唯一） */
-    @NotBlank(message = "申请单号不能为空")
-    @Size(max = 64, message = "申请单号长度不能超过 64")
+    @NotBlank(message = "{validation.oa.trip.code-required}")
+    @Size(max = 64, message = "{validation.oa.trip.code-size}")
     private String code;
 
     /** 申请人账号 */
-    @NotBlank(message = "申请人不能为空")
-    @Size(max = 64, message = "申请人长度不能超过 64")
+    @NotBlank(message = "{validation.oa.trip.applicant-required}")
+    @Size(max = 64, message = "{validation.oa.trip.applicant-size}")
     private String applicant;
 
     /** 申请人用户ID */
     private Long applicantId;
 
     /** 出差目的地 */
-    @NotBlank(message = "出差目的地不能为空")
-    @Size(max = 128, message = "出差目的地长度不能超过 128")
+    @NotBlank(message = "{validation.oa.trip.destination-required}")
+    @Size(max = 128, message = "{validation.oa.trip.destination-size}")
     private String destination;
 
     /** 出差开始日期 */
-    @NotNull(message = "出差开始日期不能为空")
+    @NotNull(message = "{validation.oa.trip.start-date-required}")
     private LocalDate startDate;
 
     /** 出差结束日期 */
-    @NotNull(message = "出差结束日期不能为空")
+    @NotNull(message = "{validation.oa.trip.end-date-required}")
     private LocalDate endDate;
 
     /** 交通方式：TRAIN / PLANE / CAR / OTHER */
-    @Pattern(regexp = "TRAIN|PLANE|CAR|OTHER", message = "交通方式仅支持 TRAIN / PLANE / CAR / OTHER")
+    @Pattern(regexp = "TRAIN|PLANE|CAR|OTHER", message = "{validation.oa.trip.transport-type-pattern}")
     private String transportType;
 
     /** 预算金额（元） */
-    @DecimalMin(value = "0", message = "预算金额不能为负数")
+    @DecimalMin(value = "0", message = "{validation.oa.trip.budget-amount-min}")
     private BigDecimal budgetAmount;
 
     /** 预支金额（元，不得超过预算） */
-    @DecimalMin(value = "0", message = "预支金额不能为负数")
+    @DecimalMin(value = "0", message = "{validation.oa.trip.advance-amount-min}")
     private BigDecimal advanceAmount;
 
     /** 出差行程 */
     @Valid
-    @Size(max = 50, message = "行程明细最多 50 条")
+    @Size(max = 50, message = "{validation.oa.trip.itineraries-size}")
     private List<TripItineraryCommand> itineraries;
 
     /** 备注 */
-    @Size(max = 255, message = "备注长度不能超过 255")
+    @Size(max = 255, message = "{validation.oa.trip.remark-size}")
     private String remark;
 }

@@ -22,10 +22,10 @@ public class GradeCommand {
 
     /** 判分明细 */
     @Valid
-    @NotEmpty(message = "判分明细不能为空")
+    @NotEmpty(message = "{validation.lms.grade.items-required}")
     private List<GradeItemCommand> items = new ArrayList<>();
 
     /** 判分备注（重判时写原因） */
-    @Size(max = 500, message = "判分备注最长 500 字符")
+    @Size(max = 500, message = "{validation.lms.grade.remark-size}")
     private String remark;
 }

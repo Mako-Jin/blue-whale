@@ -28,8 +28,8 @@ public final class CultureCommands {
     public static class EventSave {
 
         /** 标题 */
-        @NotBlank(message = "标题不能为空")
-        @Size(max = 128, message = "标题不能超过 128 个字符")
+        @NotBlank(message = "{validation.oa.event-save.title-required}")
+        @Size(max = 128, message = "{validation.oa.event-save.title-size}")
         private String title;
 
         /** 类型：MILESTONE / ACTIVITY / NEWS */
@@ -42,7 +42,7 @@ public final class CultureCommands {
         private LocalDate eventDate;
 
         /** 备注 */
-        @Size(max = 255, message = "备注不能超过 255 个字符")
+        @Size(max = 255, message = "{validation.oa.event-save.remark-size}")
         private String remark;
     }
 
@@ -56,15 +56,15 @@ public final class CultureCommands {
         private String wishType;
 
         /** 祝福对象用户ID */
-        @NotNull(message = "祝福对象不能为空")
+        @NotNull(message = "{validation.oa.wish-save.target-user-id-required}")
         private Long targetUserId;
 
         /** 祝福对象姓名 */
         private String targetName;
 
         /** 祝福内容 */
-        @NotBlank(message = "祝福内容不能为空")
-        @Size(max = 512, message = "祝福内容不能超过 512 个字符")
+        @NotBlank(message = "{validation.oa.wish-save.content-required}")
+        @Size(max = 512, message = "{validation.oa.wish-save.content-size}")
         private String content;
     }
 
@@ -75,8 +75,8 @@ public final class CultureCommands {
     public static class PollSave {
 
         /** 投票标题 */
-        @NotBlank(message = "投票标题不能为空")
-        @Size(max = 128, message = "投票标题不能超过 128 个字符")
+        @NotBlank(message = "{validation.oa.poll-save.title-required}")
+        @Size(max = 128, message = "{validation.oa.poll-save.title-size}")
         private String title;
 
         /** 投票说明 */
@@ -108,8 +108,8 @@ public final class CultureCommands {
     public static class PollOptionSave {
 
         /** 选项文本 */
-        @NotBlank(message = "选项内容不能为空")
-        @Size(max = 255, message = "选项内容不能超过 255 个字符")
+        @NotBlank(message = "{validation.oa.poll-option-save.option-text-required}")
+        @Size(max = 255, message = "{validation.oa.poll-option-save.option-text-size}")
         private String optionText;
 
         /** 排序号 */
@@ -123,7 +123,7 @@ public final class CultureCommands {
     public static class VoteCommand {
 
         /** 选中的选项ID */
-        @NotEmpty(message = "请至少选择一个选项")
+        @NotEmpty(message = "{validation.oa.vote.option-ids-required}")
         private List<Long> optionIds;
     }
 
@@ -134,15 +134,15 @@ public final class CultureCommands {
     public static class SuggestionSave {
 
         /** 建议标题 */
-        @NotBlank(message = "建议标题不能为空")
-        @Size(max = 128, message = "建议标题不能超过 128 个字符")
+        @NotBlank(message = "{validation.oa.suggestion-save.title-required}")
+        @Size(max = 128, message = "{validation.oa.suggestion-save.title-size}")
         private String title;
 
         /** 类别：SUGGESTION / COMPLAINT / PRAISE / OTHER */
         private String category;
 
         /** 建议内容 */
-        @NotBlank(message = "建议内容不能为空")
+        @NotBlank(message = "{validation.oa.suggestion-save.content-required}")
         private String content;
 
         /** 是否匿名 */
@@ -159,7 +159,7 @@ public final class CultureCommands {
     public static class SuggestionReplySave {
 
         /** 回复内容 */
-        @NotBlank(message = "回复内容不能为空")
+        @NotBlank(message = "{validation.oa.suggestion-reply-save.content-required}")
         private String content;
 
         /** 目标状态（可选，默认 REPLIED） */

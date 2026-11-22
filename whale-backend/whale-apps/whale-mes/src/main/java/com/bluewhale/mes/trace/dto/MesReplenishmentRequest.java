@@ -17,50 +17,50 @@ import java.math.BigDecimal;
 public class MesReplenishmentRequest {
 
     /** 请求号（幂等键；空则自动生成） */
-    @Size(max = 64, message = "请求号长度不能超过 64")
+    @Size(max = 64, message = "{validation.mes.mes-replenishment.request-no-size}")
     private String requestNo;
 
     /** 产线 ID */
-    @NotNull(message = "产线不能为空")
+    @NotNull(message = "{validation.mes.mes-replenishment.line-id-required}")
     private Long lineId;
 
     /** 产线编码快照 */
-    @NotBlank(message = "产线编码不能为空")
-    @Size(max = 64, message = "产线编码长度不能超过 64")
+    @NotBlank(message = "{validation.mes.mes-replenishment.line-code-required}")
+    @Size(max = 64, message = "{validation.mes.mes-replenishment.line-code-size}")
     private String lineCode;
 
     /** 线边仓编码 */
-    @NotBlank(message = "线边仓编码不能为空")
-    @Size(max = 64, message = "线边仓编码长度不能超过 64")
+    @NotBlank(message = "{validation.mes.mes-replenishment.warehouse-code-required}")
+    @Size(max = 64, message = "{validation.mes.mes-replenishment.warehouse-code-size}")
     private String warehouseCode;
 
     /** 物料编码 */
-    @NotBlank(message = "物料编码不能为空")
-    @Size(max = 64, message = "物料编码长度不能超过 64")
+    @NotBlank(message = "{validation.mes.mes-replenishment.item-code-required}")
+    @Size(max = 64, message = "{validation.mes.mes-replenishment.item-code-size}")
     private String itemCode;
 
     /** 物料名称 */
-    @Size(max = 128, message = "物料名称长度不能超过 128")
+    @Size(max = 128, message = "{validation.mes.mes-replenishment.item-name-size}")
     private String itemName;
 
     /** 叫料数量 */
-    @NotNull(message = "叫料数量不能为空")
-    @DecimalMin(value = "0.0001", message = "叫料数量必须大于 0")
+    @NotNull(message = "{validation.mes.mes-replenishment.quantity-required}")
+    @DecimalMin(value = "0.0001", message = "{validation.mes.mes-replenishment.quantity-min}")
     private BigDecimal quantity;
 
     /** 计量单位 */
-    @Size(max = 16, message = "计量单位长度不能超过 16")
+    @Size(max = 16, message = "{validation.mes.mes-replenishment.uom-size}")
     private String uom;
 
     /** 叫料原因 */
-    @Size(max = 255, message = "叫料原因长度不能超过 255")
+    @Size(max = 255, message = "{validation.mes.mes-replenishment.reason-size}")
     private String reason;
 
     /** 叫料人 */
-    @Size(max = 64, message = "叫料人长度不能超过 64")
+    @Size(max = 64, message = "{validation.mes.mes-replenishment.requested-by-size}")
     private String requestedBy;
 
     /** 备注 */
-    @Size(max = 255, message = "备注长度不能超过 255")
+    @Size(max = 255, message = "{validation.mes.mes-replenishment.remark-size}")
     private String remark;
 }

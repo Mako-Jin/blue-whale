@@ -17,33 +17,33 @@ import java.math.BigDecimal;
 public class MesInspectionResultItemRequest {
 
     /** 计划检验项 ID */
-    @NotNull(message = "检验项 ID 不能为空")
+    @NotNull(message = "{validation.mes.mes-inspection-result-item.plan-item-id-required}")
     private Long planItemId;
 
     /** 检验项序号 */
     private Integer itemNo;
 
     /** 检验项名称 */
-    @Size(max = 128, message = "检验项名称长度不能超过 128")
+    @Size(max = 128, message = "{validation.mes.mes-inspection-result-item.item-name-size}")
     private String itemName;
 
     /** 样本序号 */
-    @Min(value = 1, message = "样本序号必须大于 0")
+    @Min(value = 1, message = "{validation.mes.mes-inspection-result-item.sample-no-min}")
     private Integer sampleNo;
 
     /** 实测值文本 */
-    @Size(max = 128, message = "实测值长度不能超过 128")
+    @Size(max = 128, message = "{validation.mes.mes-inspection-result-item.measured-value-size}")
     private String measuredValue;
 
     /** 实测数值 */
     private BigDecimal numericValue;
 
     /** 判定：OK / NG */
-    @NotNull(message = "判定结果不能为空")
-    @Pattern(regexp = "OK|NG", message = "判定结果仅支持 OK / NG")
+    @NotNull(message = "{validation.mes.mes-inspection-result-item.result-required}")
+    @Pattern(regexp = "OK|NG", message = "{validation.mes.mes-inspection-result-item.result-pattern}")
     private String result;
 
     /** 备注 */
-    @Size(max = 255, message = "备注长度不能超过 255")
+    @Size(max = 255, message = "{validation.mes.mes-inspection-result-item.remark-size}")
     private String remark;
 }

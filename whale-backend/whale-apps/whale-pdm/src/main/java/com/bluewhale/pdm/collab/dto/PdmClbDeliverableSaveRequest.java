@@ -17,7 +17,7 @@ public class PdmClbDeliverableSaveRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** whale-pm 项目ID */
-    @NotNull(message = "项目ID不能为空")
+    @NotNull(message = "{validation.pdm.pdm-clb-deliverable.project-id-required}")
     private Long projectId;
 
     /** 项目名称快照 */
@@ -30,11 +30,11 @@ public class PdmClbDeliverableSaveRequest implements Serializable {
     private String workItemName;
 
     /** 对象类型：DOCUMENT/BOM/ROUTE */
-    @NotBlank(message = "对象类型不能为空")
+    @NotBlank(message = "{validation.pdm.pdm-clb-deliverable.object-type-required}")
     private String objectType;
 
     /** 对象ID */
-    @NotNull(message = "对象ID不能为空")
+    @NotNull(message = "{validation.pdm.pdm-clb-deliverable.object-id-required}")
     private Long objectId;
 
     /** 对象编号（可空，服务会回填） */
@@ -44,7 +44,7 @@ public class PdmClbDeliverableSaveRequest implements Serializable {
     private String objectTitle;
 
     /** 已发布对象版本号 */
-    @NotBlank(message = "对象版本号不能为空")
+    @NotBlank(message = "{validation.pdm.pdm-clb-deliverable.object-version-no-required}")
     private String objectVersionNo;
 
     /** 交付物类型：DESIGN/DRAWING/REPORT/OTHER */

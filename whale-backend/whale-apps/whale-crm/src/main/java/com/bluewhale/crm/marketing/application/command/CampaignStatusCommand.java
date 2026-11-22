@@ -12,6 +12,6 @@ import lombok.Data;
 public class CampaignStatusCommand {
 
     /** 目标状态：RUNNING / ENDED / CANCELLED */
-    @NotBlank(message = "目标状态不能为空")
+    @NotBlank(message = "{validation.crm.campaign-status.status-required}")
     private String status;
 }

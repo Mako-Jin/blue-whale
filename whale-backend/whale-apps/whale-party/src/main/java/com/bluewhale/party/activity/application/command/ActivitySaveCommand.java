@@ -16,37 +16,37 @@ import java.time.LocalDate;
 public class ActivitySaveCommand {
 
     /** 所属支部 ID */
-    @NotNull(message = "所属支部不能为空")
+    @NotNull(message = "{validation.party.activity.branch-id-required}")
     private Long branchId;
 
     /** 类型：BRANCH_COMMITTEE / MEMBER_ASSEMBLY / PARTY_GROUP / PARTY_LECTURE / THEME_DAY */
     private String activityType;
 
     /** 活动主题 */
-    @NotBlank(message = "活动主题不能为空")
-    @Size(max = 200, message = "活动主题不得超过 200 字符")
+    @NotBlank(message = "{validation.party.activity.title-required}")
+    @Size(max = 200, message = "{validation.party.activity.title-size}")
     private String title;
 
     /** 计划日期 */
-    @NotNull(message = "计划日期不能为空")
+    @NotNull(message = "{validation.party.activity.planned-date-required}")
     private LocalDate plannedDate;
 
     /** 活动地点 */
-    @Size(max = 128, message = "活动地点不得超过 128 字符")
+    @Size(max = 128, message = "{validation.party.activity.location-size}")
     private String location;
 
     /** 主持人 */
-    @Size(max = 64, message = "主持人姓名不得超过 64 字符")
+    @Size(max = 64, message = "{validation.party.activity.host-name-size}")
     private String hostName;
 
     /** 应到人数 */
     private Integer expectedCount;
 
     /** 会议纪要 */
-    @Size(max = 2000, message = "纪要不得超过 2000 字符")
+    @Size(max = 2000, message = "{validation.party.activity.summary-size}")
     private String summary;
 
     /** 备注 */
-    @Size(max = 255, message = "备注不得超过 255 字符")
+    @Size(max = 255, message = "{validation.party.activity.remark-size}")
     private String remark;
 }

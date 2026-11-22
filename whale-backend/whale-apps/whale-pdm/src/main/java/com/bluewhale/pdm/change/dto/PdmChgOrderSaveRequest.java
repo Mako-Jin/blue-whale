@@ -20,15 +20,15 @@ public class PdmChgOrderSaveRequest implements Serializable {
     private Long ecrId;
 
     /** 变更标题 */
-    @NotBlank(message = "变更标题不能为空")
-    @Size(max = 200, message = "变更标题长度不能超过 200")
+    @NotBlank(message = "{validation.pdm.pdm-chg-order.title-required}")
+    @Size(max = 200, message = "{validation.pdm.pdm-chg-order.title-size}")
     private String title;
 
     /** 影响评估 */
-    @Size(max = 2000, message = "影响评估长度不能超过 2000")
+    @Size(max = 2000, message = "{validation.pdm.pdm-chg-order.impact-assessment-size}")
     private String impactAssessment;
 
     /** 执行计划 */
-    @Size(max = 2000, message = "执行计划长度不能超过 2000")
+    @Size(max = 2000, message = "{validation.pdm.pdm-chg-order.execute-plan-size}")
     private String executePlan;
 }

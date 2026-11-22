@@ -13,11 +13,11 @@ import lombok.Data;
 public class ShipmentLineCommand {
 
     /** 订单明细 ID */
-    @NotNull(message = "请指定订单明细")
+    @NotNull(message = "{validation.mall.shipment-line.order-item-id-required}")
     private Long orderItemId;
 
     /** 本次发货数量 */
-    @NotNull(message = "请填写发货数量")
-    @Min(value = 1, message = "发货数量必须大于 0")
+    @NotNull(message = "{validation.mall.shipment-line.quantity-required}")
+    @Min(value = 1, message = "{validation.mall.shipment-line.quantity-min}")
     private Integer quantity;
 }

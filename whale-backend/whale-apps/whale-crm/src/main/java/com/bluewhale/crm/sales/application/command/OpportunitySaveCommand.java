@@ -19,7 +19,7 @@ public class OpportunitySaveCommand {
     private Long customerId;
 
     /** 商机名称 */
-    @NotBlank(message = "商机名称不能为空")
+    @NotBlank(message = "{validation.crm.opportunity.name-required}")
     private String name;
 
     /** 预计金额 */

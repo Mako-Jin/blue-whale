@@ -20,24 +20,24 @@ import java.math.BigDecimal;
 public class ReliefSaveCommand {
 
     /** 工会会员 ID */
-    @NotNull(message = "工会会员不能为空")
+    @NotNull(message = "{validation.party.relief.union-member-id-required}")
     private Long unionMemberId;
 
     /** 慰问类型：DIFFICULTY / CONDOLENCE / MEDICAL / EDUCATION / OTHER */
-    @NotBlank(message = "慰问类型不能为空")
+    @NotBlank(message = "{validation.party.relief.relief-type-required}")
     private String reliefType;
 
     /** 申请金额 */
-    @NotNull(message = "申请金额不能为空")
-    @DecimalMin(value = "0.01", message = "申请金额必须大于 0")
+    @NotNull(message = "{validation.party.relief.amount-required}")
+    @DecimalMin(value = "0.01", message = "{validation.party.relief.amount-min}")
     private BigDecimal amount;
 
     /** 申请事由 */
-    @NotBlank(message = "申请事由不能为空")
-    @Size(max = 500, message = "申请事由不得超过 500 字符")
+    @NotBlank(message = "{validation.party.relief.reason-required}")
+    @Size(max = 500, message = "{validation.party.relief.reason-size}")
     private String reason;
 
     /** 备注 */
-    @Size(max = 255, message = "备注不得超过 255 字符")
+    @Size(max = 255, message = "{validation.party.relief.remark-size}")
     private String remark;
 }

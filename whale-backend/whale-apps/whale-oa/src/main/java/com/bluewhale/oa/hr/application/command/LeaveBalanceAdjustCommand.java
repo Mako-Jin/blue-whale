@@ -19,11 +19,11 @@ public class LeaveBalanceAdjustCommand implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 新的总额度 */
-    @NotNull(message = "总额度不能为空")
-    @DecimalMin(value = "0.0", message = "总额度不能为负数")
+    @NotNull(message = "{validation.oa.leave-balance-adjust.total-days-required}")
+    @DecimalMin(value = "0.0", message = "{validation.oa.leave-balance-adjust.total-days-min}")
     private BigDecimal totalDays;
 
     /** 备注 */
-    @Size(max = 255, message = "备注长度不能超过 255")
+    @Size(max = 255, message = "{validation.oa.leave-balance-adjust.remark-size}")
     private String remark;
 }

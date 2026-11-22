@@ -22,25 +22,25 @@ import java.util.List;
 public class SpuSaveCommand {
 
     /** 商品编码（租户内唯一） */
-    @NotBlank(message = "商品编码不能为空")
-    @Size(max = 64, message = "商品编码不得超过 64 字符")
+    @NotBlank(message = "{validation.mall.spu.spu-code-required}")
+    @Size(max = 64, message = "{validation.mall.spu.spu-code-size}")
     private String spuCode;
 
     /** 商品名称 */
-    @NotBlank(message = "商品名称不能为空")
-    @Size(max = 128, message = "商品名称不得超过 128 字符")
+    @NotBlank(message = "{validation.mall.spu.spu-name-required}")
+    @Size(max = 128, message = "{validation.mall.spu.spu-name-size}")
     private String spuName;
 
     /** 所属类目 ID */
-    @NotNull(message = "必须选择所属类目")
+    @NotNull(message = "{validation.mall.spu.category-id-required}")
     private Long categoryId;
 
     /** 品牌 */
-    @Size(max = 64, message = "品牌不得超过 64 字符")
+    @Size(max = 64, message = "{validation.mall.spu.brand-size}")
     private String brand;
 
     /** 主图（文件 ID 或 URL） */
-    @Size(max = 512, message = "主图地址不得超过 512 字符")
+    @Size(max = 512, message = "{validation.mall.spu.main-image-size}")
     private String mainImage;
 
     /** 轮播图（文件 ID 或 URL 列表） */
@@ -53,11 +53,11 @@ public class SpuSaveCommand {
     private Integer sortNo;
 
     /** 备注 */
-    @Size(max = 255, message = "备注不得超过 255 字符")
+    @Size(max = 255, message = "{validation.mall.spu.remark-size}")
     private String remark;
 
     /** 规格列表（至少一项） */
     @Valid
-    @NotEmpty(message = "至少需要一个规格（SKU）")
+    @NotEmpty(message = "{validation.mall.spu.skus-required}")
     private List<SkuCommand> skus = new ArrayList<>();
 }

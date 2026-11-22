@@ -15,10 +15,10 @@ import java.math.BigDecimal;
 public class PartnerReportResolveCommand {
 
     /** 裁决结果：APPROVED / REJECTED */
-    @NotBlank(message = "裁决结果不能为空")
+    @NotBlank(message = "{validation.crm.partner-report-resolve.status-required}")
     private String status;
 
     /** 核准金额（APPROVED 必填） */
-    @DecimalMin(value = "0", message = "核准金额不得为负数")
+    @DecimalMin(value = "0", message = "{validation.crm.partner-report-resolve.approved-amount-min}")
     private BigDecimal approvedAmount;
 }

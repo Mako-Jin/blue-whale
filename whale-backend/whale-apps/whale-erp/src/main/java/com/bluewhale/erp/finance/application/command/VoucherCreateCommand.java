@@ -18,7 +18,7 @@ import java.util.List;
 public class VoucherCreateCommand {
 
     /** 凭证日期 */
-    @NotNull(message = "凭证日期不能为空")
+    @NotNull(message = "{validation.erp.voucher.voucher-date-required}")
     private LocalDate voucherDate;
 
     /** 币种（默认 CNY） */
@@ -38,6 +38,6 @@ public class VoucherCreateCommand {
 
     /** 分录 */
     @Valid
-    @NotEmpty(message = "凭证至少需要一条分录")
+    @NotEmpty(message = "{validation.erp.voucher.lines-required}")
     private List<VoucherLineCommand> lines;
 }

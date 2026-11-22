@@ -13,7 +13,7 @@ import lombok.Data;
 public class MesHandoverConfirmRequest {
 
     /** 确认人 */
-    @NotBlank(message = "确认人不能为空")
-    @Size(max = 64, message = "确认人长度不能超过 64")
+    @NotBlank(message = "{validation.mes.mes-handover-confirm.confirmed-by-required}")
+    @Size(max = 64, message = "{validation.mes.mes-handover-confirm.confirmed-by-size}")
     private String confirmedBy;
 }

@@ -19,64 +19,64 @@ public class ErpSupplierSaveRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 供应商编码（租户内唯一） */
-    @NotBlank(message = "供应商编码不能为空")
-    @Size(max = 64, message = "供应商编码长度不能超过 64")
+    @NotBlank(message = "{validation.erp.erp-supplier.code-required}")
+    @Size(max = 64, message = "{validation.erp.erp-supplier.code-size}")
     private String code;
 
     /** 供应商名称 */
-    @NotBlank(message = "供应商名称不能为空")
-    @Size(max = 128, message = "供应商名称长度不能超过 128")
+    @NotBlank(message = "{validation.erp.erp-supplier.name-required}")
+    @Size(max = 128, message = "{validation.erp.erp-supplier.name-size}")
     private String name;
 
     /** 供应商简称 */
-    @Size(max = 64, message = "供应商简称长度不能超过 64")
+    @Size(max = 64, message = "{validation.erp.erp-supplier.short-name-size}")
     private String shortName;
 
     /** 供应商分类 */
-    @NotBlank(message = "供应商分类不能为空")
+    @NotBlank(message = "{validation.erp.erp-supplier.category-required}")
     @Pattern(regexp = "MATERIAL|SERVICE|OUTSOURCE|LOGISTICS|OTHER",
-            message = "供应商分类仅支持 MATERIAL / SERVICE / OUTSOURCE / LOGISTICS / OTHER")
+            message = "{validation.erp.erp-supplier.category-pattern}")
     private String category;
 
     /** 联系人 */
-    @Size(max = 64, message = "联系人长度不能超过 64")
+    @Size(max = 64, message = "{validation.erp.erp-supplier.contact-name-size}")
     private String contactName;
 
     /** 联系电话 */
-    @Size(max = 32, message = "联系电话长度不能超过 32")
+    @Size(max = 32, message = "{validation.erp.erp-supplier.contact-phone-size}")
     private String contactPhone;
 
     /** 联系邮箱 */
-    @Email(message = "联系邮箱格式不正确")
-    @Size(max = 128, message = "联系邮箱长度不能超过 128")
+    @Email(message = "{validation.erp.erp-supplier.contact-email-email}")
+    @Size(max = 128, message = "{validation.erp.erp-supplier.contact-email-size}")
     private String contactEmail;
 
     /** 纳税人识别号 */
-    @Size(max = 64, message = "纳税人识别号长度不能超过 64")
+    @Size(max = 64, message = "{validation.erp.erp-supplier.tax-no-size}")
     private String taxNo;
 
     /** 开户银行 */
-    @Size(max = 128, message = "开户银行长度不能超过 128")
+    @Size(max = 128, message = "{validation.erp.erp-supplier.bank-name-size}")
     private String bankName;
 
     /** 银行账号 */
-    @Size(max = 64, message = "银行账号长度不能超过 64")
+    @Size(max = 64, message = "{validation.erp.erp-supplier.bank-account-size}")
     private String bankAccount;
 
     /** 地址 */
-    @Size(max = 255, message = "地址长度不能超过 255")
+    @Size(max = 255, message = "{validation.erp.erp-supplier.address-size}")
     private String address;
 
     /** 状态：ENABLED / DISABLED */
-    @NotBlank(message = "状态不能为空")
-    @Pattern(regexp = "ENABLED|DISABLED", message = "状态仅支持 ENABLED / DISABLED")
+    @NotBlank(message = "{validation.erp.erp-supplier.status-required}")
+    @Pattern(regexp = "ENABLED|DISABLED", message = "{validation.erp.erp-supplier.status-pattern}")
     private String status;
 
     /** 供应商评级：A / B / C / D */
-    @Pattern(regexp = "A|B|C|D", message = "供应商评级仅支持 A / B / C / D")
+    @Pattern(regexp = "A|B|C|D", message = "{validation.erp.erp-supplier.rating-pattern}")
     private String rating;
 
     /** 备注 */
-    @Size(max = 255, message = "备注长度不能超过 255")
+    @Size(max = 255, message = "{validation.erp.erp-supplier.remark-size}")
     private String remark;
 }

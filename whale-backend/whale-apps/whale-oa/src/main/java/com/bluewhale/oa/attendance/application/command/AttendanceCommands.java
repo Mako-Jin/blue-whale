@@ -31,7 +31,7 @@ public final class AttendanceCommands {
     public static class PunchCommand {
 
         /** 打卡类型：IN / OUT */
-        @NotBlank(message = "打卡类型不能为空")
+        @NotBlank(message = "{validation.oa.punch.punch-type-required}")
         private String punchType;
 
         /** 来源：APP / DEVICE / WEB，默认 WEB */
@@ -47,19 +47,19 @@ public final class AttendanceCommands {
         private BigDecimal longitude;
 
         /** 打卡地址 */
-        @Size(max = 255, message = "地址长度不能超过 255")
+        @Size(max = 255, message = "{validation.oa.punch.address-size}")
         private String address;
 
         /** 设备编码 */
-        @Size(max = 64, message = "设备编码长度不能超过 64")
+        @Size(max = 64, message = "{validation.oa.punch.device-code-size}")
         private String deviceCode;
 
         /** 用户姓名快照 */
-        @Size(max = 64, message = "姓名长度不能超过 64")
+        @Size(max = 64, message = "{validation.oa.punch.user-name-size}")
         private String userName;
 
         /** 备注 */
-        @Size(max = 255, message = "备注长度不能超过 255")
+        @Size(max = 255, message = "{validation.oa.punch.remark-size}")
         private String remark;
     }
 
@@ -69,15 +69,15 @@ public final class AttendanceCommands {
     @Data
     public static class GroupSaveCommand {
 
-        @NotBlank(message = "考勤组编码不能为空")
-        @Size(max = 32, message = "考勤组编码长度不能超过 32")
+        @NotBlank(message = "{validation.oa.group.code-required}")
+        @Size(max = 32, message = "{validation.oa.group.code-size}")
         private String code;
 
-        @NotBlank(message = "考勤组名称不能为空")
-        @Size(max = 64, message = "考勤组名称长度不能超过 64")
+        @NotBlank(message = "{validation.oa.group.name-required}")
+        @Size(max = 64, message = "{validation.oa.group.name-size}")
         private String name;
 
-        @NotNull(message = "班次不能为空")
+        @NotNull(message = "{validation.oa.group.shift-id-required}")
         private Long shiftId;
 
         private Long ruleId;
@@ -88,7 +88,7 @@ public final class AttendanceCommands {
 
         private Integer enabled;
 
-        @Size(max = 255, message = "备注长度不能超过 255")
+        @Size(max = 255, message = "{validation.oa.group.remark-size}")
         private String remark;
 
         /** 成员列表 */
@@ -101,10 +101,10 @@ public final class AttendanceCommands {
     @Data
     public static class Member {
 
-        @NotNull(message = "成员用户ID不能为空")
+        @NotNull(message = "{validation.oa.member.user-id-required}")
         private Long userId;
 
-        @Size(max = 64, message = "成员姓名长度不能超过 64")
+        @Size(max = 64, message = "{validation.oa.member.user-name-size}")
         private String userName;
     }
 
@@ -114,18 +114,18 @@ public final class AttendanceCommands {
     @Data
     public static class ShiftSaveCommand {
 
-        @NotBlank(message = "班次编码不能为空")
-        @Size(max = 32, message = "班次编码长度不能超过 32")
+        @NotBlank(message = "{validation.oa.shift.code-required}")
+        @Size(max = 32, message = "{validation.oa.shift.code-size}")
         private String code;
 
-        @NotBlank(message = "班次名称不能为空")
-        @Size(max = 64, message = "班次名称长度不能超过 64")
+        @NotBlank(message = "{validation.oa.shift.name-required}")
+        @Size(max = 64, message = "{validation.oa.shift.name-size}")
         private String name;
 
-        @NotNull(message = "上班时间不能为空")
+        @NotNull(message = "{validation.oa.shift.work-start-required}")
         private LocalTime workStart;
 
-        @NotNull(message = "下班时间不能为空")
+        @NotNull(message = "{validation.oa.shift.work-end-required}")
         private LocalTime workEnd;
 
         private Integer flexMinutes;
@@ -134,7 +134,7 @@ public final class AttendanceCommands {
 
         private Integer enabled;
 
-        @Size(max = 255, message = "备注长度不能超过 255")
+        @Size(max = 255, message = "{validation.oa.shift.remark-size}")
         private String remark;
     }
 
@@ -144,12 +144,12 @@ public final class AttendanceCommands {
     @Data
     public static class RuleSaveCommand {
 
-        @NotBlank(message = "规则编码不能为空")
-        @Size(max = 32, message = "规则编码长度不能超过 32")
+        @NotBlank(message = "{validation.oa.rule.code-required}")
+        @Size(max = 32, message = "{validation.oa.rule.code-size}")
         private String code;
 
-        @NotBlank(message = "规则名称不能为空")
-        @Size(max = 64, message = "规则名称长度不能超过 64")
+        @NotBlank(message = "{validation.oa.rule.name-required}")
+        @Size(max = 64, message = "{validation.oa.rule.name-size}")
         private String name;
 
         private Integer allowExternal;
@@ -164,7 +164,7 @@ public final class AttendanceCommands {
 
         private Integer enabled;
 
-        @Size(max = 255, message = "备注长度不能超过 255")
+        @Size(max = 255, message = "{validation.oa.rule.remark-size}")
         private String remark;
     }
 
@@ -174,25 +174,25 @@ public final class AttendanceCommands {
     @Data
     public static class LocationSaveCommand {
 
-        @NotBlank(message = "地点编码不能为空")
-        @Size(max = 32, message = "地点编码长度不能超过 32")
+        @NotBlank(message = "{validation.oa.location.code-required}")
+        @Size(max = 32, message = "{validation.oa.location.code-size}")
         private String code;
 
-        @NotBlank(message = "地点名称不能为空")
-        @Size(max = 64, message = "地点名称长度不能超过 64")
+        @NotBlank(message = "{validation.oa.location.name-required}")
+        @Size(max = 64, message = "{validation.oa.location.name-size}")
         private String name;
 
-        @NotNull(message = "纬度不能为空")
+        @NotNull(message = "{validation.oa.location.latitude-required}")
         private BigDecimal latitude;
 
-        @NotNull(message = "经度不能为空")
+        @NotNull(message = "{validation.oa.location.longitude-required}")
         private BigDecimal longitude;
 
         private Integer radiusMeters;
 
         private Integer enabled;
 
-        @Size(max = 255, message = "备注长度不能超过 255")
+        @Size(max = 255, message = "{validation.oa.location.remark-size}")
         private String remark;
     }
 
@@ -202,23 +202,23 @@ public final class AttendanceCommands {
     @Data
     public static class DeviceSaveCommand {
 
-        @NotBlank(message = "设备编码不能为空")
-        @Size(max = 64, message = "设备编码长度不能超过 64")
+        @NotBlank(message = "{validation.oa.device.code-required}")
+        @Size(max = 64, message = "{validation.oa.device.code-size}")
         private String code;
 
-        @NotBlank(message = "设备名称不能为空")
-        @Size(max = 64, message = "设备名称长度不能超过 64")
+        @NotBlank(message = "{validation.oa.device.name-required}")
+        @Size(max = 64, message = "{validation.oa.device.name-size}")
         private String name;
 
-        @NotBlank(message = "设备类型不能为空")
-        @Size(max = 64, message = "设备类型长度不能超过 64")
+        @NotBlank(message = "{validation.oa.device.device-type-required}")
+        @Size(max = 64, message = "{validation.oa.device.device-type-size}")
         private String deviceType;
 
         private Long locationId;
 
         private Integer enabled;
 
-        @Size(max = 255, message = "备注长度不能超过 255")
+        @Size(max = 255, message = "{validation.oa.device.remark-size}")
         private String remark;
     }
 
@@ -228,19 +228,19 @@ public final class AttendanceCommands {
     @Data
     public static class CorrectionSaveCommand {
 
-        @NotNull(message = "补卡日期不能为空")
+        @NotNull(message = "{validation.oa.correction.work-date-required}")
         private LocalDate workDate;
 
-        @NotNull(message = "补卡时间不能为空")
+        @NotNull(message = "{validation.oa.correction.punch-time-required}")
         private LocalDateTime punchTime;
 
-        @NotBlank(message = "补卡类型不能为空")
+        @NotBlank(message = "{validation.oa.correction.punch-type-required}")
         private String punchType;
 
-        @Size(max = 512, message = "补卡原因长度不能超过 512")
+        @Size(max = 512, message = "{validation.oa.correction.reason-size}")
         private String reason;
 
-        @Size(max = 64, message = "姓名长度不能超过 64")
+        @Size(max = 64, message = "{validation.oa.correction.user-name-size}")
         private String userName;
     }
 
@@ -250,10 +250,10 @@ public final class AttendanceCommands {
     @Data
     public static class CorrectionStatusCommand {
 
-        @NotBlank(message = "状态不能为空")
+        @NotBlank(message = "{validation.oa.correction-status.status-required}")
         private String status;
 
-        @Size(max = 255, message = "备注长度不能超过 255")
+        @Size(max = 255, message = "{validation.oa.correction-status.remark-size}")
         private String remark;
     }
 
@@ -263,10 +263,10 @@ public final class AttendanceCommands {
     @Data
     public static class ExceptionHandleCommand {
 
-        @NotBlank(message = "状态不能为空")
+        @NotBlank(message = "{validation.oa.exception-handle.status-required}")
         private String status;
 
-        @Size(max = 255, message = "备注长度不能超过 255")
+        @Size(max = 255, message = "{validation.oa.exception-handle.remark-size}")
         private String remark;
     }
 
@@ -276,10 +276,10 @@ public final class AttendanceCommands {
     @Data
     public static class RecalculateCommand {
 
-        @NotNull(message = "起始日期不能为空")
+        @NotNull(message = "{validation.oa.recalculate.date-from-required}")
         private LocalDate dateFrom;
 
-        @NotNull(message = "结束日期不能为空")
+        @NotNull(message = "{validation.oa.recalculate.date-to-required}")
         private LocalDate dateTo;
 
         /** 指定用户，为空时重算全部在册成员 */

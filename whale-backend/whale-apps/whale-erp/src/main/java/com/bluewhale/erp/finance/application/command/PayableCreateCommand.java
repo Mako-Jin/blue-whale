@@ -15,7 +15,7 @@ import java.time.LocalDate;
 public class PayableCreateCommand {
 
     /** 供应商 ID */
-    @NotNull(message = "供应商不能为空")
+    @NotNull(message = "{validation.erp.payable.supplier-id-required}")
     private Long supplierId;
 
     /** 供应商名称快照 */
@@ -25,15 +25,15 @@ public class PayableCreateCommand {
     private String docNo;
 
     /** 单据日期 */
-    @NotNull(message = "单据日期不能为空")
+    @NotNull(message = "{validation.erp.payable.doc-date-required}")
     private LocalDate docDate;
 
     /** 到期日 */
-    @NotNull(message = "到期日不能为空")
+    @NotNull(message = "{validation.erp.payable.due-date-required}")
     private LocalDate dueDate;
 
     /** 应付金额 */
-    @NotNull(message = "应付金额不能为空")
+    @NotNull(message = "{validation.erp.payable.amount-required}")
     private BigDecimal amount;
 
     /** 币种 */

@@ -16,6 +16,6 @@ public class ConfigItemRollbackRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 回滚目标版本号（该版本的取值将作为最新值，版本号继续 +1） */
-    @NotNull(message = "目标版本号不能为空")
+    @NotNull(message = "{validation.config.config-item-rollback.target-version-required}")
     private Integer targetVersion;
 }

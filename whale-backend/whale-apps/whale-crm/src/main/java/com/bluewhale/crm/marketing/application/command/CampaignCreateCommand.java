@@ -16,7 +16,7 @@ import java.time.LocalDate;
 public class CampaignCreateCommand {
 
     /** 活动名称 */
-    @NotBlank(message = "活动名称不能为空")
+    @NotBlank(message = "{validation.crm.campaign.campaign-name-required}")
     private String campaignName;
 
     /** 活动类型 */
@@ -26,7 +26,7 @@ public class CampaignCreateCommand {
     private String channel;
 
     /** 预算 */
-    @DecimalMin(value = "0", message = "预算不得为负数")
+    @DecimalMin(value = "0", message = "{validation.crm.campaign.budget-min}")
     private BigDecimal budget;
 
     /** 计划开始日期 */

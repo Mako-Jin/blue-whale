@@ -18,28 +18,28 @@ public class ProjectSaveRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 项目键（租户内唯一，大写字母开头） */
-    @NotBlank(message = "项目键不能为空")
-    @Size(max = 16, message = "项目键长度不能超过 16")
+    @NotBlank(message = "{validation.pm.project.key-required}")
+    @Size(max = 16, message = "{validation.pm.project.key-size}")
     private String key;
 
     /** 项目名称 */
-    @NotBlank(message = "项目名称不能为空")
-    @Size(max = 64, message = "项目名称长度不能超过 64")
+    @NotBlank(message = "{validation.pm.project.name-required}")
+    @Size(max = 64, message = "{validation.pm.project.name-size}")
     private String name;
 
     /** 项目类型：SCRUM / KANBAN */
-    @NotBlank(message = "项目类型不能为空")
-    @Pattern(regexp = "SCRUM|KANBAN", message = "项目类型仅支持 SCRUM / KANBAN")
+    @NotBlank(message = "{validation.pm.project.project-type-required}")
+    @Pattern(regexp = "SCRUM|KANBAN", message = "{validation.pm.project.project-type-pattern}")
     private String projectType;
 
     /** 可见性：PRIVATE / TEAM */
-    @Pattern(regexp = "PRIVATE|TEAM", message = "可见性仅支持 PRIVATE / TEAM")
+    @Pattern(regexp = "PRIVATE|TEAM", message = "{validation.pm.project.visibility-pattern}")
     private String visibility;
 
     /** 项目负责人用户ID */
     private Long leadUserId;
 
     /** 项目描述 */
-    @Size(max = 512, message = "项目描述长度不能超过 512")
+    @Size(max = 512, message = "{validation.pm.project.description-size}")
     private String description;
 }

@@ -16,16 +16,16 @@ import java.time.LocalDate;
 public class SprintSaveRequest {
 
     /** 项目ID（仅创建时使用） */
-    @NotNull(message = "项目ID不能为空")
+    @NotNull(message = "{validation.pm.sprint.project-id-required}")
     private Long projectId;
 
     /** 迭代名称 */
-    @NotBlank(message = "迭代名称不能为空")
-    @Size(max = 64, message = "迭代名称长度不能超过 64")
+    @NotBlank(message = "{validation.pm.sprint.name-required}")
+    @Size(max = 64, message = "{validation.pm.sprint.name-size}")
     private String name;
 
     /** 迭代目标 */
-    @Size(max = 512, message = "迭代目标长度不能超过 512")
+    @Size(max = 512, message = "{validation.pm.sprint.goal-size}")
     private String goal;
 
     /** 开始日期 */

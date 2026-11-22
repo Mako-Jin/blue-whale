@@ -21,12 +21,12 @@ public class PageQuery implements Serializable {
     public static final long MAX_PAGE_SIZE = 200L;
 
     /** 当前页码（从 1 开始） */
-    @Min(value = 1, message = "页码不能小于 1")
+    @Min(value = 1, message = "{validation.common.page.current-min}")
     private long current = 1;
 
     /** 每页条数（1..200） */
-    @Min(value = 1, message = "每页条数不能小于 1")
-    @Max(value = MAX_PAGE_SIZE, message = "每页条数不能超过 200")
+    @Min(value = 1, message = "{validation.common.page.size-min}")
+    @Max(value = MAX_PAGE_SIZE, message = "{validation.common.page.size-max}")
     private long size = 10;
 
     /**

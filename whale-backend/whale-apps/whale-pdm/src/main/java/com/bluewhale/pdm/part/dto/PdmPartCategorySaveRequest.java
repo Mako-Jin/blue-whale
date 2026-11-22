@@ -20,19 +20,19 @@ public class PdmPartCategorySaveRequest implements Serializable {
     private Long parentId;
 
     /** 分类编码（租户内唯一） */
-    @NotBlank(message = "分类编码不能为空")
-    @Size(max = 64, message = "分类编码长度不能超过 64")
+    @NotBlank(message = "{validation.pdm.pdm-part-category.code-required}")
+    @Size(max = 64, message = "{validation.pdm.pdm-part-category.code-size}")
     private String code;
 
     /** 分类名称 */
-    @NotBlank(message = "分类名称不能为空")
-    @Size(max = 128, message = "分类名称长度不能超过 128")
+    @NotBlank(message = "{validation.pdm.pdm-part-category.name-required}")
+    @Size(max = 128, message = "{validation.pdm.pdm-part-category.name-size}")
     private String name;
 
     /** 排序号 */
     private Integer sortNo;
 
     /** 备注 */
-    @Size(max = 255, message = "备注长度不能超过 255")
+    @Size(max = 255, message = "{validation.pdm.pdm-part-category.remark-size}")
     private String remark;
 }

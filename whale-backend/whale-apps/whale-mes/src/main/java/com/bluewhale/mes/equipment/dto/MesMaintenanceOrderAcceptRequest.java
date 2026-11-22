@@ -13,12 +13,12 @@ import lombok.Data;
 public class MesMaintenanceOrderAcceptRequest {
 
     /** 验收人 */
-    @NotBlank(message = "验收人不能为空")
-    @Size(max = 64, message = "验收人长度不能超过 64")
+    @NotBlank(message = "{validation.mes.mes-maintenance-order-accept.accepted-by-required}")
+    @Size(max = 64, message = "{validation.mes.mes-maintenance-order-accept.accepted-by-size}")
     private String acceptedBy;
 
     /** 验收结论 */
-    @NotBlank(message = "验收结论不能为空")
-    @Size(max = 255, message = "验收结论长度不能超过 255")
+    @NotBlank(message = "{validation.mes.mes-maintenance-order-accept.conclusion-required}")
+    @Size(max = 255, message = "{validation.mes.mes-maintenance-order-accept.conclusion-size}")
     private String conclusion;
 }

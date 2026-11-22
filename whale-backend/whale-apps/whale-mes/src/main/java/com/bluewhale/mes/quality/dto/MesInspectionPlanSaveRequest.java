@@ -22,55 +22,55 @@ public class MesInspectionPlanSaveRequest {
     private Long id;
 
     /** 计划编号（空则自动生成） */
-    @Size(max = 64, message = "计划编号长度不能超过 64")
+    @Size(max = 64, message = "{validation.mes.mes-inspection-plan.plan-no-size}")
     private String planNo;
 
     /** 计划名称 */
-    @NotBlank(message = "计划名称不能为空")
-    @Size(max = 128, message = "计划名称长度不能超过 128")
+    @NotBlank(message = "{validation.mes.mes-inspection-plan.plan-name-required}")
+    @Size(max = 128, message = "{validation.mes.mes-inspection-plan.plan-name-size}")
     private String planName;
 
     /** 检验类型：FIRST_ARTICLE / IPQC */
-    @NotBlank(message = "检验类型不能为空")
-    @Pattern(regexp = "FIRST_ARTICLE|IPQC", message = "检验类型仅支持 FIRST_ARTICLE / IPQC")
+    @NotBlank(message = "{validation.mes.mes-inspection-plan.inspection-type-required}")
+    @Pattern(regexp = "FIRST_ARTICLE|IPQC", message = "{validation.mes.mes-inspection-plan.inspection-type-pattern}")
     private String inspectionType;
 
     /** 适用物料编码 */
-    @Size(max = 64, message = "物料编码长度不能超过 64")
+    @Size(max = 64, message = "{validation.mes.mes-inspection-plan.item-code-size}")
     private String itemCode;
 
     /** 适用工序编码 */
-    @Size(max = 64, message = "工序编码长度不能超过 64")
+    @Size(max = 64, message = "{validation.mes.mes-inspection-plan.operation-code-size}")
     private String operationCode;
 
     /** 适用产线 ID */
     private Long lineId;
 
     /** 适用产线编码 */
-    @Size(max = 64, message = "产线编码长度不能超过 64")
+    @Size(max = 64, message = "{validation.mes.mes-inspection-plan.line-code-size}")
     private String lineCode;
 
     /** 抽样数量 */
-    @Min(value = 1, message = "抽样数量必须大于 0")
+    @Min(value = 1, message = "{validation.mes.mes-inspection-plan.sample-size-min}")
     private Integer sampleSize;
 
     /** 巡检频次（分钟） */
-    @Min(value = 0, message = "巡检频次不能为负")
+    @Min(value = 0, message = "{validation.mes.mes-inspection-plan.frequency-minutes-min}")
     private Integer frequencyMinutes;
 
     /** 检验 FAILED 是否自动生成 NCR：0 否 / 1 是 */
     private Integer autoNcr;
 
     /** 状态：ENABLED / DISABLED */
-    @Pattern(regexp = "ENABLED|DISABLED", message = "状态仅支持 ENABLED / DISABLED")
+    @Pattern(regexp = "ENABLED|DISABLED", message = "{validation.mes.mes-inspection-plan.status-pattern}")
     private String status;
 
     /** 备注 */
-    @Size(max = 255, message = "备注长度不能超过 255")
+    @Size(max = 255, message = "{validation.mes.mes-inspection-plan.remark-size}")
     private String remark;
 
     /** 检验项列表 */
     @Valid
-    @NotEmpty(message = "检验计划至少包含一个检验项")
+    @NotEmpty(message = "{validation.mes.mes-inspection-plan.items-required}")
     private List<MesInspectionPlanItemRequest> items;
 }

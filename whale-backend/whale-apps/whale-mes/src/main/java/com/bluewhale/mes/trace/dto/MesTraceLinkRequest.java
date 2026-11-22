@@ -17,28 +17,28 @@ import java.math.BigDecimal;
 public class MesTraceLinkRequest {
 
     /** 上级批次号（被消耗） */
-    @NotBlank(message = "上级批次号不能为空")
-    @Size(max = 64, message = "上级批次号长度不能超过 64")
+    @NotBlank(message = "{validation.mes.mes-trace-link.parent-batch-no-required}")
+    @Size(max = 64, message = "{validation.mes.mes-trace-link.parent-batch-no-size}")
     private String parentBatchNo;
 
     /** 下级批次号（产出） */
-    @NotBlank(message = "下级批次号不能为空")
-    @Size(max = 64, message = "下级批次号长度不能超过 64")
+    @NotBlank(message = "{validation.mes.mes-trace-link.child-batch-no-required}")
+    @Size(max = 64, message = "{validation.mes.mes-trace-link.child-batch-no-size}")
     private String childBatchNo;
 
     /** 消耗数量 */
-    @NotNull(message = "消耗数量不能为空")
-    @DecimalMin(value = "0.0001", message = "消耗数量必须大于 0")
+    @NotNull(message = "{validation.mes.mes-trace-link.quantity-required}")
+    @DecimalMin(value = "0.0001", message = "{validation.mes.mes-trace-link.quantity-min}")
     private BigDecimal quantity;
 
     /** 计量单位 */
-    @Size(max = 16, message = "计量单位长度不能超过 16")
+    @Size(max = 16, message = "{validation.mes.mes-trace-link.uom-size}")
     private String uom;
 
     /** 关联工单 ID */
     private Long workOrderId;
 
     /** 备注 */
-    @Size(max = 255, message = "备注长度不能超过 255")
+    @Size(max = 255, message = "{validation.mes.mes-trace-link.remark-size}")
     private String remark;
 }

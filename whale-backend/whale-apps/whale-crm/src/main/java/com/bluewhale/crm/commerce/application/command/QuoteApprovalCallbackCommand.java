@@ -13,14 +13,14 @@ import lombok.Data;
 public class QuoteApprovalCallbackCommand {
 
     /** 流程实例 ID */
-    @NotNull(message = "流程实例不能为空")
+    @NotNull(message = "{validation.crm.quote-approval-callback.instance-id-required}")
     private Long instanceId;
 
     /** 工作流状态：1 通过 / 2 驳回 / 3 撤销 */
-    @NotNull(message = "审批状态不能为空")
+    @NotNull(message = "{validation.crm.quote-approval-callback.status-required}")
     private Integer status;
 
     /** 审批意见 */
-    @Size(max = 500, message = "审批意见最多 500 个字符")
+    @Size(max = 500, message = "{validation.crm.quote-approval-callback.comment-size}")
     private String comment;
 }

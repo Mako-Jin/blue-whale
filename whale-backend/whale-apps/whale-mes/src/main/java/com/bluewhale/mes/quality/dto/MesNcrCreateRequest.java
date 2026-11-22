@@ -16,52 +16,52 @@ import java.math.BigDecimal;
 public class MesNcrCreateRequest {
 
     /** 来源：INSPECTION / REPORT / MANUAL */
-    @Pattern(regexp = "INSPECTION|REPORT|MANUAL", message = "来源仅支持 INSPECTION / REPORT / MANUAL")
+    @Pattern(regexp = "INSPECTION|REPORT|MANUAL", message = "{validation.mes.mes-ncr.source-type-pattern}")
     private String sourceType;
 
     /** 工单 ID */
     private Long workOrderId;
 
     /** 工单编码 */
-    @Size(max = 64, message = "工单编码长度不能超过 64")
+    @Size(max = 64, message = "{validation.mes.mes-ncr.work-order-code-size}")
     private String workOrderCode;
 
     /** 工序任务 ID */
     private Long execTaskId;
 
     /** 工序任务号 */
-    @Size(max = 64, message = "工序任务号长度不能超过 64")
+    @Size(max = 64, message = "{validation.mes.mes-ncr.exec-task-no-size}")
     private String execTaskNo;
 
     /** 物料编码 */
-    @Size(max = 64, message = "物料编码长度不能超过 64")
+    @Size(max = 64, message = "{validation.mes.mes-ncr.item-code-size}")
     private String itemCode;
 
     /** 物料名称 */
-    @Size(max = 128, message = "物料名称长度不能超过 128")
+    @Size(max = 128, message = "{validation.mes.mes-ncr.item-name-size}")
     private String itemName;
 
     /** 批次号 */
-    @Size(max = 64, message = "批次号长度不能超过 64")
+    @Size(max = 64, message = "{validation.mes.mes-ncr.batch-no-size}")
     private String batchNo;
 
     /** 工序编码 */
-    @Size(max = 64, message = "工序编码长度不能超过 64")
+    @Size(max = 64, message = "{validation.mes.mes-ncr.operation-code-size}")
     private String operationCode;
 
     /** 缺陷代码 */
-    @Size(max = 64, message = "缺陷代码长度不能超过 64")
+    @Size(max = 64, message = "{validation.mes.mes-ncr.defect-code-size}")
     private String defectCode;
 
     /** 缺陷名称 */
-    @Size(max = 128, message = "缺陷名称长度不能超过 128")
+    @Size(max = 128, message = "{validation.mes.mes-ncr.defect-name-size}")
     private String defectName;
 
     /** 不良数量 */
-    @DecimalMin(value = "0.0001", message = "不良数量必须大于 0")
+    @DecimalMin(value = "0.0001", message = "{validation.mes.mes-ncr.defect-quantity-min}")
     private BigDecimal defectQuantity;
 
     /** 备注 */
-    @Size(max = 255, message = "备注长度不能超过 255")
+    @Size(max = 255, message = "{validation.mes.mes-ncr.remark-size}")
     private String remark;
 }

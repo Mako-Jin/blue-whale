@@ -21,10 +21,10 @@ public class PdmPrcRouteSaveRequest implements Serializable {
     private Long partId;
 
     /** 路线编号（缺省按零件编码生成） */
-    @Size(max = 32, message = "路线编号长度不能超过 32")
+    @Size(max = 32, message = "{validation.pdm.pdm-prc-route.route-no-size}")
     private String routeNo;
 
     /** 备注 */
-    @Size(max = 255, message = "备注长度不能超过 255")
+    @Size(max = 255, message = "{validation.pdm.pdm-prc-route.remark-size}")
     private String remark;
 }

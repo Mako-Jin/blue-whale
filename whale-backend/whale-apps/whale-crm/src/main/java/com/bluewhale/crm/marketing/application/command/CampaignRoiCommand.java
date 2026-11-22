@@ -15,14 +15,14 @@ import java.math.BigDecimal;
 public class CampaignRoiCommand {
 
     /** 归因线索数量 */
-    @Min(value = 0, message = "归因线索数量不得为负数")
+    @Min(value = 0, message = "{validation.crm.campaign-roi.attributed-lead-count-min}")
     private Integer attributedLeadCount;
 
     /** 归因赢单金额 */
-    @DecimalMin(value = "0", message = "归因赢单金额不得为负数")
+    @DecimalMin(value = "0", message = "{validation.crm.campaign-roi.attributed-won-amount-min}")
     private BigDecimal attributedWonAmount;
 
     /** 实际费用 */
-    @DecimalMin(value = "0", message = "实际费用不得为负数")
+    @DecimalMin(value = "0", message = "{validation.crm.campaign-roi.actual-cost-min}")
     private BigDecimal actualCost;
 }

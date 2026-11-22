@@ -20,11 +20,11 @@ import java.util.List;
 public class PaperGenerateCommand {
 
     /** 抽题种子（为空则用试卷编码） */
-    @Size(max = 64, message = "抽题种子最长 64 字符")
+    @Size(max = 64, message = "{validation.lms.paper-generate.seed-size}")
     private String seed;
 
     /** 抽题规则（多条规则按顺序执行，跨规则不重复取同一题） */
     @Valid
-    @NotEmpty(message = "抽题规则不能为空")
+    @NotEmpty(message = "{validation.lms.paper-generate.rules-required}")
     private List<PaperRuleCommand> rules = new ArrayList<>();
 }

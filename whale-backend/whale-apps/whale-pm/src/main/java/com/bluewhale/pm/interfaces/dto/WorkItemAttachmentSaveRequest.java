@@ -18,11 +18,11 @@ public class WorkItemAttachmentSaveRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 文件ID */
-    @NotNull(message = "文件ID不能为空")
+    @NotNull(message = "{validation.pm.work-item-attachment.file-id-required}")
     private Long fileId;
 
     /** 文件名 */
-    @NotBlank(message = "文件名不能为空")
-    @Size(max = 255, message = "文件名长度不能超过 255")
+    @NotBlank(message = "{validation.pm.work-item-attachment.file-name-required}")
+    @Size(max = 255, message = "{validation.pm.work-item-attachment.file-name-size}")
     private String fileName;
 }

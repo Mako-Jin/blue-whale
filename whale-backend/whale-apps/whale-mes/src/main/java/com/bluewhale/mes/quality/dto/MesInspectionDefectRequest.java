@@ -17,23 +17,23 @@ import java.math.BigDecimal;
 public class MesInspectionDefectRequest {
 
     /** 缺陷代码 */
-    @NotBlank(message = "缺陷代码不能为空")
-    @Size(max = 64, message = "缺陷代码长度不能超过 64")
+    @NotBlank(message = "{validation.mes.mes-inspection-defect.defect-code-required}")
+    @Size(max = 64, message = "{validation.mes.mes-inspection-defect.defect-code-size}")
     private String defectCode;
 
     /** 缺陷名称 */
-    @Size(max = 128, message = "缺陷名称长度不能超过 128")
+    @Size(max = 128, message = "{validation.mes.mes-inspection-defect.defect-name-size}")
     private String defectName;
 
     /** 不良数量 */
-    @DecimalMin(value = "0.0001", message = "不良数量必须大于 0")
+    @DecimalMin(value = "0.0001", message = "{validation.mes.mes-inspection-defect.quantity-min}")
     private BigDecimal quantity;
 
     /** 严重度：MINOR / MAJOR / CRITICAL */
-    @Pattern(regexp = "MINOR|MAJOR|CRITICAL", message = "严重度仅支持 MINOR / MAJOR / CRITICAL")
+    @Pattern(regexp = "MINOR|MAJOR|CRITICAL", message = "{validation.mes.mes-inspection-defect.severity-pattern}")
     private String severity;
 
     /** 不良描述 */
-    @Size(max = 255, message = "不良描述长度不能超过 255")
+    @Size(max = 255, message = "{validation.mes.mes-inspection-defect.description-size}")
     private String description;
 }

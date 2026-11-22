@@ -13,12 +13,12 @@ import lombok.Data;
 public class ProposalSaveCommand {
 
     /** 标题 */
-    @NotBlank(message = "提案标题不能为空")
-    @Size(max = 128, message = "提案标题不得超过 128 字符")
+    @NotBlank(message = "{validation.party.proposal.title-required}")
+    @Size(max = 128, message = "{validation.party.proposal.title-size}")
     private String title;
 
     /** 内容 */
-    @NotBlank(message = "提案内容不能为空")
-    @Size(max = 5000, message = "提案内容不得超过 5000 字符")
+    @NotBlank(message = "{validation.party.proposal.content-required}")
+    @Size(max = 5000, message = "{validation.party.proposal.content-size}")
     private String content;
 }

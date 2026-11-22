@@ -16,11 +16,11 @@ public class PdmClbReviewSaveRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 评审类型：DESIGN/PROTOTYPE/TRANSFER */
-    @NotBlank(message = "评审类型不能为空")
+    @NotBlank(message = "{validation.pdm.pdm-clb-review.review-type-required}")
     private String reviewType;
 
     /** 评审主题 */
-    @NotBlank(message = "评审主题不能为空")
+    @NotBlank(message = "{validation.pdm.pdm-clb-review.title-required}")
     private String title;
 
     /** whale-pm 项目ID */

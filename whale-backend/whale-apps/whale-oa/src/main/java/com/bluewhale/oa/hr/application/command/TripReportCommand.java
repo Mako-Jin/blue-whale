@@ -17,7 +17,7 @@ public class TripReportCommand implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 出差报告内容 */
-    @NotBlank(message = "出差报告内容不能为空")
-    @Size(max = 2048, message = "出差报告内容长度不能超过 2048")
+    @NotBlank(message = "{validation.oa.trip-report.content-required}")
+    @Size(max = 2048, message = "{validation.oa.trip-report.content-size}")
     private String content;
 }
