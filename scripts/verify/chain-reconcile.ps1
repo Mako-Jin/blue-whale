@@ -39,7 +39,7 @@ $script:token = $login.data.accessToken
 $script:h = @{ Authorization = "Bearer $($script:token)" }
 
 # 2) 看板数据：降级即失败（对账前提是看板与数据库同源可用）
-$board = Invoke-SmokeApi -Method Get -Path "/scene/board/manufacturing?limit=$Limit"
+$board = Invoke-SmokeApi -Method Get -Path "/scene/v1/board/manufacturing?limit=$Limit"
 Check '2.board' $board
 Assert '2a.notDegraded' (-not $board.data.degraded) "message=$($board.data.message)"
 $boardOrders = @($board.data.orders)

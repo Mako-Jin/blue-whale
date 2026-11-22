@@ -21,7 +21,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/scene")
+@RequestMapping(path = "/scene/v{version}", version = "1")
 @RequiredArgsConstructor
 public class SceneNavigationController {
 

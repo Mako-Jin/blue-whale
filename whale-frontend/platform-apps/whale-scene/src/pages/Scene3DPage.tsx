@@ -1,9 +1,9 @@
 // 3D 城池视图（M1：接入制造看板实时数据）
 //
 // - 入口：2D 导航页「切换到 3D」按钮
-// - 场景选择：可选项来自 `/scene/navigation`（当前用户可见的已发布场景）
-// - 个人设置：选择结果写入 `/scene/preference`，下次进入优先恢复
-// - 制造数据：`/scene/board/manufacturing`（ERP 生产订单 / 库存余额同源），
+// - 场景选择：可选项来自 `/scene/v1/navigation`（当前用户可见的已发布场景）
+// - 个人设置：选择结果写入 `/scene/v1/preference`，下次进入优先恢复
+// - 制造数据：`/scene/v1/board/manufacturing`（ERP 生产订单 / 库存余额同源），
 //   数据源不可用时显式降级提示，不渲染任何假数量
 
 import { Alert, App, Button, Card, Empty, Select, Space, Spin, Table, Tag, Typography } from 'antd';

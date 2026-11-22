@@ -34,7 +34,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/assistant/sessions")
+@RequestMapping(path = "/assistant/v{version}/sessions", version = "1")
 @RequiredArgsConstructor
 public class AsstSessionController {
 

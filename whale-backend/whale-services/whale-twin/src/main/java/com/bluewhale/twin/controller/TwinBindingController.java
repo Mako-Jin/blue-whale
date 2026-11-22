@@ -26,7 +26,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/twin/scenes/{sceneId}/bindings")
+@RequestMapping(path = "/twin/v{version}/scenes/{sceneId}/bindings", version = "1")
 @RequiredArgsConstructor
 public class TwinBindingController {
 

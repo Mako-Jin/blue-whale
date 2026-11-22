@@ -21,7 +21,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/twin/scenes/{sceneId}/snapshots")
+@RequestMapping(path = "/twin/v{version}/scenes/{sceneId}/snapshots", version = "1")
 @RequiredArgsConstructor
 public class TwinSnapshotController {
 

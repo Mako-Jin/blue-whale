@@ -29,7 +29,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/archive/category")
+@RequestMapping(path = "/archive/v{version}/category", version = "1")
 @RequiredArgsConstructor
 public class ArchiveCategoryController {
 

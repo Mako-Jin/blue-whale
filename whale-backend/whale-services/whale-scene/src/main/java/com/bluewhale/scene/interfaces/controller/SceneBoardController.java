@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/scene/board")
+@RequestMapping(path = "/scene/v{version}/board", version = "1")
 @RequiredArgsConstructor
 public class SceneBoardController {
 

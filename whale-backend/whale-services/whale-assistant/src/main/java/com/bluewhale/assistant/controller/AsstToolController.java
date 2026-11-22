@@ -22,7 +22,7 @@ import java.util.List;
  */
 @Slf4j
 @RestController
-@RequestMapping("/assistant/tools")
+@RequestMapping(path = "/assistant/v{version}/tools", version = "1")
 @RequiredArgsConstructor
 public class AsstToolController {
 

@@ -145,7 +145,7 @@ export async function streamChat(
   signal?: AbortSignal,
 ): Promise<void> {
   await streamSse(
-    '/agent/chat',
+    '/agent/v1/chat',
     request,
     (event, data) => {
       switch (event) {
@@ -178,30 +178,30 @@ export async function streamChat(
 
 /** 我的会话分页 */
 export function pageConversations(current = 1, size = 50): Promise<PageResult<Conversation>> {
-  return get<PageResult<Conversation>>('/agent/conversation/page', { current, size });
+  return get<PageResult<Conversation>>('/agent/v1/conversation/page', { current, size });
 }
 
 /** 会话消息（仅本人） */
 export function listMessages(conversationId: string): Promise<Message[]> {
-  return get<Message[]>(`/agent/conversation/${conversationId}/messages`);
+  return get<Message[]>(`/agent/v1/conversation/${conversationId}/messages`);
 }
 
 /** 删除会话（仅本人） */
 export function deleteConversation(conversationId: string): Promise<void> {
-  return del<void>(`/agent/conversation/${conversationId}`);
+  return del<void>(`/agent/v1/conversation/${conversationId}`);
 }
 
 /** 回答评价：1 有用 / -1 无用 */
 export function sendFeedback(messageId: string, rating: 1 | -1, comment?: string): Promise<void> {
-  return post<void>('/agent/feedback', { messageId, rating, comment });
+  return post<void>('/agent/v1/feedback', { messageId, rating, comment });
 }
 
 /** 索引状态（登录即可） */
 export function getIndexStatus(): Promise<IndexStatus> {
-  return get<IndexStatus>('/agent/index/status');
+  return get<IndexStatus>('/agent/v1/index/status');
 }
 
 /** 触发全量重建（需 sys:agent:index:rebuild）；返回是否受理 */
 export function rebuildIndex(): Promise<boolean> {
-  return post<boolean>('/agent/index/rebuild');
+  return post<boolean>('/agent/v1/index/rebuild');
 }

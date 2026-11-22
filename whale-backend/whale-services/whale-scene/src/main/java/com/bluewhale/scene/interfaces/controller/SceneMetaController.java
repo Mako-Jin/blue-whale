@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/scene")
+@RequestMapping(path = "/scene/v{version}", version = "1")
 @RequiredArgsConstructor
 public class SceneMetaController {
 

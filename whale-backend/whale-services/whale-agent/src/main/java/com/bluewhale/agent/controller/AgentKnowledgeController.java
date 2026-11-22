@@ -32,7 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/agent/knowledge")
+@RequestMapping(path = "/agent/v{version}/knowledge", version = "1")
 @RequiredArgsConstructor
 public class AgentKnowledgeController {
 

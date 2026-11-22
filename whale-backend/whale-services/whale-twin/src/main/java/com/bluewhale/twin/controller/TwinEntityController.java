@@ -26,7 +26,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/twin/scenes/{sceneId}/entities")
+@RequestMapping(path = "/twin/v{version}/scenes/{sceneId}/entities", version = "1")
 @RequiredArgsConstructor
 public class TwinEntityController {
 

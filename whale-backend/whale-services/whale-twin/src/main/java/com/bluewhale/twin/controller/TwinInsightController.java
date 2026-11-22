@@ -28,7 +28,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/twin/scenes")
+@RequestMapping(path = "/twin/v{version}/scenes", version = "1")
 @RequiredArgsConstructor
 public class TwinInsightController {
 

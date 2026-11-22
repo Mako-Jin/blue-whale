@@ -70,7 +70,7 @@ export default function Assistant() {
       setItems((prev) => [...prev, { role: 'assistant', content: '' }]);
       let closed = false;
       await postStream(
-        `/assistant/sessions/${currentSessionId}/stream`,
+        `/assistant/v1/sessions/${currentSessionId}/stream`,
         { question },
         (event, data) => {
           if (event === 'delta') {

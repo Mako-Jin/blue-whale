@@ -11,7 +11,7 @@
 //     hotspot 青 / alarm 红），热点带 linkUrl 时点击 Sprite 新窗口打开。
 //
 // 实时联动（M2）：
-//   - 订阅 /twin/scenes/{id}/stream（fetch 读流手工分帧，EventSource 带不了头）；
+//   - 订阅 /twin/v1/scenes/{id}/stream（fetch 读流手工分帧，EventSource 带不了头）；
 //   - binding 事件按 propertyMap 的 thresholds 驱动实体 emissive 变色：
 //     离线灰 / 低于 t1 绿 / t1~t2 橙 / 高于 t2 红 / 在线无阈值青色底光；
 //   - 6.07：thresholds 键可带 confirmSeconds（越界持续确认）与 recoveryDelta
@@ -802,7 +802,7 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
       const snapshot = await bindingApi.state(sceneId);
       mergeStates(snapshot ?? []);
       await subscribeSceneStream(
-        `/twin/scenes/${sceneId}/stream`,
+        `/twin/v1/scenes/${sceneId}/stream`,
         (event, data) => {
           if (event === 'binding') {
             try {

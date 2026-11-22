@@ -29,7 +29,7 @@ import java.util.Map;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/agent")
+@RequestMapping(path = "/agent/v{version}", version = "1")
 @RequirePermission("sys:agent:chat")
 @RequiredArgsConstructor
 public class AgentOpsController {

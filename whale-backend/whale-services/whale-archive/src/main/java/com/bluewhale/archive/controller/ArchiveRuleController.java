@@ -29,7 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/archive/rule")
+@RequestMapping(path = "/archive/v{version}/rule", version = "1")
 @RequiredArgsConstructor
 public class ArchiveRuleController {
 

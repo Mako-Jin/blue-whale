@@ -52,7 +52,7 @@ export async function askDocAssistant(
   signal?: AbortSignal,
 ): Promise<void> {
   await streamSse(
-    '/agent/chat',
+    '/agent/v1/chat',
     { question, scope: 'doc_page' },
     (event, data) => {
       switch (event) {

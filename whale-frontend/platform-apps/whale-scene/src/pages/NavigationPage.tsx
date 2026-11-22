@@ -1,6 +1,6 @@
 // 城池导航：默认 2D 地图，可切换键盘友好的节点列表视图
 //
-// 数据来自 `/scene/navigation`（登录即可），服务端已按可见性过滤节点与入口；
+// 数据来自 `/scene/v1/navigation`（登录即可），服务端已按可见性过滤节点与入口；
 // 前端不缓存场景结构。顶部提供 3D 入口，3D 页按需加载 three.js。
 
 import { Alert, App, Button, Card, Empty, Radio, Select, Space, Spin, Tag, Typography } from 'antd';

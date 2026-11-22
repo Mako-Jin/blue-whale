@@ -22,7 +22,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/twin/alerts")
+@RequestMapping(path = "/twin/v{version}/alerts", version = "1")
 @RequiredArgsConstructor
 public class TwinAlertOverviewController {
 

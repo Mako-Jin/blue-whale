@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/agent/index")
+@RequestMapping(path = "/agent/v{version}/index", version = "1")
 @RequiredArgsConstructor
 public class AgentIndexController {
 

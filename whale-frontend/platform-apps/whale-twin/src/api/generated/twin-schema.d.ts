@@ -4,7 +4,7 @@
  */
 
 export interface paths {
-  '/twin/scenes/{sceneId}/markers/{id}': {
+  '/twin/v1/scenes/{sceneId}/markers/{id}': {
     parameters: {
       query?: never;
       header?: never;
@@ -20,7 +20,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/twin/scenes/{sceneId}/entities/{id}': {
+  '/twin/v1/scenes/{sceneId}/entities/{id}': {
     parameters: {
       query?: never;
       header?: never;
@@ -36,7 +36,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/twin/scenes/{sceneId}/bindings/{id}': {
+  '/twin/v1/scenes/{sceneId}/bindings/{id}': {
     parameters: {
       query?: never;
       header?: never;
@@ -52,7 +52,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/twin/scenes/{sceneId}/alert-notify': {
+  '/twin/v1/scenes/{sceneId}/alert-notify': {
     parameters: {
       query?: never;
       header?: never;
@@ -68,7 +68,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/twin/scenes/{id}': {
+  '/twin/v1/scenes/{id}': {
     parameters: {
       query?: never;
       header?: never;
@@ -84,7 +84,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/twin/scenes': {
+  '/twin/v1/scenes': {
     parameters: {
       query?: never;
       header?: never;
@@ -100,7 +100,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/twin/scenes/{sceneId}/snapshots/{id}/rollback': {
+  '/twin/v1/scenes/{sceneId}/snapshots/{id}/rollback': {
     parameters: {
       query?: never;
       header?: never;
@@ -116,7 +116,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/twin/scenes/{sceneId}/markers': {
+  '/twin/v1/scenes/{sceneId}/markers': {
     parameters: {
       query?: never;
       header?: never;
@@ -132,7 +132,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/twin/scenes/{sceneId}/entities': {
+  '/twin/v1/scenes/{sceneId}/entities': {
     parameters: {
       query?: never;
       header?: never;
@@ -148,7 +148,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/twin/scenes/{sceneId}/bindings': {
+  '/twin/v1/scenes/{sceneId}/bindings': {
     parameters: {
       query?: never;
       header?: never;
@@ -164,7 +164,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/twin/scenes/{sceneId}/alerts/{alertId}/ack': {
+  '/twin/v1/scenes/{sceneId}/alerts/{alertId}/ack': {
     parameters: {
       query?: never;
       header?: never;
@@ -180,7 +180,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/twin/scenes/{sceneId}/ai/insight': {
+  '/twin/v1/scenes/{sceneId}/ai/insight': {
     parameters: {
       query?: never;
       header?: never;
@@ -196,7 +196,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/twin/scenes/{id}/publish': {
+  '/twin/v1/scenes/{id}/publish': {
     parameters: {
       query?: never;
       header?: never;
@@ -212,7 +212,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/twin/scenes/{id}/disable': {
+  '/twin/v1/scenes/{id}/disable': {
     parameters: {
       query?: never;
       header?: never;
@@ -228,7 +228,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/twin/scenes/{sceneId}/stream': {
+  '/twin/v1/scenes/{sceneId}/stream': {
     parameters: {
       query?: never;
       header?: never;
@@ -244,7 +244,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/twin/scenes/{sceneId}/snapshots': {
+  '/twin/v1/scenes/{sceneId}/snapshots': {
     parameters: {
       query?: never;
       header?: never;
@@ -260,7 +260,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/twin/scenes/{sceneId}/snapshots/{id}': {
+  '/twin/v1/scenes/{sceneId}/snapshots/{id}': {
     parameters: {
       query?: never;
       header?: never;
@@ -276,7 +276,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/twin/scenes/{sceneId}/entities/tree': {
+  '/twin/v1/scenes/{sceneId}/entities/tree': {
     parameters: {
       query?: never;
       header?: never;
@@ -292,7 +292,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/twin/scenes/{sceneId}/bindings/state': {
+  '/twin/v1/scenes/{sceneId}/bindings/state': {
     parameters: {
       query?: never;
       header?: never;
@@ -308,7 +308,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/twin/scenes/{sceneId}/alerts': {
+  '/twin/v1/scenes/{sceneId}/alerts': {
     parameters: {
       query?: never;
       header?: never;
@@ -324,7 +324,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/twin/scenes/{sceneId}/alerts/unresolved': {
+  '/twin/v1/scenes/{sceneId}/alerts/unresolved': {
     parameters: {
       query?: never;
       header?: never;
@@ -340,7 +340,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/twin/scenes/{sceneId}/alert-dispatches': {
+  '/twin/v1/scenes/{sceneId}/alert-dispatches': {
     parameters: {
       query?: never;
       header?: never;
@@ -356,7 +356,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/twin/scenes/{sceneId}/ai/insight/stream': {
+  '/twin/v1/scenes/{sceneId}/ai/insight/stream': {
     parameters: {
       query?: never;
       header?: never;
@@ -372,7 +372,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/twin/scenes/page': {
+  '/twin/v1/scenes/page': {
     parameters: {
       query?: never;
       header?: never;
@@ -388,7 +388,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/twin/internal/scene/overview': {
+  '/twin/v1/internal/scene/overview': {
     parameters: {
       query?: never;
       header?: never;
@@ -404,7 +404,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/twin/alerts/unresolved': {
+  '/twin/v1/alerts/unresolved': {
     parameters: {
       query?: never;
       header?: never;
@@ -420,7 +420,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/twin/alerts/summary': {
+  '/twin/v1/alerts/summary': {
     parameters: {
       query?: never;
       header?: never;
@@ -436,7 +436,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/twin/alert-notify/recipients': {
+  '/twin/v1/alert-notify/recipients': {
     parameters: {
       query?: never;
       header?: never;
@@ -452,7 +452,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/twin/alert-notify/departments': {
+  '/twin/v1/alert-notify/departments': {
     parameters: {
       query?: never;
       header?: never;

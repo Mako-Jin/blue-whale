@@ -60,12 +60,12 @@ export interface ChatDoneVO {
 
 /** 已发布助手列表（会话创建选择用；无 sys:assistant:define 权限时可能 403，由调用方降级） */
 export function listPublishedDefinitions(): Promise<DefinitionVO[]> {
-  return http.get<DefinitionVO[]>('/assistant/definitions/page', { status: 'published', size: 50 });
+  return http.get<DefinitionVO[]>('/assistant/v1/definitions/page', { status: 'published', size: 50 });
 }
 
 /** 我的会话分页 */
 export function pageSessions(current = 1, size = 20) {
-  return http.get<{ records: SessionVO[]; total: number }>('/assistant/sessions/page', {
+  return http.get<{ records: SessionVO[]; total: number }>('/assistant/v1/sessions/page', {
     current,
     size,
   });
@@ -73,7 +73,7 @@ export function pageSessions(current = 1, size = 20) {
 
 /** 创建会话 */
 export function createSession(assistantId: number, source = 'platform', channelRef?: string) {
-  return http.post<SessionVO>('/assistant/sessions', {
+  return http.post<SessionVO>('/assistant/v1/sessions', {
     assistantId,
     source,
     channelRef,
@@ -82,12 +82,12 @@ export function createSession(assistantId: number, source = 'platform', channelR
 
 /** 会话历史消息 */
 export function listMessages(sessionId: string): Promise<MessageVO[]> {
-  return http.get<MessageVO[]>(`/assistant/sessions/${sessionId}/messages`);
+  return http.get<MessageVO[]>(`/assistant/v1/sessions/${sessionId}/messages`);
 }
 
 /** 删除会话 */
 export function deleteSession(sessionId: string) {
-  return http.del<void>(`/assistant/sessions/${sessionId}`);
+  return http.del<void>(`/assistant/v1/sessions/${sessionId}`);
 }
 
 /** 流式问答事件 */
@@ -113,7 +113,7 @@ export function streamChat(
   signal?: AbortSignal,
 ): Promise<void> {
   return postStream(
-    `/assistant/sessions/${sessionId}/stream`,
+    `/assistant/v1/sessions/${sessionId}/stream`,
     { question },
     (event, data) => {
       let parsed: Record<string, unknown> = {};

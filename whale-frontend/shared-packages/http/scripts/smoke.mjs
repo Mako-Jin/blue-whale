@@ -150,7 +150,7 @@ function assertTraceId(record) {
     );
   };
   const events = [];
-  await client.streamSse('/agent/chat', { question: 'hi' }, (event, data) => {
+  await client.streamSse('/agent/v1/chat', { question: 'hi' }, (event, data) => {
     events.push({ event, data });
   });
   assert.deepEqual(events, [

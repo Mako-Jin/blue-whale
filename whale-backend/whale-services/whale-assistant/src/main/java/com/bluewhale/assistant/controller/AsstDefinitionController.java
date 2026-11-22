@@ -29,7 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/assistant/definitions")
+@RequestMapping(path = "/assistant/v{version}/definitions", version = "1")
 @RequiredArgsConstructor
 public class AsstDefinitionController {
 

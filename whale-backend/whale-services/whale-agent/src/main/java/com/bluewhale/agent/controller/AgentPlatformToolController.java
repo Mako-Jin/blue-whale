@@ -30,7 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @Slf4j
 @RestController
-@RequestMapping("/agent/tools")
+@RequestMapping(path = "/agent/v{version}/tools", version = "1")
 @RequirePermission("sys:ai:data:read")
 @RequiredArgsConstructor
 public class AgentPlatformToolController {

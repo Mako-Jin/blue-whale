@@ -33,7 +33,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/agent")
+@RequestMapping(path = "/agent/v{version}", version = "1")
 @RequiredArgsConstructor
 public class AgentChatController {
 

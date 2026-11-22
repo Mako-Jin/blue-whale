@@ -23,7 +23,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/agent/conversation")
+@RequestMapping(path = "/agent/v{version}/conversation", version = "1")
 @RequiredArgsConstructor
 public class AgentConversationController {
 

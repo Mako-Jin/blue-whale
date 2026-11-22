@@ -4,7 +4,7 @@
  * 「能聊天」升级为「能查业务数据」：城民不再是背台词的木偶，问户部主事
  * 「今天有几张异常工单」，他会真的去库里查。
  *
- * 传输层：`POST /agent/chat`（whale-agent 8090，网关 `/agent` 不剥前缀）走 SSE，
+ * 传输层：`POST /agent/v1/chat`（whale-agent 8090，网关 `/agent` 不剥前缀）走 SSE，
  * 帧契约与 whale-frontend 的 whale-agent 子应用一致：
  *   meta  {conversationId,intent,degraded,citations}
  *   tool  {step,name,arguments,success,elapsedMillis,evidenceCount}
@@ -72,7 +72,7 @@ export interface WorldBrainOptions {
   getToken?: () => string | null;
   /** 基座透传的权限码；缺省（undefined/空数组）时按「未知」处理，先试一次 */
   getPermissions?: () => string[] | null;
-  /** 问答接口，默认 `/agent/chat`（网关同源） */
+  /** 问答接口，默认 `/agent/v1/chat`（网关同源） */
   endpoint?: string;
   /** 单次问答整体超时（毫秒） */
   timeoutMillis?: number;
@@ -81,7 +81,7 @@ export interface WorldBrainOptions {
 /** 问答权限码：缺失时后端必然 403，前端不必浪费一次请求 */
 const CHAT_PERMISSION = 'sys:agent:chat';
 
-const DEFAULT_ENDPOINT = '/agent/chat';
+const DEFAULT_ENDPOINT = '/agent/v1/chat';
 /** 单次问答整体超时：本机 1.5B 在 CPU 上首问（含模型加载）常到 30–60 秒，
  *  卡 60 秒会把正常回答判成超时；后端 SSE emitter 上限是 180 秒，这里留足余量 */
 const DEFAULT_TIMEOUT = 120_000;

@@ -70,26 +70,26 @@ export interface Paged<T> {
 // ---- 场景 ----
 
 export const sceneApi = {
-  page: (query?: Record<string, unknown>) => http.get<Paged<SceneVO>>('/twin/scenes/page', query),
-  get: (id: string) => http.get<SceneVO>(`/twin/scenes/${id}`),
-  create: (body: SceneSaveRequest) => http.post<SceneVO>('/twin/scenes', body),
-  update: (id: string, body: SceneSaveRequest) => http.put<SceneVO>(`/twin/scenes/${id}`, body),
+  page: (query?: Record<string, unknown>) => http.get<Paged<SceneVO>>('/twin/v1/scenes/page', query),
+  get: (id: string) => http.get<SceneVO>(`/twin/v1/scenes/${id}`),
+  create: (body: SceneSaveRequest) => http.post<SceneVO>('/twin/v1/scenes', body),
+  update: (id: string, body: SceneSaveRequest) => http.put<SceneVO>(`/twin/v1/scenes/${id}`, body),
   publish: (id: string, body?: { remark?: string }) =>
-    http.post<SceneVO>(`/twin/scenes/${id}/publish`, body ?? {}),
-  disable: (id: string) => http.post<SceneVO>(`/twin/scenes/${id}/disable`),
-  remove: (id: string) => http.del<void>(`/twin/scenes/${id}`),
+    http.post<SceneVO>(`/twin/v1/scenes/${id}/publish`, body ?? {}),
+  disable: (id: string) => http.post<SceneVO>(`/twin/v1/scenes/${id}/disable`),
+  remove: (id: string) => http.del<void>(`/twin/v1/scenes/${id}`),
 };
 
 // ---- 实体（场景树）----
 
 export const entityApi = {
-  tree: (sceneId: string) => http.get<EntityVO[]>(`/twin/scenes/${sceneId}/entities/tree`),
-  list: (sceneId: string) => http.get<EntityVO[]>(`/twin/scenes/${sceneId}/entities`),
+  tree: (sceneId: string) => http.get<EntityVO[]>(`/twin/v1/scenes/${sceneId}/entities/tree`),
+  list: (sceneId: string) => http.get<EntityVO[]>(`/twin/v1/scenes/${sceneId}/entities`),
   create: (sceneId: string, body: EntitySaveRequest) =>
-    http.post<EntityVO>(`/twin/scenes/${sceneId}/entities`, body),
+    http.post<EntityVO>(`/twin/v1/scenes/${sceneId}/entities`, body),
   update: (sceneId: string, id: string, body: EntitySaveRequest) =>
-    http.put<EntityVO>(`/twin/scenes/${sceneId}/entities/${id}`, body),
-  remove: (sceneId: string, id: string) => http.del<void>(`/twin/scenes/${sceneId}/entities/${id}`),
+    http.put<EntityVO>(`/twin/v1/scenes/${sceneId}/entities/${id}`, body),
+  remove: (sceneId: string, id: string) => http.del<void>(`/twin/v1/scenes/${sceneId}/entities/${id}`),
 };
 
 /**
@@ -165,13 +165,13 @@ export interface IotDeviceItem {
 }
 
 export const bindingApi = {
-  list: (sceneId: string) => http.get<BindingVO[]>(`/twin/scenes/${sceneId}/bindings`),
+  list: (sceneId: string) => http.get<BindingVO[]>(`/twin/v1/scenes/${sceneId}/bindings`),
   create: (sceneId: string, body: BindingSaveRequest) =>
-    http.post<BindingVO>(`/twin/scenes/${sceneId}/bindings`, body),
+    http.post<BindingVO>(`/twin/v1/scenes/${sceneId}/bindings`, body),
   update: (sceneId: string, id: string, body: BindingSaveRequest) =>
-    http.put<BindingVO>(`/twin/scenes/${sceneId}/bindings/${id}`, body),
-  remove: (sceneId: string, id: string) => http.del<void>(`/twin/scenes/${sceneId}/bindings/${id}`),
-  state: (sceneId: string) => http.get<BindingStateVO[]>(`/twin/scenes/${sceneId}/bindings/state`),
+    http.put<BindingVO>(`/twin/v1/scenes/${sceneId}/bindings/${id}`, body),
+  remove: (sceneId: string, id: string) => http.del<void>(`/twin/v1/scenes/${sceneId}/bindings/${id}`),
+  state: (sceneId: string) => http.get<BindingStateVO[]>(`/twin/v1/scenes/${sceneId}/bindings/state`),
 };
 
 /** 拉取 IoT 设备精简列表（绑定选择器；失败返回空数组不打断查看器） */
@@ -227,11 +227,11 @@ export interface TwinAlertVO {
 
 export const alertApi = {
   list: (sceneId: string, query?: Record<string, unknown>) =>
-    http.get<TwinAlertVO[]>(`/twin/scenes/${sceneId}/alerts`, query),
+    http.get<TwinAlertVO[]>(`/twin/v1/scenes/${sceneId}/alerts`, query),
   unresolved: (sceneId: string) =>
-    http.get<TwinAlertVO[]>(`/twin/scenes/${sceneId}/alerts/unresolved`),
+    http.get<TwinAlertVO[]>(`/twin/v1/scenes/${sceneId}/alerts/unresolved`),
   ack: (sceneId: string, alertId: string) =>
-    http.post<TwinAlertVO>(`/twin/scenes/${sceneId}/alerts/${alertId}/ack`),
+    http.post<TwinAlertVO>(`/twin/v1/scenes/${sceneId}/alerts/${alertId}/ack`),
 };
 
 /** 平台级告警统计（对齐后端 TwinAlertSummaryVO；口径均为未恢复） */
@@ -250,8 +250,8 @@ export interface TwinAlertSummaryVO {
  */
 export const alertOverviewApi = {
   /** 跨场景未恢复列表（默认 100，上限 200） */
-  unresolved: (limit?: number) => http.get<TwinAlertVO[]>('/twin/alerts/unresolved', { limit }),
-  summary: () => http.get<TwinAlertSummaryVO>('/twin/alerts/summary'),
+  unresolved: (limit?: number) => http.get<TwinAlertVO[]>('/twin/v1/alerts/unresolved', { limit }),
+  summary: () => http.get<TwinAlertSummaryVO>('/twin/v1/alerts/summary'),
 };
 
 // ---- 告警通知设置与投递记录（6.10 M2）----
@@ -356,23 +356,23 @@ export interface TwinAlertDispatchVO {
 export const notifyApi = {
   /** 读取场景通知设置 */
   getSettings: (sceneId: string) =>
-    http.get<TwinAlertNotifySettingsVO>(`/twin/scenes/${sceneId}/alert-notify`),
+    http.get<TwinAlertNotifySettingsVO>(`/twin/v1/scenes/${sceneId}/alert-notify`),
   /** 保存场景通知设置（整体覆盖，null = 清除） */
   saveSettings: (sceneId: string, body: TwinAlertNotifySettingsRequest) =>
-    http.put<TwinAlertNotifySettingsVO>(`/twin/scenes/${sceneId}/alert-notify`, body),
+    http.put<TwinAlertNotifySettingsVO>(`/twin/v1/scenes/${sceneId}/alert-notify`, body),
   /** 投递记录列表（时间倒序，可按结果/通道过滤） */
   dispatches: (sceneId: string, query?: Record<string, unknown>) =>
-    http.get<TwinAlertDispatchVO[]>(`/twin/scenes/${sceneId}/alert-dispatches`, query),
+    http.get<TwinAlertDispatchVO[]>(`/twin/v1/scenes/${sceneId}/alert-dispatches`, query),
   /** 检索候选接收人（走 twin 代理的 auth 内网通讯录，无需用户管理权限） */
   recipients: (params?: { keyword?: string; deptId?: string; current?: number; size?: number }) =>
-    http.get<TwinNotifyRecipientPageVO>('/twin/alert-notify/recipients', {
+    http.get<TwinNotifyRecipientPageVO>('/twin/v1/alert-notify/recipients', {
       keyword: params?.keyword || undefined,
       deptId: params?.deptId || undefined,
       current: params?.current ?? 1,
       size: params?.size ?? 20,
     }),
   /** 部门树（按部门筛人；auth 不可用时返回空数组） */
-  departments: () => http.get<TwinNotifyDeptVO[]>('/twin/alert-notify/departments'),
+  departments: () => http.get<TwinNotifyDeptVO[]>('/twin/v1/alert-notify/departments'),
 };
 
 /**
@@ -459,12 +459,12 @@ export interface MarkerSaveRequest {
 }
 
 export const markerApi = {
-  list: (sceneId: string) => http.get<MarkerVO[]>(`/twin/scenes/${sceneId}/markers`),
+  list: (sceneId: string) => http.get<MarkerVO[]>(`/twin/v1/scenes/${sceneId}/markers`),
   create: (sceneId: string, body: MarkerSaveRequest) =>
-    http.post<MarkerVO>(`/twin/scenes/${sceneId}/markers`, body),
+    http.post<MarkerVO>(`/twin/v1/scenes/${sceneId}/markers`, body),
   update: (sceneId: string, id: string, body: MarkerSaveRequest) =>
-    http.put<MarkerVO>(`/twin/scenes/${sceneId}/markers/${id}`, body),
-  remove: (sceneId: string, id: string) => http.del<void>(`/twin/scenes/${sceneId}/markers/${id}`),
+    http.put<MarkerVO>(`/twin/v1/scenes/${sceneId}/markers/${id}`, body),
+  remove: (sceneId: string, id: string) => http.del<void>(`/twin/v1/scenes/${sceneId}/markers/${id}`),
 };
 
 // ---- 发布快照（M3）----
@@ -481,11 +481,11 @@ export interface SnapshotVO {
 }
 
 export const snapshotApi = {
-  list: (sceneId: string) => http.get<SnapshotVO[]>(`/twin/scenes/${sceneId}/snapshots`),
+  list: (sceneId: string) => http.get<SnapshotVO[]>(`/twin/v1/scenes/${sceneId}/snapshots`),
   get: (sceneId: string, id: string) =>
-    http.get<SnapshotVO>(`/twin/scenes/${sceneId}/snapshots/${id}`),
+    http.get<SnapshotVO>(`/twin/v1/scenes/${sceneId}/snapshots/${id}`),
   rollback: (sceneId: string, id: string) =>
-    http.post<SnapshotVO>(`/twin/scenes/${sceneId}/snapshots/${id}/rollback`),
+    http.post<SnapshotVO>(`/twin/v1/scenes/${sceneId}/snapshots/${id}/rollback`),
 };
 
 // ---- AI 解读（Wave 6.04 M1）----
@@ -508,7 +508,7 @@ export interface InsightVO {
 
 export const insightApi = {
   ask: (sceneId: string, body: InsightRequest) =>
-    http.post<InsightVO>(`/twin/scenes/${sceneId}/ai/insight`, body),
+    http.post<InsightVO>(`/twin/v1/scenes/${sceneId}/ai/insight`, body),
 };
 
 /** 流式解读终帧（done）载荷，对齐 assistant ChatDoneVO */
@@ -532,5 +532,5 @@ export function buildInsightStreamUrl(
   if (entityId) params.set('entityId', String(entityId));
   if (question && question.trim()) params.set('question', question.trim());
   const query = params.toString();
-  return `/twin/scenes/${sceneId}/ai/insight/stream${query ? `?${query}` : ''}`;
+  return `/twin/v1/scenes/${sceneId}/ai/insight/stream${query ? `?${query}` : ''}`;
 }

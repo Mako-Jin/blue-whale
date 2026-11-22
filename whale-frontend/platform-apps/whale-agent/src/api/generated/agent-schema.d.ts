@@ -4,7 +4,7 @@
  */
 
 export interface paths {
-  '/agent/knowledge/files/{fileId}/enabled': {
+  '/agent/v1/knowledge/files/{fileId}/enabled': {
     parameters: {
       query?: never;
       header?: never;
@@ -20,7 +20,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/agent/knowledge/doc/{pageId}/enabled': {
+  '/agent/v1/knowledge/doc/{pageId}/enabled': {
     parameters: {
       query?: never;
       header?: never;
@@ -36,7 +36,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/agent/tools/twin-scene-overview': {
+  '/agent/v1/tools/twin-scene-overview': {
     parameters: {
       query?: never;
       header?: never;
@@ -52,7 +52,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/agent/tools/platform-op': {
+  '/agent/v1/tools/platform-op': {
     parameters: {
       query?: never;
       header?: never;
@@ -68,7 +68,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/agent/tools/knowledge-search': {
+  '/agent/v1/tools/knowledge-search': {
     parameters: {
       query?: never;
       header?: never;
@@ -84,7 +84,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/agent/tools/iot-device-state': {
+  '/agent/v1/tools/iot-device-state': {
     parameters: {
       query?: never;
       header?: never;
@@ -100,7 +100,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/agent/tools/iot-device-history': {
+  '/agent/v1/tools/iot-device-history': {
     parameters: {
       query?: never;
       header?: never;
@@ -116,7 +116,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/agent/tools/fact-get': {
+  '/agent/v1/tools/fact-get': {
     parameters: {
       query?: never;
       header?: never;
@@ -132,7 +132,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/agent/tools/doc-read': {
+  '/agent/v1/tools/doc-read': {
     parameters: {
       query?: never;
       header?: never;
@@ -148,7 +148,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/agent/tools/data-query': {
+  '/agent/v1/tools/data-query': {
     parameters: {
       query?: never;
       header?: never;
@@ -164,7 +164,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/agent/ops/{confirmationId}/reject': {
+  '/agent/v1/ops/{confirmationId}/reject': {
     parameters: {
       query?: never;
       header?: never;
@@ -180,7 +180,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/agent/ops/{confirmationId}/confirm': {
+  '/agent/v1/ops/{confirmationId}/confirm': {
     parameters: {
       query?: never;
       header?: never;
@@ -196,7 +196,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/agent/mcp': {
+  '/agent/v1/mcp': {
     parameters: {
       query?: never;
       header?: never;
@@ -212,7 +212,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/agent/knowledge/rebuild': {
+  '/agent/v1/knowledge/rebuild': {
     parameters: {
       query?: never;
       header?: never;
@@ -228,7 +228,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/agent/knowledge/files/{fileId}/reindex': {
+  '/agent/v1/knowledge/files/{fileId}/reindex': {
     parameters: {
       query?: never;
       header?: never;
@@ -244,7 +244,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/agent/knowledge/doc/{pageId}/reindex': {
+  '/agent/v1/knowledge/doc/{pageId}/reindex': {
     parameters: {
       query?: never;
       header?: never;
@@ -260,7 +260,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/agent/knowledge/doc/sync': {
+  '/agent/v1/knowledge/doc/sync': {
     parameters: {
       query?: never;
       header?: never;
@@ -276,7 +276,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/agent/knowledge/doc/rebuild': {
+  '/agent/v1/knowledge/doc/rebuild': {
     parameters: {
       query?: never;
       header?: never;
@@ -292,7 +292,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/agent/index/rebuild': {
+  '/agent/v1/index/rebuild': {
     parameters: {
       query?: never;
       header?: never;
@@ -308,7 +308,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/agent/feedback': {
+  '/agent/v1/feedback': {
     parameters: {
       query?: never;
       header?: never;
@@ -324,7 +324,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/agent/chat': {
+  '/agent/v1/chat': {
     parameters: {
       query?: never;
       header?: never;
@@ -340,7 +340,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/agent/search': {
+  '/agent/v1/search': {
     parameters: {
       query?: never;
       header?: never;
@@ -356,7 +356,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/agent/knowledge/stats': {
+  '/agent/v1/knowledge/stats': {
     parameters: {
       query?: never;
       header?: never;
@@ -372,7 +372,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/agent/knowledge/files/page': {
+  '/agent/v1/knowledge/files/page': {
     parameters: {
       query?: never;
       header?: never;
@@ -388,7 +388,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/agent/knowledge/doc/page': {
+  '/agent/v1/knowledge/doc/page': {
     parameters: {
       query?: never;
       header?: never;
@@ -404,7 +404,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/agent/index/status': {
+  '/agent/v1/index/status': {
     parameters: {
       query?: never;
       header?: never;
@@ -420,7 +420,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/agent/facts': {
+  '/agent/v1/facts': {
     parameters: {
       query?: never;
       header?: never;
@@ -436,7 +436,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/agent/conversation/{id}/messages': {
+  '/agent/v1/conversation/{id}/messages': {
     parameters: {
       query?: never;
       header?: never;
@@ -452,7 +452,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/agent/conversation/page': {
+  '/agent/v1/conversation/page': {
     parameters: {
       query?: never;
       header?: never;
@@ -468,7 +468,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/agent/conversation/{id}': {
+  '/agent/v1/conversation/{id}': {
     parameters: {
       query?: never;
       header?: never;

@@ -48,10 +48,10 @@ public class AgentStreamClient {
         void onEvent(String event, String data) throws IOException;
     }
 
-    private static final String CHAT_PATH = "/agent/chat";
+    private static final String CHAT_PATH = "/agent/v1/chat";
 
     /** 写操作确认/拒绝路径前缀 */
-    private static final String OPS_PATH_PREFIX = "/agent/ops/";
+    private static final String OPS_PATH_PREFIX = "/agent/v1/ops/";
 
     /** 确认动作 */
     private static final String ACTION_CONFIRM = "confirm";

@@ -25,12 +25,12 @@ export interface AssistantSession {
 
 /** 查询已发布助手清单（问答视角） */
 export function listPublishedAssistants(): Promise<AssistantDef[]> {
-  return http.get<AssistantDef[]>('/assistant/definitions/published');
+  return http.get<AssistantDef[]>('/assistant/v1/definitions/published');
 }
 
 /** 创建 embed 来源会话（门户内嵌入口） */
 export function createEmbedSession(assistantId: string): Promise<AssistantSession> {
-  return http.post<AssistantSession>('/assistant/sessions', {
+  return http.post<AssistantSession>('/assistant/v1/sessions', {
     assistantId: Number(assistantId),
     source: 'embed',
     channelRef: 'portal-embed',

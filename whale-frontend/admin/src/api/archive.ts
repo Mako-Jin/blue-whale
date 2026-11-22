@@ -165,12 +165,12 @@ export interface ArchiveSyncResultVO {
 
 /** 查询门类树 */
 export function categoryTree(): Promise<ArchiveCategoryVO[]> {
-  return get<ArchiveCategoryVO[]>('/archive/category/tree');
+  return get<ArchiveCategoryVO[]>('/archive/v1/category/tree');
 }
 
 /** 新增门类 */
 export function createCategory(data: ArchiveCategorySaveRequest): Promise<ArchiveCategoryVO> {
-  return post<ArchiveCategoryVO>('/archive/category', data);
+  return post<ArchiveCategoryVO>('/archive/v1/category', data);
 }
 
 /** 修改门类 */
@@ -178,72 +178,72 @@ export function updateCategory(
   id: string,
   data: ArchiveCategorySaveRequest,
 ): Promise<ArchiveCategoryVO> {
-  return put<ArchiveCategoryVO>(`/archive/category/${id}`, data);
+  return put<ArchiveCategoryVO>(`/archive/v1/category/${id}`, data);
 }
 
 /** 删除门类 */
 export function deleteCategory(id: string): Promise<void> {
-  return del<void>(`/archive/category/${id}`);
+  return del<void>(`/archive/v1/category/${id}`);
 }
 
 /** 分页查询规则 */
 export function pageRules(params: ArchiveRuleQueryParams): Promise<PageResult<ArchiveRuleVO>> {
-  return get<PageResult<ArchiveRuleVO>>('/archive/rule/page', { ...params });
+  return get<PageResult<ArchiveRuleVO>>('/archive/v1/rule/page', { ...params });
 }
 
 /** 新增规则 */
 export function createRule(data: ArchiveRuleSaveRequest): Promise<ArchiveRuleVO> {
-  return post<ArchiveRuleVO>('/archive/rule', data);
+  return post<ArchiveRuleVO>('/archive/v1/rule', data);
 }
 
 /** 修改规则 */
 export function updateRule(id: string, data: ArchiveRuleSaveRequest): Promise<ArchiveRuleVO> {
-  return put<ArchiveRuleVO>(`/archive/rule/${id}`, data);
+  return put<ArchiveRuleVO>(`/archive/v1/rule/${id}`, data);
 }
 
 /** 删除规则 */
 export function deleteRule(id: string): Promise<void> {
-  return del<void>(`/archive/rule/${id}`);
+  return del<void>(`/archive/v1/rule/${id}`);
 }
 
 /** 分页查询条目 */
 export function pageItems(params: ArchiveItemQueryParams): Promise<PageResult<ArchiveItemVO>> {
-  return get<PageResult<ArchiveItemVO>>('/archive/item/page', { ...params });
+  return get<PageResult<ArchiveItemVO>>('/archive/v1/item/page', { ...params });
 }
 
 /** 条目详情 */
 export function itemDetail(id: string): Promise<ArchiveItemDetailVO> {
-  return get<ArchiveItemDetailVO>(`/archive/item/${id}`);
+  return get<ArchiveItemDetailVO>(`/archive/v1/item/${id}`);
 }
 
 /** 整理条目 */
 export function editItem(id: string, data: ArchiveItemEditRequest): Promise<ArchiveItemVO> {
-  return put<ArchiveItemVO>(`/archive/item/${id}`, data);
+  return put<ArchiveItemVO>(`/archive/v1/item/${id}`, data);
 }
 
 /** 确认归档 */
 export function confirmItem(id: string): Promise<ArchiveItemVO> {
-  return post<ArchiveItemVO>(`/archive/item/${id}/confirm`);
+  return post<ArchiveItemVO>(`/archive/v1/item/${id}/confirm`);
 }
 
 /** 销毁条目 */
 export function destroyItem(id: string): Promise<void> {
-  return post<void>(`/archive/item/${id}/destroy`);
+  return post<void>(`/archive/v1/item/${id}/destroy`);
 }
 
 /** 档案统计 */
 export function archiveStats(): Promise<ArchiveStatsVO> {
-  return get<ArchiveStatsVO>('/archive/stats');
+  return get<ArchiveStatsVO>('/archive/v1/stats');
 }
 
 /** 同步状态 */
 export function syncStatus(): Promise<ArchiveSyncStatusVO> {
-  return get<ArchiveSyncStatusVO>('/archive/sync/status');
+  return get<ArchiveSyncStatusVO>('/archive/v1/sync/status');
 }
 
 /** 手动触发同步 */
 export function runSync(): Promise<ArchiveSyncResultVO> {
-  return post<ArchiveSyncResultVO>('/archive/sync/run');
+  return post<ArchiveSyncResultVO>('/archive/v1/sync/run');
 }
 
 /** 构造仅含 Authorization 的请求头（token 缺失时不加） */
@@ -320,7 +320,7 @@ export function previewKindOf(file: ArchiveFileVO): ArchivePreviewKind | null {
  * @returns 可直接用于 img / video / audio / iframe 的对象 URL
  */
 export async function fetchItemPreviewUrl(itemId: string, file: ArchiveFileVO): Promise<string> {
-  const response = await fetch(`/archive/item/${itemId}/files/${file.id}/preview`, {
+  const response = await fetch(`/archive/v1/item/${itemId}/files/${file.id}/preview`, {
     method: 'GET',
     headers: authHeaders(),
   });
@@ -333,7 +333,7 @@ export async function fetchItemPreviewUrl(itemId: string, file: ArchiveFileVO): 
 
 /** 下载档案文件：取 blob 后用临时 <a download> 触发保存 */
 export async function downloadItemFile(itemId: string, file: ArchiveFileVO): Promise<void> {
-  const response = await fetch(`/archive/item/${itemId}/files/${file.id}/download`, {
+  const response = await fetch(`/archive/v1/item/${itemId}/files/${file.id}/download`, {
     method: 'GET',
     headers: authHeaders(),
   });

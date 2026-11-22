@@ -28,7 +28,7 @@ import java.util.Map;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/agent/tools")
+@RequestMapping(path = "/agent/v{version}/tools", version = "1")
 @RequirePermission("sys:agent:chat")
 @RequiredArgsConstructor
 public class AgentToolController {

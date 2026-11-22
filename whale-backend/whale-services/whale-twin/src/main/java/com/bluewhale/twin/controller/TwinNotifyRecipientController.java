@@ -26,7 +26,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/twin/alert-notify")
+@RequestMapping(path = "/twin/v{version}/alert-notify", version = "1")
 @RequiredArgsConstructor
 public class TwinNotifyRecipientController {
 

@@ -73,50 +73,50 @@ export interface UsagePageParams {
 
 /** 分页查询助手定义 */
 export function pageDefinitions(params: DefinitionPageParams): Promise<PageResult<DefinitionVO>> {
-  return get<PageResult<DefinitionVO>>('/assistant/definitions/page', { ...params });
+  return get<PageResult<DefinitionVO>>('/assistant/v1/definitions/page', { ...params });
 }
 
 /** 创建助手（草稿态） */
 export function createDefinition(body: DefinitionSaveInput): Promise<DefinitionVO> {
-  return post<DefinitionVO>('/assistant/definitions', body);
+  return post<DefinitionVO>('/assistant/v1/definitions', body);
 }
 
 /** 更新助手（编码不可改） */
 export function updateDefinition(id: string, body: DefinitionSaveInput): Promise<DefinitionVO> {
-  return put<DefinitionVO>(`/assistant/definitions/${id}`, body);
+  return put<DefinitionVO>(`/assistant/v1/definitions/${id}`, body);
 }
 
 /** 发布助手 */
 export function publishDefinition(id: string): Promise<DefinitionVO> {
-  return post<DefinitionVO>(`/assistant/definitions/${id}/publish`, {});
+  return post<DefinitionVO>(`/assistant/v1/definitions/${id}/publish`, {});
 }
 
 /** 停用助手 */
 export function disableDefinition(id: string): Promise<DefinitionVO> {
-  return post<DefinitionVO>(`/assistant/definitions/${id}/disable`, {});
+  return post<DefinitionVO>(`/assistant/v1/definitions/${id}/disable`, {});
 }
 
 /** 删除助手（逻辑删除） */
 export function deleteDefinition(id: string): Promise<void> {
-  return del<void>(`/assistant/definitions/${id}`);
+  return del<void>(`/assistant/v1/definitions/${id}`);
 }
 
 /** 查看工具白名单 */
 export function listToolWhitelist(id: string): Promise<string[]> {
-  return get<string[]>(`/assistant/definitions/${id}/tools`);
+  return get<string[]>(`/assistant/v1/definitions/${id}/tools`);
 }
 
 /** 覆盖式设置工具白名单（校验 whale-ai 注册表） */
 export function setToolWhitelist(id: string, toolCodes: string[]): Promise<void> {
-  return put<void>(`/assistant/definitions/${id}/tools`, { toolCodes });
+  return put<void>(`/assistant/v1/definitions/${id}/tools`, { toolCodes });
 }
 
 /** 查询 whale-ai 工具注册表（可授权工具全集） */
 export function listRegisteredTools(): Promise<ToolInfoVO[]> {
-  return get<ToolInfoVO[]>('/assistant/tools');
+  return get<ToolInfoVO[]>('/assistant/v1/tools');
 }
 
 /** 用量看板分页 */
 export function pageUsage(params: UsagePageParams): Promise<PageResult<UsageVO>> {
-  return get<PageResult<UsageVO>>('/assistant/usage/page', { ...params });
+  return get<PageResult<UsageVO>>('/assistant/v1/usage/page', { ...params });
 }

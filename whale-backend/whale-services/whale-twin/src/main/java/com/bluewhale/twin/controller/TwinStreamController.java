@@ -16,7 +16,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/twin/scenes/{sceneId}")
+@RequestMapping(path = "/twin/v{version}/scenes/{sceneId}", version = "1")
 @RequiredArgsConstructor
 public class TwinStreamController {
 

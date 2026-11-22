@@ -19,7 +19,7 @@ import java.util.Map;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/assistant")
+@RequestMapping(path = "/assistant/v{version}", version = "1")
 public class AssistantInfoController {
 
     /**

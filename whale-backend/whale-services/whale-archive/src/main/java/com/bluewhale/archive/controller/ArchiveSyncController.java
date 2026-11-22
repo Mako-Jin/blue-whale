@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/archive/sync")
+@RequestMapping(path = "/archive/v{version}/sync", version = "1")
 @RequiredArgsConstructor
 public class ArchiveSyncController {
 

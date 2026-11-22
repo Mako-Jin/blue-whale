@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/assistant/usage")
+@RequestMapping(path = "/assistant/v{version}/usage", version = "1")
 @RequiredArgsConstructor
 public class AsstUsageController {
 

@@ -33,7 +33,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/twin/scenes")
+@RequestMapping(path = "/twin/v{version}/scenes", version = "1")
 @RequiredArgsConstructor
 public class TwinAlertController {
 

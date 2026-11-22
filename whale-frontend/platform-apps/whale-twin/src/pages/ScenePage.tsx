@@ -4,8 +4,8 @@
 // 快照抽屉支持查看历史版本与回滚（场景须为草稿/停用态）。
 // 实体编辑在 3D 查看器页完成（树形面板），本页只管场景元数据与生命周期。
 //
-// Wave 6.08 M2：工具栏挂「全局告警」角标（/twin/alerts/summary，30s 轮询），
-// 抽屉拉跨场景未恢复列表（/twin/alerts/unresolved），条目带场景名可直接跳查看器，
+// Wave 6.08 M2：工具栏挂「全局告警」角标（/twin/v1/alerts/summary，30s 轮询），
+// 抽屉拉跨场景未恢复列表（/twin/v1/alerts/unresolved），条目带场景名可直接跳查看器，
 // 也支持就地确认——不必先点进某个场景才知道平台在报警。
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';

@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/archive")
+@RequestMapping(path = "/archive/v{version}", version = "1")
 public class ArchivePingController {
 
     /**

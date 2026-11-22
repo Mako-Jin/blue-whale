@@ -180,12 +180,12 @@ export interface SceneVisibilityCommand {
 
 /** 查询场景服务能力与预算参数 */
 export function fetchSceneMeta(): Promise<SceneMeta> {
-  return http.get<SceneMeta>('/scene/meta');
+  return http.get<SceneMeta>('/scene/v1/meta');
 }
 
 /** 当前用户可见的场景导航（登录即可） */
 export function fetchNavigation(): Promise<NavigationSceneView[]> {
-  return http.get<NavigationSceneView[]>('/scene/navigation');
+  return http.get<NavigationSceneView[]>('/scene/v1/navigation');
 }
 
 /** 场景分页 */
@@ -195,7 +195,7 @@ export function fetchScenePage(query: SceneQuery = {}): Promise<{
   current: number;
   size: number;
 }> {
-  return http.get('/scene/page', {
+  return http.get('/scene/v1/page', {
     keyword: query.keyword,
     status: query.status,
     current: query.current ?? 1,
@@ -205,7 +205,7 @@ export function fetchScenePage(query: SceneQuery = {}): Promise<{
 
 /** 场景详情 */
 export function fetchSceneDetail(id: number): Promise<SceneDetailView> {
-  return http.get<SceneDetailView>(`/scene/${id}`);
+  return http.get<SceneDetailView>(`/scene/v1/${id}`);
 }
 
 /** 新建场景（草稿） */
@@ -215,17 +215,17 @@ export function createScene(command: SceneSaveCommand): Promise<SceneView> {
 
 /** 编辑场景 */
 export function updateScene(id: number, command: SceneSaveCommand): Promise<SceneView> {
-  return http.put<SceneView>(`/scene/${id}`, command);
+  return http.put<SceneView>(`/scene/v1/${id}`, command);
 }
 
 /** 发布场景（服务端校验节点树与入口后生成布局快照） */
 export function publishScene(id: number): Promise<SceneView> {
-  return http.post<SceneView>(`/scene/${id}/publish`);
+  return http.post<SceneView>(`/scene/v1/${id}/publish`);
 }
 
 /** 下线场景 */
 export function offlineScene(id: number): Promise<SceneView> {
-  return http.post<SceneView>(`/scene/${id}/offline`);
+  return http.post<SceneView>(`/scene/v1/${id}/offline`);
 }
 
 /** 新增节点 */
@@ -233,7 +233,7 @@ export function createSceneNode(
   sceneId: number,
   command: SceneNodeSaveCommand,
 ): Promise<SceneNodeView> {
-  return http.post<SceneNodeView>(`/scene/${sceneId}/node`, command);
+  return http.post<SceneNodeView>(`/scene/v1/${sceneId}/node`, command);
 }
 
 /** 编辑节点 */
@@ -242,12 +242,12 @@ export function updateSceneNode(
   nodeId: number,
   command: SceneNodeSaveCommand,
 ): Promise<SceneNodeView> {
-  return http.put<SceneNodeView>(`/scene/${sceneId}/node/${nodeId}`, command);
+  return http.put<SceneNodeView>(`/scene/v1/${sceneId}/node/${nodeId}`, command);
 }
 
 /** 删除节点（存在子节点时服务端拒绝） */
 export function deleteSceneNode(nodeId: number): Promise<void> {
-  return http.del<void>(`/scene/node/${nodeId}`);
+  return http.del<void>(`/scene/v1/node/${nodeId}`);
 }
 
 /** 设置节点入口绑定（同一节点重复调用即覆盖） */
@@ -255,7 +255,7 @@ export function saveNodeBinding(
   nodeId: number,
   command: NodeBindingSaveCommand,
 ): Promise<NodeBindingView> {
-  return http.put<NodeBindingView>(`/scene/node/${nodeId}/binding`, command);
+  return http.put<NodeBindingView>(`/scene/v1/node/${nodeId}/binding`, command);
 }
 
 /** 替换场景可见性规则（DENY 优先） */
@@ -263,17 +263,17 @@ export function replaceVisibility(
   sceneId: number,
   rules: SceneVisibilityCommand[],
 ): Promise<SceneVisibilityView[]> {
-  return http.put<SceneVisibilityView[]>(`/scene/${sceneId}/visibility`, { rules });
+  return http.put<SceneVisibilityView[]>(`/scene/v1/${sceneId}/visibility`, { rules });
 }
 
 /** 查询当前用户场景偏好（无记录时后端返回默认 2D） */
 export function fetchScenePreference(): Promise<ScenePreference> {
-  return http.get<ScenePreference>('/scene/preference');
+  return http.get<ScenePreference>('/scene/v1/preference');
 }
 
 /** 保存当前用户场景偏好（视图模式与默认场景） */
 export function saveScenePreference(preference: ScenePreference): Promise<ScenePreference> {
-  return http.put<ScenePreference>('/scene/preference', preference);
+  return http.put<ScenePreference>('/scene/v1/preference', preference);
 }
 
 /** 3D 看板生产订单行（数量与 ERP 生产订单同源） */
@@ -308,5 +308,5 @@ export interface MfgBoardView {
 
 /** 制造看板实时数量（登录即可，数据由 ERP 内网聚合） */
 export function fetchManufacturingBoard(limit = 50): Promise<MfgBoardView> {
-  return http.get<MfgBoardView>('/scene/board/manufacturing', { limit });
+  return http.get<MfgBoardView>('/scene/v1/board/manufacturing', { limit });
 }
