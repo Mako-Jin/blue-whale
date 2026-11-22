@@ -817,6 +817,41 @@
         "label": "影戏院",
         "subLabel": "VIDEO · 影像放映"
       }
+    },
+    {
+      "nodeKey": "qingyi-stage",
+      "parentKey": "outer-city",
+      "nodeType": "BUILDING",
+      "name": "清议堂",
+      "sub": "FORUM · 议事公论",
+      "icon": "message",
+      "x": 90.8,
+      "z": -24.33,
+      "y": 0,
+      "w": 10,
+      "d": 7.5,
+      "scale": 0.75,
+      "rotationDeg": -75.0,
+      "roofColor": "#2f5d52",
+      "bodyColor": "#24483f",
+      "modelKey": "palace-hall",
+      "collider": {
+        "halfX": 7.0,
+        "halfZ": 5.0
+      },
+      "sortNo": 29,
+      "entry": {
+        "type": "SYSTEM",
+        "path": "/forum",
+        "permission": "sys:forum:browse"
+      },
+      "portal": {
+        "x": 77.27,
+        "z": -20.71,
+        "color": "#9be8c8",
+        "label": "清议堂",
+        "subLabel": "FORUM · 议事公论"
+      }
     }
   ]
 }

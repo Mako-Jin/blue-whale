@@ -82,6 +82,7 @@ import {
   ORDER_PAGE,
   SONG_PAGE,
   CONTENT_PAGE,
+  THREAD_PAGE,
 } from './screenpages';
 import { createStageScreen, type StageScreenHandle } from './stagescreen';
 import { createSceneEnv, type SceneEnv } from './env';
@@ -4022,6 +4023,10 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   /** 影戏院幕布（视频纹理，S7/T7.2）：主循环每帧喂一次距离，走远即停 */
   let stageScreen: StageScreenHandle | null = null;
 
+  /** 清议堂（S7/T7.3）屏风与其业务页句柄（同上） */
+  let qingyiScreen: ScreenHandle | null = null;
+  let qingyiPage: ScreenPageHandle | null = null;
+
   /**
    * 坊的屏风落位：从布局数据现算，不手抄坐标。
    *
@@ -4735,6 +4740,51 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
         stageScreen = stage;
       }
 
+      /* 清议堂（S7/T7.3，外城九处第三处）：帖子列表 + 议事秩序账。
+
+       布局里清议堂在正东偏北的外城（x/z = 90.80/-24.33，旋转 -75°），
+       与影戏院同一套正面法线落点公式——外城每接一处不必手调坐标。
+
+       屏风上半部是四张牌（在议帖子 / 待审帖子 / 待受理举报 / 待理申诉），
+       中部是帖子五态分布柱图，下半部是帖子列表。后三张牌是本屏的语气：
+       作者等着放行、被冒犯的人等一个说法、被驳回的作者等复核。
+       审核队列与举报工单不单摆页——它们是治理动作的落点，从概览入口进去办；
+       屏风上硬凑三页只会把入口铺满。 */
+      const qingyiPose = districtScreenPose('qingyi-stage');
+      if (qingyiPose) {
+        qingyiScreen = screens.add({
+          id: 'qingyi',
+          position: [qingyiPose.x, 1.55, qingyiPose.z],
+          facing: qingyiPose.facing,
+          size: 'large',
+          title: '清议堂 · 帖子列表',
+          subtitle: 'FORUM / 议事与秩序',
+          tone: 'idle',
+          mount: (body) => {
+            qingyiPage = mountScreenPage(body, {
+              nodeKey: 'qingyi-stage',
+              overviewPath: '/forum/overview',
+              overviewPermission: 'sys:forum:manage:list',
+              pages: [THREAD_PAGE],
+              getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+              getPermissions: opts.getPermissions,
+              // 题头灯跟业务页状态走：概览陈旧/失败（服务未起、无凭据）时不该还亮绿灯
+              onTone: (tone) => qingyiScreen?.setTone(tone),
+              onTitle: (title, subtitle) => {
+                qingyiScreen?.setTitle(
+                  title ? `${title} · 帖子列表` : '清议堂 · 帖子列表',
+                  subtitle ?? 'FORUM / 议事与秩序',
+                );
+              },
+            });
+            return () => {
+              qingyiPage?.dispose();
+              qingyiPage = null;
+            };
+          },
+        });
+      }
+
       /* 枢密殿（AUTH）屏风页（S5 / T5.2）：屏风里是登录历史 ——
        谁、什么时候、用什么方式登录，失败了多少次。
 
@@ -5319,6 +5369,8 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
           return yuefangPage;
         case 'yingxi':
           return yingxiPage;
+        case 'qingyi':
+          return qingyiPage;
         default:
           return hubuPage;
       }

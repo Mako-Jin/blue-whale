@@ -83,6 +83,10 @@ export const OVERVIEW_HALLS: OverviewHallSpec[] = [
      权限码复用 2D 内容台账（sys:video:content:list），不为 3D 单发授权；
      电影台账入口走自己的 sys:video:movie:manage，在 provider link 里带。 */
   { nodeKey: 'yingxi-stage', path: '/video/overview', permission: 'sys:video:content:list' },
+  /* 清议堂（S7/T7.3）——外城九处第三处：论坛议事。本屏含待审/举报/申诉三笔
+     治理账，走管理端入口码 sys:forum:manage:list（普通浏览权限不该看到这些数字）；
+     帖子列表页本身只需 sys:forum:browse，在 provider link 里带。 */
+  { nodeKey: 'qingyi-stage', path: '/forum/overview', permission: 'sys:forum:manage:list' },
   /* 数枢殿总控（S5/T5.1）：服务端把在册各殿的概览汇成一屏。
      **不设权限码**——总控的可见范围就是"你在各殿能看到的范围"，
      缺凭据的殿在总控里显示为「无凭据」行，而不是整块 403。

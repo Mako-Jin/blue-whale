@@ -326,6 +326,27 @@ const PROBES: ProbeSpec[] = [
       },
     ],
   },
+  {
+    // 清议堂 = FORUM：S7/T7.3 起读契约 /forum/overview，与屏风上半部四张牌同一份
+    // 快照。牌坊只放"在议多少 + 有多少治理欠账"两格：待审、举报、申诉三笔
+    // 都是"人不来催就不动"的事，并成一格比摊成三格更像在门口看的一眼。
+    nodeKey: 'qingyi-stage',
+    permission: 'sys:forum:manage:list',
+    url: '/forum/overview',
+    extract: (d) => [
+      { label: '在议', value: formatCount(kpiOf(d, 'published')) },
+      {
+        label: '待办',
+        value: formatCount(
+          num(kpiOf(d, 'pending')) + num(kpiOf(d, 'reports')) + num(kpiOf(d, 'appeals')),
+        ),
+        tone:
+          num(kpiOf(d, 'pending')) + num(kpiOf(d, 'reports')) + num(kpiOf(d, 'appeals')) > 0
+            ? 'warn'
+            : 'good',
+      },
+    ],
+  },
 ];
 
 /* ---------------------------------------------------------------- 持久化 */

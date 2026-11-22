@@ -1752,6 +1752,116 @@ export const CONTENT_PAGE: ScreenListPageSpec = {
 };
 
 /**
+ * 清议堂帖子类型：列级字典。
+ *
+ * <p>问答帖与投票帖是"有形态"的帖子（问答可采纳最佳答案、投票有选项与截止），
+ * 公告帖只有管理端能发；普通帖与活动帖给灰——它们不改变这一行该怎么读，
+ * 但值班的人一眼能分辨"这条要不要点进去看采纳/投票结果"。</p>
+ */
+export const THREAD_TYPE_STYLE: Record<string, ScreenStatusStyle> = {
+  NORMAL: { label: '普通', tone: 'flat' },
+  QA: { label: '问答', tone: 'good' },
+  VOTE: { label: '投票', tone: 'good' },
+  NOTICE: { label: '公告', tone: 'warn' },
+  ACTIVITY: { label: '活动', tone: 'flat' },
+  ARTICLE: { label: '长文', tone: 'flat' },
+};
+
+/**
+ * 清议堂帖子状态：页面级字典。
+ *
+ * <p><b>待审黄、在议绿、驳回红。</b>待审是作者交了稿等着放行（欠账，黄）；
+ * 在议是能正常回帖的（绿）；已解决与已关闭是事情有了结论（灰）；
+ * 已驳回是审核不通过<b>而且作者可能来申诉</b>（红）——这一档要给红，
+ * 否则值班的人看不出"这里有一批人正等着复核"。</p>
+ *
+ * <p>码值固定（{@code ThreadStatus}），屏风不译码。{@code DRAFT} 与
+ * {@code SCHEDULED} 是作者自己的草稿箱，公开列表里不会出现，字典仍列出，
+ * 免得将来出现时被渲染成裸码。</p>
+ */
+export const THREAD_STATE_STYLE: Record<string, ScreenStatusStyle> = {
+  DRAFT: { label: '草稿', tone: 'flat' },
+  SCHEDULED: { label: '定时', tone: 'flat' },
+  PENDING: { label: '待审', tone: 'warn' },
+  PUBLISHED: { label: '在议', tone: 'good' },
+  SOLVED: { label: '已解决', tone: 'flat' },
+  CLOSED: { label: '已关闭', tone: 'flat' },
+  REJECTED: { label: '已驳回', tone: 'bad' },
+  DELETED: { label: '已删除', tone: 'flat' },
+};
+
+/**
+ * 清议堂（FORUM）帖子列表页（S7 / T7.3）。
+ *
+ * <p><b>这一屏讲什么。</b>清议堂是公开议事的地方，主账就是帖子：哪几篇在议、
+ * 哪几篇已解决、哪几篇被驳回等着复核。列表按最后回复时间排（{@code latest}），
+ * 因为"还有人在这条下面说话"比"发布得晚"更能说明它现在是活的。</p>
+ *
+ * <p><b>筛选框选的是排序不是状态。</b>公开列表按浏览，没有"状态"这个维度——
+ * 待审、驳回都是审核链路的内部概念，不该让访客按它筛。所以这里把
+ * {@code statusParam} 指向 {@code sort}（最新 / 热帖 / 精华）：控件还是那个下拉，
+ * 语义是"看哪一类帖"。{@code statusMap} 仍管行上的状态灯。</p>
+ *
+ * <p><b>不配 {@code detailPath}。</b>`ThreadListItemVO` 已经把编号、类型、
+ * 状态、回复/浏览/投花/收藏四个计数、发布时间与最后回复时间都带回来了——
+ * 屏风上的详情是"这一行的展开"，不该为了同一批字段再打一次接口。</p>
+ */
+export const THREAD_PAGE: ScreenListPageSpec = {
+  key: 'threads',
+  title: '帖子列表',
+  listPath: '/forum/v1/thread/page',
+  permission: 'sys:forum:browse',
+  idKey: 'id',
+  keywordParam: 'keyword',
+  searchPlaceholder: '搜索标题…',
+  statusParam: 'sort',
+  statuses: [
+    { value: '', label: '最新回帖' },
+    { value: 'hot', label: '热帖' },
+    { value: 'essence', label: '精华' },
+  ],
+  statusMap: THREAD_STATE_STYLE,
+  /* 4 行/页：帖子状态是**五态**柱图，比四态页面多吃掉约 0.7 行高——实测表体
+     只放得下 4.3 行，排 5 行会让第 5 行在表格下缘被切一半（屏风能滚，但半行
+     看着像坏了）。4 行刚好排满不留半行。 */
+  pageSize: 4,
+  columns: [
+    { key: 'title', label: '标题', width: '24%' },
+    {
+      key: 'threadType',
+      label: '类型',
+      width: '9%',
+      format: 'status',
+      statusMap: THREAD_TYPE_STYLE,
+    },
+    { key: 'status', label: '状态', width: '11%', format: 'status' },
+    { key: 'replyCount', label: '回复', width: '8%' },
+    { key: 'viewCount', label: '浏览', width: '8%' },
+    { key: 'likeCount', label: '投花', width: '8%' },
+    { key: 'publishTime', label: '发布时间', width: '16%', format: 'datetime' },
+    { key: 'lastReplyTime', label: '最后回复', width: '16%', format: 'datetime' },
+  ],
+  detailFields: [
+    { key: 'title', label: '标题' },
+    { key: 'threadNo', label: '帖号' },
+    { key: 'threadType', label: '类型', format: 'status', statusMap: THREAD_TYPE_STYLE },
+    { key: 'status', label: '状态', format: 'status' },
+    { key: 'boardId', label: '版块' },
+    { key: 'authorId', label: '作者' },
+    { key: 'anonymous', label: '匿名展示' },
+    { key: 'anonymousNo', label: '匿名编号' },
+    { key: 'pinned', label: '悬榜' },
+    { key: 'essence', label: '题金榜' },
+    { key: 'replyCount', label: '回复数' },
+    { key: 'viewCount', label: '浏览数' },
+    { key: 'likeCount', label: '投花数' },
+    { key: 'collectCount', label: '收藏数' },
+    { key: 'lastReplyTime', label: '最后回复', format: 'datetime' },
+  ],
+  titleKey: 'title',
+};
+
+/**
  * 殿的连通状态：与后端 {@code HubHallState} 一一对应，前端只做展示。
  *
  * <p>「无凭据」单独一档而不是并进「未通」：前者要去要权限，后者要去查服务，
