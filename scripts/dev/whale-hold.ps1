@@ -27,6 +27,6 @@ Start-Svc 'auth'    "$base\whale-services\whale-service-auth\whale-service-auth-
 Start-Svc 'alert'   "$base\whale-ops\whale-alert\target\whale-alert.jar"          9103
 Start-Svc 'audit'   "$base\whale-ops\whale-audit\target\whale-audit.jar"          9101
 Start-Svc 'monitor' "$base\whale-ops\whale-monitor\target\whale-monitor.jar"      9102
-Start-Svc 'pay'     "$base\whale-services\whale-pay\target\whale-pay.jar"         8086
+Start-Svc 'pay'     "$base\whale-services\whale-service-pay\target\whale-service-pay.jar"         8086
 Write-Host 'all launched; holding terminal open'
 while ($true) { Start-Sleep -Seconds 60 }

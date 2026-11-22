@@ -27,7 +27,7 @@ JARS_DIR="$ROOT/deploy/backend/jars"
 SERVICE_JAR_DIRS=(
   "gateway:whale-backend/whale-services/whale-service-gateway"
   "auth:whale-backend/whale-services/whale-service-auth/whale-service-auth-starter"
-  "pay:whale-backend/whale-services/whale-pay"
+  "pay:whale-backend/whale-services/whale-service-pay"
   "erp:whale-backend/whale-apps/whale-erp"
   "oa:whale-backend/whale-apps/whale-oa"
   "workflow:whale-backend/whale-services/whale-workflow"

@@ -6,7 +6,7 @@
     { "service": "whale-workflow", "module": "whale-services/whale-service-workflow", "match": "whale-services/whale-service-workflow/", "port": 8083 },
     { "service": "whale-form", "module": "whale-services/whale-service-form", "match": "whale-services/whale-service-form/", "port": 8084 },
     { "service": "whale-file", "module": "whale-services/whale-service-file/whale-service-file-web", "match": "whale-services/whale-service-file/", "port": 8085 },
-    { "service": "whale-pay", "module": "whale-services/whale-pay", "match": "whale-services/whale-pay/", "port": 8086 },
+    { "service": "whale-pay", "module": "whale-services/whale-service-pay", "match": "whale-services/whale-service-pay/", "port": 8086 },
     { "service": "whale-agent", "module": "whale-services/whale-agent", "match": "whale-services/whale-agent/", "port": 8090, "assets": true },
     { "service": "whale-im", "module": "whale-services/whale-im", "match": "whale-services/whale-im/", "port": 8091 },
     { "service": "whale-archive", "module": "whale-services/whale-archive", "match": "whale-services/whale-archive/", "port": 8093 },

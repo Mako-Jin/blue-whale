@@ -36,7 +36,7 @@ $services = @(
     @{ Name = 'alert';   Jar = "$base\whale-ops\whale-ops-alert\target\whale-alert.jar"; Module = 'whale-ops/whale-ops-alert'; Port = 9103; Extra = $null }
     @{ Name = 'audit';   Jar = "$base\whale-ops\whale-ops-audit\target\whale-audit.jar"; Module = 'whale-ops/whale-ops-audit'; Port = 9101; Extra = $null }
     @{ Name = 'monitor'; Jar = "$base\whale-ops\whale-monitor\target\whale-monitor.jar"; Module = 'whale-ops/whale-monitor'; Port = 9102; Extra = $null }
-    @{ Name = 'pay';     Jar = "$base\whale-services\whale-pay\target\whale-pay.jar"; Module = 'whale-services/whale-pay'; Port = 8086; Extra = $null }
+    @{ Name = 'pay';     Jar = "$base\whale-services\whale-service-pay\target\whale-service-pay.jar"; Module = 'whale-services/whale-service-pay'; Port = 8086; Extra = $null }
 )
 
 if ($Rebuild) {

@@ -11,7 +11,7 @@
         <relativePath>../../whale-parent/pom.xml</relativePath>
     </parent>
 
-    <artifactId>whale-pay</artifactId>
+    <artifactId>whale-service-pay</artifactId>
     <name>Whale Pay</name>
     <description>支付服务</description>
 
