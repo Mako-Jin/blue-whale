@@ -80,6 +80,7 @@ import {
   MEMBER_PAGE,
   SPACE_PAGE,
   ORDER_PAGE,
+  SONG_PAGE,
 } from './screenpages';
 import { createSceneEnv, type SceneEnv } from './env';
 import { createPostFx, type PostFx } from './postfx';
@@ -3854,6 +3855,17 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     updateWalkMarker(dt);
     // 脚步声跟速度走：静止时 update 内部会自己归零，不必在外面判
     audio.update(dt, player.speed, groundAt(player.pos.x, player.pos.z));
+    // 乐坊琴音（S7/T7.1 空间音频）：距离衰减 + 按玩家朝向的立体声方位。
+    // 不进 update 签名——只有乐坊用得上，别为九分之一的需求改所有人的调用。
+    {
+      const stage = PALACES.find((p) => p.nodeKey === 'yuefang-stage');
+      if (stage) {
+        const dx = stage.x - player.pos.x;
+        const dz = stage.z - player.pos.z;
+        const bearing = Math.atan2(dx, dz) - player.yaw;
+        audio.setStageProximity(Math.hypot(dx, dz), bearing);
+      }
+    }
     updateActors(dt);
     if (!screenBusy && !hallActive) updateCamera(dt);
     updateWhale(dt);
@@ -3977,6 +3989,10 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   /** 市舶司（S6/T6.34）屏风与其业务页句柄（同上） */
   let shiboScreen: ScreenHandle | null = null;
   let shiboPage: ScreenPageHandle | null = null;
+
+  /** 乐坊（S7/T7.1）屏风与其业务页句柄（同上） */
+  let yuefangScreen: ScreenHandle | null = null;
+  let yuefangPage: ScreenPageHandle | null = null;
 
   /**
    * 坊的屏风落位：从布局数据现算，不手抄坐标。
@@ -4549,6 +4565,48 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
       });
     }
 
+    /* 乐坊（S7/T7.1，外城九处第一处）：歌曲台账 + 曲库三本账 —— 内容卡在哪一节。
+
+       布局里乐坊在东南外城（x/z = 39.73/85.20，旋转 -155°），`districtScreenPose`
+       按它自己的正面法线算落点，不需要手调坐标。坊域落点仍用内城同一套
+       几何公式——乐坊的"坊"字先落到坊墙上，外城其余八处接入时逐坊加注册块。
+
+       屏风上半部是四张牌（已上架歌曲 / 待审评论 / 待复核申诉 / 版权待复核），
+       中部是歌曲三态分布柱图，下半部是歌曲台账。评论与申诉不单摆页：
+       2D 里都从歌曲进，硬凑只会把入口铺满。 */
+    const yuefangPose = districtScreenPose('yuefang-stage');
+    if (yuefangPose) {
+      yuefangScreen = screens.add({
+        id: 'yuefang',
+        position: [yuefangPose.x, 1.55, yuefangPose.z],
+        facing: yuefangPose.facing,
+        size: 'large',
+        title: '乐坊 · 歌曲台账',
+        subtitle: 'MUSIC / 曲库运营',
+        tone: 'idle',
+        mount: (body) => {
+          yuefangPage = mountScreenPage(body, {
+            nodeKey: 'yuefang-stage',
+            overviewPath: '/music/overview',
+            overviewPermission: 'sys:music:song:list',
+            pages: [SONG_PAGE],
+            getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+            getPermissions: opts.getPermissions,
+            // 题头灯跟业务页状态走：概览陈旧/失败（服务未起、无凭据）时不该还亮绿灯
+            onTone: (tone) => yuefangScreen?.setTone(tone),
+            onTitle: (title, subtitle) => {
+              yuefangScreen?.setTitle(title ? `${title} · 歌曲台账` : '乐坊 · 歌曲台账',
+                subtitle ?? 'MUSIC / 曲库运营');
+            },
+          });
+          return () => {
+            yuefangPage?.dispose();
+            yuefangPage = null;
+          };
+        },
+      });
+    }
+
     /* 枢密殿（AUTH）屏风页（S5 / T5.2）：屏风里是登录历史 ——
        谁、什么时候、用什么方式登录，失败了多少次。
 
@@ -5111,6 +5169,8 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
           return hanlinPage;
         case 'shibo':
           return shiboPage;
+        case 'yuefang':
+          return yuefangPage;
         default:
           return hubuPage;
       }
@@ -5124,6 +5184,8 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
       ready: audio.isReady(),
       muted: audio.isMuted(),
       ground: groundAt(player.pos.x, player.pos.z),
+      /* 乐坊琴音目标增益：走到乐坊跟前 > 0，走远归 0（e2e 无法听，只能读状态） */
+      stageGain: audio.stageGain(),
     });
     window.__bwwSound = () => toggleSound();
     /* 天象探针：e2e 无法"看"，只能读强度与可见性——真好不好看仍需人眼 */

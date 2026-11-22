@@ -150,3 +150,7 @@ whale:
           name: 市舶司
           url: http://bw-mall:9010/mall/overview
           permission: sys:mall:order:list
+        - nodeKey: yuefang-stage
+          name: 乐坊
+          url: http://bw-music:8096/music/overview
+          permission: sys:music:song:list

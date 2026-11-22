@@ -1162,11 +1162,50 @@
   的遗留（HEAD 上既有，本批 diff 不碰这两个应用）；其余七项门禁 PASS，修复归后续批次。
   改了 whale-mall 与 whale-monitor 的 yml，**部署时两座容器都要重建镜像**。
 
+**S7 第一批交付说明（2026-11-22，T7.1 乐坊 / music，外城九处开工）**
+
+- **外城建筑先建节点**：前六阶段十二坊都在 `city-layout.json` 现成环上，S7 外城九处
+  布局里没有——第一批先在 `city-layout.json` 加 `yuefang-stage`（东南外城 x/z=
+  39.73/85.20、rotationDeg=-155、portal=殿心+14×正面法线、entry `/music`
+  `sys:music:browse`）。`PALACES` / `DISTRICTS` 从布局派生，乐坊自动拿到坊墙与传送门。
+- **接口**：`GET /music/overview`（`whale.overview.base-path=/music/overview`，
+  TTL 30s、超时 2s）：四张 KPI（已上架歌曲 / 待审评论 / 待复核申诉 / 版权待复核，
+  后三张有账就黄）+ 一张歌曲发布三态柱图（草稿 / 已上架 / 已下架，COUNT）
+  + 四告警（待审 / 申诉 / 版权待复核 WARNING；版权下架存量 INFO）
+  + 歌曲台账 + 艺人台账两入口。MUSIC 无现成看板，新建
+  `MusicOverviewStats/StatsService/Provider`（whale-services/whale-music，:8096，
+  容器 bw-music）。权限码复用 `sys:music:song:list`。
+- **口径**：发布三态取 `PublishState`、版权三态取 `CopyrightState`、评论与申诉只数
+  `PENDING` 一段（出了结论的不挂待办）；**不写 GROUP BY，按状态各 count 一次**
+  （租户插件保证隔离，自拼 SQL 一漏就跨租户串数）；tenantId 显式传入，缺了直接抛。
+- **屏风页**：`SONG_PAGE`（`/music/v1/song/page`，七列）。有搜索框（keyword 模糊曲名）、
+  `statusParam=publishState`（发布三态）；**发布态用页面级字典**（已上架绿、草稿/下架灰），
+  **版权态用列级 `statusMap`**（待复核黄 / 有效绿 / 下架灰）——同名不同义的两套码；
+  datetime 口径（收录/上架时间）；不配 `detailPath`（SongView 平铺，详情 10 字段）。
+- **空间音频（本坊特殊项）**：`audio.ts` 加五声音阶拨弦链（三角波 + 快起慢落包络 →
+  音量门 → StereoPanner），`city.ts` 每帧按玩家到乐坊的距离（6m 全量 / 30m 归零）
+  与相对朝向喂 `setStageProximity`；**不进 `update` 签名**，只为九分之一的需求不改
+  所有调用方；离开时把音序调度点推到"现在"防补播轰炸。新增 `stageGain()` 探针供
+  e2e 读状态（听感仍需人耳）。
+- **数枢殿总控在册**：`http://bw-music:8096/music/overview`，接入 **21 处**。
+- **验证**：单测 15 例；music + monitor package rc=0；e2e `world-yuefang-smoke`
+  **59 项全绿**（含空间音频正/负向验证）；city-smoke 回归全过；tsc / overview-types
+  同步；八项门禁 rc=0 除已知遗留。
+- **新坑（写进门禁/记忆）**：① CSS3D 走位必须解 `bws-screen` **自身**的 matrix3d
+  （世界 x/z），`parentElement` 是相机透视层，从它解出的是相机坐标（乐坊解成
+  (0,-76) 而真位在 (39.73,85.20)）——前几坊用 dispatchEvent 强制点击、断言不校验
+  真实距离把这个坑盖住了，乐坊空间音频按真实距离衰减才暴露；② e2e 音频断言必须做
+  负向验证（出生点远离应恒 0），否则"无条件拉起"也会 PASS。
+- **已知遗留（非本批引入）**：`check-api-path-drift.py` FAIL 2 处——POST /contract
+  （contract.ts）、POST /scene（scene.ts），来自 API 版本化提交 2022e115 / ad5c5725
+  （HEAD 上既有，本批不碰）；其余七项门禁 PASS。改了 whale-music 与 whale-monitor
+  的 yml，**部署时两座容器都要重建镜像**。
+
 ### S7 外城 9 处
 
 | 编号 | 任务 | 服务 | 特殊 |
 |---|---|---|---|
-| T7.1 | [ ] 乐坊 | music | 空间音频 |
+| T7.1 | [x] 乐坊 | music | 空间音频 |
 | T7.2 | [ ] 影戏院 | video | 视频纹理 |
 | T7.3 | [ ] 清议堂 | forum | 帖子列表 |
 | T7.4 | [ ] 邮驿 | mail | 邮件列表 |

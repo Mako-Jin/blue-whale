@@ -747,6 +747,41 @@
         "halfZ": 5.4
       },
       "sortNo": 26
+    },
+    {
+      "nodeKey": "yuefang-stage",
+      "parentKey": "outer-city",
+      "nodeType": "BUILDING",
+      "name": "乐坊",
+      "sub": "MUSIC · 音乐工坊",
+      "icon": "music",
+      "x": 39.73,
+      "z": 85.2,
+      "y": 0,
+      "w": 8,
+      "d": 6,
+      "scale": 0.72,
+      "rotationDeg": -155.0,
+      "roofColor": "#8a5a2e",
+      "bodyColor": "#7a5230",
+      "modelKey": "palace-hall",
+      "collider": {
+        "halfX": 6.0,
+        "halfZ": 5.0
+      },
+      "sortNo": 27,
+      "entry": {
+        "type": "SYSTEM",
+        "path": "/music",
+        "permission": "sys:music:browse"
+      },
+      "portal": {
+        "x": 33.81,
+        "z": 72.51,
+        "color": "#ffd76f",
+        "label": "乐坊",
+        "subLabel": "MUSIC · 音乐工坊"
+      }
     }
   ]
 }

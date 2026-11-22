@@ -105,8 +105,9 @@ const portalItems = await page.evaluate(() => {
     cardsHidden: items.filter((el) => getComputedStyle(el).visibility !== 'visible').length,
   };
 });
-// S1 城郭扩容后是 十二坊 + 数枢殿 = 13 项；写死 9 的那版一直在报"实际 13"。
-ok(portalItems.total === 13, `传送门 13 项（实际 ${portalItems.total}）`);
+// S1 十二坊 + 数枢殿 = 13；S7/T7.1 乐坊（外城第一处）建成后 +1 = 14。
+// 写死 9 的那版一直报"实际 13"，现在写死 13 会报"实际 14"——外城九处逐坊接入时继续 +1。
+ok(portalItems.total === 14, `传送门 14 项（实际 ${portalItems.total}）`);
 /* 判"打开"要看类名/可见性/可点击，不看 opacity：
    软件渲染（swiftshader）下 CSS 过渡能拖到 3s 以上，按 opacity 判会把"已打开"误判成"不可见"。 */
 ok(portalItems.opened && portalItems.visible && portalItems.clickable,

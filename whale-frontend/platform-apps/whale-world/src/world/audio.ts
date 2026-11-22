@@ -45,6 +45,10 @@ export interface WorldAudio {
   speak(): void;
   /** 设置天气环境床 */
   setWeather(kind: number): void;
+  /** 乐坊琴音：dist 玩家到乐坊的距离（米），bearing 乐坊相对玩家朝向的方位偏角（弧度） */
+  setStageProximity(dist: number, bearing: number): void;
+  /** 乐坊琴音当前目标增益（0~MUSIC_LEVEL）：e2e 无法听，只能读状态确认距离衰减接线 */
+  stageGain(): number;
   /** 每帧推进：脚步节流 + 环境床平滑 */
   update(dt: number, speed: number, ground: GroundKind): void;
   dispose(): void;
@@ -62,6 +66,8 @@ const silentAudio: WorldAudio = {
   portal: () => {},
   speak: () => {},
   setWeather: () => {},
+  setStageProximity: () => {},
+  stageGain: () => 0,
   update: () => {},
   dispose: () => {},
 };
@@ -117,6 +123,24 @@ export function createWorldAudio(): WorldAudio {
   let rainTarget = 0;
   let windTarget = 0;
 
+  /** 乐坊琴音链：拨弦 → 音量门 → 立体声场 → 主链；距离/方位每帧平滑 */
+  let musicGain: GainNode | null = null;
+  let musicPan: StereoPannerNode | null = null;
+  let musicTarget = 0;
+  let musicPanTarget = 0;
+  /** 下一个拨弦的调度时刻（AudioContext 时钟）；离开乐坊时推到“现在”防补播轰炸 */
+  let musicNextAt = 0;
+  /** 五声音阶（宫商角徵羽 + 高八度宫），拨弦在相邻音间随机漫步，不跳大跳 */
+  let scaleIndex = 2;
+
+  /** 距离衰减：6 米内全量，30 米外归零（正好贴屏风读数时最响，绕过坊墙就淡出） */
+  const MUSIC_NEAR = 6;
+  const MUSIC_FAR = 30;
+  const MUSIC_LEVEL = 0.16;
+
+  /** 宫调五声音阶频率（Hz）：C4 D4 E4 G4 A4 C5，吟游而不成调，避免像在放歌 */
+  const PENTATONIC = [261.63, 293.66, 329.63, 392.0, 440.0, 523.25];
+
   /** 脚步节流：按速度换算步频，跑步时自然加快 */
   let stepAccum = 0;
 
@@ -146,6 +170,22 @@ export function createWorldAudio(): WorldAudio {
 
       comp.connect(master);
       master.connect(ctx.destination);
+
+      // 乐坊琴音常驻节点：音量门 + 立体声场。StereoPanner 不支持时（旧 Safari）
+      // 退化为直连——方位感丢了但声音还在，不算事故。
+      musicGain = ctx.createGain();
+      musicGain.gain.value = 0;
+      const panCtor = (
+        ctx as AudioContext & { createStereoPanner?: () => StereoPannerNode }
+      ).createStereoPanner;
+      if (panCtor) {
+        musicPan = panCtor.call(ctx);
+        musicPan.pan.value = 0;
+        musicGain.connect(musicPan);
+        musicPan.connect(comp);
+      } else {
+        musicGain.connect(comp);
+      }
 
       // 环境床常驻节点：雨
       const rainSrc = ctx.createBufferSource();
@@ -243,6 +283,22 @@ export function createWorldAudio(): WorldAudio {
     }
   }
 
+  /** 一记拨弦：三角波 + 快起慢落包络，经乐坊琴音链（音量门 + 声场）出声 */
+  function doPluck(freq: number, when: number): void {
+    if (!ctx || !musicGain) return;
+    const osc = ctx.createOscillator();
+    osc.type = 'triangle';
+    osc.frequency.value = freq;
+    const env = ctx.createGain();
+    env.gain.setValueAtTime(0, when);
+    env.gain.linearRampToValueAtTime(0.9, when + 0.008);
+    env.gain.exponentialRampToValueAtTime(0.0001, when + 1.8);
+    osc.connect(env);
+    env.connect(musicGain);
+    osc.start(when);
+    osc.stop(when + 1.85);
+  }
+
   return {
     unlock() {
       if (disposed) return;
@@ -275,6 +331,7 @@ export function createWorldAudio(): WorldAudio {
 
     isMuted: () => muted,
     isReady: () => ready && !muted,
+    stageGain: () => musicTarget,
 
     step: doStep,
 
@@ -347,6 +404,16 @@ export function createWorldAudio(): WorldAudio {
       }
     },
 
+    setStageProximity(dist, bearing) {
+      if (dist <= MUSIC_FAR) {
+        // 线性衰减：6 米内全量、30 米外归零；方位用正弦映射到 [-1,1] 声场
+        musicTarget = Math.max(0, 1 - (dist - MUSIC_NEAR) / (MUSIC_FAR - MUSIC_NEAR)) * MUSIC_LEVEL;
+        musicPanTarget = Math.max(-1, Math.min(1, Math.sin(bearing)));
+      } else {
+        musicTarget = 0;
+      }
+    },
+
     update(dt, speed, ground) {
       if (!ready || muted) return;
 
@@ -354,6 +421,29 @@ export function createWorldAudio(): WorldAudio {
       if (ctx && rainGain && windGain) {
         rainGain.gain.setTargetAtTime(rainTarget, ctx.currentTime, 0.8);
         windGain.gain.setTargetAtTime(windTarget, ctx.currentTime, 1.2);
+      }
+
+      // 乐坊琴音：音量门/声场平滑 + lookahead 音序调度。
+      // 必须放在脚步提前 return 之前——玩家站着听的时候脚步不动，琴音不能停。
+      if (ctx && musicGain) {
+        musicGain.gain.setTargetAtTime(musicTarget, ctx.currentTime, 0.5);
+        if (musicPan) {
+          musicPan.pan.setTargetAtTime(musicPanTarget, ctx.currentTime, 0.4);
+        }
+        if (musicTarget > 0) {
+          // 0.12s lookahead：到点前一撮先排下去，避免主线程抖动造成断音
+          while (musicNextAt < ctx.currentTime + 0.12) {
+            const when = Math.max(musicNextAt, ctx.currentTime + 0.02);
+            doPluck(PENTATONIC[scaleIndex], when);
+            // 相邻音漫步：±1 或原地重复，不成调不成曲
+            scaleIndex = Math.max(0, Math.min(PENTATONIC.length - 1,
+              scaleIndex + (Math.random() < 0.5 ? -1 : 1)));
+            musicNextAt = when + 0.5 + Math.random() * 0.55;
+          }
+        } else {
+          // 离开了乐坊：调度点推到"现在"，回来时不补播缺席期间欠下的一串音
+          musicNextAt = ctx.currentTime;
+        }
       }
 
       // 步频跟速度走：慢走约 1.6 步/秒，疾行约 3.2 步/秒
@@ -382,6 +472,8 @@ export function createWorldAudio(): WorldAudio {
       noise = null;
       rainGain = null;
       windGain = null;
+      musicGain = null;
+      musicPan = null;
     },
   };
 }

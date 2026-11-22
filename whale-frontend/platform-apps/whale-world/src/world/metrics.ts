@@ -275,6 +275,23 @@ const PROBES: ProbeSpec[] = [
       },
     ],
   },
+  {
+    // 乐坊 = MUSIC：S7/T7.1 起读契约 /music/overview，与屏风上半部四张牌同一份
+    // 快照（乐坊是外城第一处，原先外城没有 metrics 行，本次同步新增）。
+    nodeKey: 'yuefang-stage',
+    permission: 'sys:music:song:list',
+    url: '/music/overview',
+    extract: (d) => [
+      { label: '已上架', value: formatCount(kpiOf(d, 'published')) },
+      {
+        label: '待办',
+        value: formatCount(num(kpiOf(d, 'comment-pending'))
+          + num(kpiOf(d, 'appeal-pending')) + num(kpiOf(d, 'copyright-declared'))),
+        tone: num(kpiOf(d, 'comment-pending'))
+          + num(kpiOf(d, 'appeal-pending')) + num(kpiOf(d, 'copyright-declared')) > 0 ? 'warn' : 'good',
+      },
+    ],
+  },
 ];
 
 /* ---------------------------------------------------------------- 持久化 */

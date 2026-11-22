@@ -70,6 +70,10 @@ export const OVERVIEW_HALLS: OverviewHallSpec[] = [
      权限码复用 2D 订单台账（sys:mall:order:list），不为 3D 单发授权；
      商品台账入口走自己的 sys:mall:product:list，在 provider link 里带。 */
   { nodeKey: 'shibosi-hall', path: '/mall/overview', permission: 'sys:mall:order:list' },
+  /* 乐坊（S7/T7.1）——外城九处第一处：曲库运营。歌曲是主账，
+     权限码复用 2D 歌曲台账（sys:music:song:list），不为 3D 单发授权；
+     艺人台账入口走自己的 sys:music:artist:list，在 provider link 里带。 */
+  { nodeKey: 'yuefang-stage', path: '/music/overview', permission: 'sys:music:song:list' },
   /* 数枢殿总控（S5/T5.1）：服务端把在册各殿的概览汇成一屏。
      **不设权限码**——总控的可见范围就是"你在各殿能看到的范围"，
      缺凭据的殿在总控里显示为「无凭据」行，而不是整块 403。
