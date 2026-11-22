@@ -29,7 +29,7 @@ import java.util.Map;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/im/agent-runs")
+@RequestMapping(path = "/im/v{version}/agent-runs", version = "1")
 @RequirePermission("sys:im:chat")
 @RequiredArgsConstructor
 public class ImAgentRunController {

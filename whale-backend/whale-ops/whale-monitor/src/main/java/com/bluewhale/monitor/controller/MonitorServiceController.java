@@ -25,7 +25,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/monitor/service")
+@RequestMapping(path = "/monitor/v{version}/service", version = "1")
 @RequiredArgsConstructor
 public class MonitorServiceController {
 

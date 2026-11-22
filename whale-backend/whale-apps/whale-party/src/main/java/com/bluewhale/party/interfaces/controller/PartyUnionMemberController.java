@@ -35,7 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/party/union/member")
+@RequestMapping(path = "/party/v{version}/union/member", version = "1")
 @RequiredArgsConstructor
 public class PartyUnionMemberController {
 

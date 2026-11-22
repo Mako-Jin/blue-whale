@@ -38,7 +38,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/party/branch")
+@RequestMapping(path = "/party/v{version}/branch", version = "1")
 @RequiredArgsConstructor
 public class PartyBranchController {
 

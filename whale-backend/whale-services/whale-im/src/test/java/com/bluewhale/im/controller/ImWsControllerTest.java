@@ -38,7 +38,9 @@ class ImWsControllerTest {
      */
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(controller)
+                .setApiVersionStrategy(ImApiVersionTestSupport.strategy())
+                .build();
     }
 
     @Test
@@ -55,7 +57,7 @@ class ImWsControllerTest {
     void ticketShouldReturnTicket() throws Exception {
         when(ticketService.issue(USER_ID)).thenReturn(WsTicketVO.builder().ticket("t-1").expiresIn(60L).build());
 
-        mockMvc.perform(post("/im/ws-ticket").header(WebHeaders.USER_ID, String.valueOf(USER_ID)))
+        mockMvc.perform(post("/im/v1/ws-ticket").header(WebHeaders.USER_ID, String.valueOf(USER_ID)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
                 .andExpect(jsonPath("$.data.ticket").value("t-1"))

@@ -37,7 +37,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/party/metric")
+@RequestMapping(path = "/party/v{version}/metric", version = "1")
 @RequiredArgsConstructor
 public class PartyMetricController {
 

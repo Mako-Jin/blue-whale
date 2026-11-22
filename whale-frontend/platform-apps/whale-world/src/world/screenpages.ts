@@ -1345,7 +1345,7 @@ export const PARTY_POLITICAL_STYLE: Record<string, ScreenStatusStyle> = {
 export const MEMBER_PAGE: ScreenListPageSpec = {
   key: 'members',
   title: '党员台账',
-  listPath: '/party/member/page',
+  listPath: '/party/v1/member/page',
   permission: 'sys:party:member:list',
   idKey: 'id',
   keywordParam: 'keyword',
@@ -1521,6 +1521,82 @@ export const ORDER_PAGE: ScreenListPageSpec = {
 };
 
 /**
+ * 歌曲版权状态：列级字典（页面级字典被发布状态占用）。
+ *
+ * <p>下架（TAKEDOWN）给灰不给红：下架是处置<b>出了结论</b>的结果，
+ * 有争议可申诉翻案，不是正在烧的事故；待复核（DECLARED）才是黄——
+ * 协议签了没人过目，上架被卡在这一节。</p>
+ */
+export const MUSIC_COPYRIGHT_STYLE: Record<string, ScreenStatusStyle> = {
+  DECLARED: { label: '待复核', tone: 'warn' },
+  VALID: { label: '有效', tone: 'good' },
+  TAKEDOWN: { label: '已下架', tone: 'flat' },
+};
+
+/**
+ * 歌曲发布状态：页面级字典。
+ *
+ * <p>已上架绿（能播就是好事）、草稿与已下架灰——草稿是上传者自己的节奏，
+ * 下架是处置结果，都不催办；运营要盯的待办（评论/申诉/版权复核）在 KPI 与告警条。</p>
+ */
+export const MUSIC_PUBLISH_STATE_STYLE: Record<string, ScreenStatusStyle> = {
+  DRAFT: { label: '草稿', tone: 'flat' },
+  PUBLISHED: { label: '已上架', tone: 'good' },
+  OFFLINE: { label: '已下架', tone: 'flat' },
+};
+
+/**
+ * 乐坊（MUSIC）歌曲台账页（S7 / T7.1）。
+ *
+ * <p><b>这一屏讲什么。</b>乐坊掌音律，歌曲是主账：哪几支压在草稿没上架、
+ * 哪几支版权没过目，是运营在屏风上要先看的东西。</p>
+ *
+ * <p><b>版权用列级字典。</b>页面级字典让给发布状态（筛选走 publishState），
+ * 版权是每行自己的属性——同一页里既有待复核也有已下架，打到列上才各归各位。</p>
+ */
+export const SONG_PAGE: ScreenListPageSpec = {
+  key: 'songs',
+  title: '歌曲台账',
+  listPath: '/music/v1/song/page',
+  permission: 'sys:music:song:list',
+  idKey: 'id',
+  keywordParam: 'keyword',
+  searchPlaceholder: '搜索曲名…',
+  statusParam: 'publishState',
+  statuses: [
+    { value: '', label: '全部状态' },
+    { value: 'DRAFT', label: '草稿' },
+    { value: 'PUBLISHED', label: '已上架' },
+    { value: 'OFFLINE', label: '已下架' },
+  ],
+  statusMap: MUSIC_PUBLISH_STATE_STYLE,
+  /* 6 行/页：大屏 620px 里 KPI + 状态柱图 + 工具栏之后只剩约 230px */
+  pageSize: 6,
+  columns: [
+    { key: 'title', label: '曲名', width: '22%' },
+    { key: 'language', label: '语言', width: '10%' },
+    { key: 'publishState', label: '状态', width: '12%', format: 'status' },
+    { key: 'copyrightState', label: '版权', width: '12%', format: 'status', statusMap: MUSIC_COPYRIGHT_STYLE },
+    { key: 'playCount', label: '播放', width: '12%' },
+    { key: 'createTime', label: '收录时间', width: '18%', format: 'datetime' },
+    { key: 'publishedAt', label: '上架时间', width: '14%', format: 'datetime' },
+  ],
+  detailFields: [
+    { key: 'title', label: '曲名' },
+    { key: 'subtitle', label: '副题' },
+    { key: 'publishState', label: '发布状态', format: 'status' },
+    { key: 'copyrightState', label: '版权', format: 'status' },
+    { key: 'language', label: '语言' },
+    { key: 'playCount', label: '播放数' },
+    { key: 'likeCount', label: '收藏数' },
+    { key: 'commentCount', label: '评论数' },
+    { key: 'createTime', label: '收录时间', format: 'datetime' },
+    { key: 'publishedAt', label: '上架时间', format: 'datetime' },
+  ],
+  titleKey: 'title',
+};
+
+/**
  * 殿的连通状态：与后端 {@code HubHallState} 一一对应，前端只做展示。
  *
  * <p>「无凭据」单独一档而不是并进「未通」：前者要去要权限，后者要去查服务，
@@ -1612,4 +1688,5 @@ export const SCREEN_PAGES: Record<string, ScreenListPageSpec> = {
   [PROJECT_PAGE.key]: PROJECT_PAGE,
   [SPACE_PAGE.key]: SPACE_PAGE,
   [ORDER_PAGE.key]: ORDER_PAGE,
+  [SONG_PAGE.key]: SONG_PAGE,
 };

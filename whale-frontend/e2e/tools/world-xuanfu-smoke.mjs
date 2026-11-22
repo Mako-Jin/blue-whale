@@ -73,7 +73,7 @@ const OVERVIEW = {
     { level: 'warning', text: '有 2 个支部到了换届期，到期不换要出问题', count: null },
     { level: 'info', text: '有 3 名预备党员到了转正期，转正得有人办手续', count: null },
   ],
-  links: [{ key: 'members', label: '党员台账', path: '/party/member/page', permission: 'sys:party:member:list' }],
+  links: [{ key: 'members', label: '党员台账', path: '/party/v1/member/page', permission: 'sys:party:member:list' }],
   notes: ['口径：收缴率 = 实收 ÷ 应收（96500/100000），开展率 = 已开展 ÷ 应开展（22/25），参会率 = 实到 ÷ 应到（380/500）'],
 };
 
@@ -130,7 +130,7 @@ await page.route('**/party/overview**', async (route) => {
 
 /* 详情路由先注册、列表路由后注册：Playwright 后注册的优先匹配。
    宣抚坊不配 detailPath，这条路由只用来断言"点行不会打详情接口"。 */
-await page.route('**/party/member/*', async (route) => {
+await page.route('**/party/v1/member/*', async (route) => {
   const url = new URL(route.request().url());
   if (url.pathname.endsWith('/page')) {
     await route.fallback();
@@ -140,7 +140,7 @@ await page.route('**/party/member/*', async (route) => {
   await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(json(null)) });
 });
 
-await page.route('**/party/member/page**', async (route) => {
+await page.route('**/party/v1/member/page**', async (route) => {
   const url = new URL(route.request().url());
   const current = Number(url.searchParams.get('current') ?? '1');
   const size = Number(url.searchParams.get('size') ?? '6');
@@ -409,7 +409,7 @@ check('退出后回到 3D 尺寸（不是糊满整个镜头）', exited.w > 0 &&
 await page.route('**/party/overview**', (route) =>
   route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }),
 );
-await page.route('**/party/member/page**', (route) =>
+await page.route('**/party/v1/member/page**', (route) =>
   route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }),
 );
 await page.evaluate(() => {

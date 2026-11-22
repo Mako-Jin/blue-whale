@@ -35,7 +35,7 @@ import java.time.LocalDate;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/party/activity")
+@RequestMapping(path = "/party/v{version}/activity", version = "1")
 @RequiredArgsConstructor
 public class PartyActivityController {
 

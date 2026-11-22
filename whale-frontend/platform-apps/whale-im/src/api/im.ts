@@ -125,30 +125,30 @@ export interface SendMessagePayload {
 }
 
 export const imApi = {
-  listConversations: () => get<ConversationVO[]>('/im/conversations'),
+  listConversations: () => get<ConversationVO[]>('/im/v1/conversations'),
   createConversation: (payload: CreateConversationPayload) =>
-    post<ConversationVO>('/im/conversations', payload),
-  openBotConversation: () => post<ConversationVO>('/im/conversations/bot'),
+    post<ConversationVO>('/im/v1/conversations', payload),
+  openBotConversation: () => post<ConversationVO>('/im/v1/conversations/bot'),
   listMessages: (id: string, query: { beforeSeq?: number; afterSeq?: number; limit?: number }) =>
-    get<MessagePageVO>(`/im/conversations/${id}/messages`, query),
+    get<MessagePageVO>(`/im/v1/conversations/${id}/messages`, query),
   sendMessage: (id: string, payload: SendMessagePayload) =>
-    post<MessageVO>(`/im/conversations/${id}/messages`, payload),
-  markRead: (id: string, seq: number) => post<void>(`/im/conversations/${id}/read`, { seq }),
+    post<MessageVO>(`/im/v1/conversations/${id}/messages`, payload),
+  markRead: (id: string, seq: number) => post<void>(`/im/v1/conversations/${id}/read`, { seq }),
   recall: (id: string, messageId: string) =>
-    post<void>(`/im/conversations/${id}/messages/${messageId}/recall`),
-  listMembers: (id: string) => get<MemberVO[]>(`/im/conversations/${id}/members`),
+    post<void>(`/im/v1/conversations/${id}/messages/${messageId}/recall`),
+  listMembers: (id: string) => get<MemberVO[]>(`/im/v1/conversations/${id}/members`),
   addMembers: (id: string, memberIds: string[]) =>
-    post<MemberVO[]>(`/im/conversations/${id}/members`, { memberIds: memberIds.map(Number) }),
+    post<MemberVO[]>(`/im/v1/conversations/${id}/members`, { memberIds: memberIds.map(Number) }),
   removeMember: (id: string, userId: string) =>
-    del<void>(`/im/conversations/${id}/members/${userId}`),
-  quit: (id: string) => post<void>(`/im/conversations/${id}/quit`),
-  wsTicket: () => post<WsTicketVO>('/im/ws-ticket'),
-  getRun: (id: string) => get<AgentRunDetail>(`/im/agent-runs/${id}`),
+    del<void>(`/im/v1/conversations/${id}/members/${userId}`),
+  quit: (id: string) => post<void>(`/im/v1/conversations/${id}/quit`),
+  wsTicket: () => post<WsTicketVO>('/im/v1/ws-ticket'),
+  getRun: (id: string) => get<AgentRunDetail>(`/im/v1/agent-runs/${id}`),
   /** 按机器人回复消息ID定位运行记录（历史消息轨迹入口） */
   getRunByMessage: (messageId: string) =>
-    get<{ runId: string }>(`/im/agent-runs/by-message/${messageId}`),
+    get<{ runId: string }>(`/im/v1/agent-runs/by-message/${messageId}`),
   submitFeedback: (id: string, rating: 'UP' | 'DOWN') =>
-    post<void>(`/im/agent-runs/${id}/feedback`, { rating }),
+    post<void>(`/im/v1/agent-runs/${id}/feedback`, { rating }),
   confirmRun: (id: string, approved: boolean) =>
-    post<Record<string, unknown>>(`/im/agent-runs/${id}/confirm`, { approved }),
+    post<Record<string, unknown>>(`/im/v1/agent-runs/${id}/confirm`, { approved }),
 };

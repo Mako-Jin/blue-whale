@@ -39,7 +39,7 @@ import java.time.LocalDate;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/party/member")
+@RequestMapping(path = "/party/v{version}/member", version = "1")
 @RequiredArgsConstructor
 public class PartyMemberController {
 

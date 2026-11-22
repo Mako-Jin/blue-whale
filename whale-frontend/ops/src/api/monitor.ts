@@ -20,10 +20,10 @@ export interface ServiceInstanceVO {
 
 // 服务概览列表（服务名 + 实例数 + 健康实例数）
 export function getServiceList(): Promise<ServiceSummaryVO[]> {
-  return get<ServiceSummaryVO[]>('/monitor/service/list');
+  return get<ServiceSummaryVO[]>('/monitor/v1/service/list');
 }
 
 // 指定服务的实例列表
 export function getInstances(serviceName: string): Promise<ServiceInstanceVO[]> {
-  return get<ServiceInstanceVO[]>(`/monitor/service/${encodeURIComponent(serviceName)}/instances`);
+  return get<ServiceInstanceVO[]>(`/monitor/v1/service/${encodeURIComponent(serviceName)}/instances`);
 }

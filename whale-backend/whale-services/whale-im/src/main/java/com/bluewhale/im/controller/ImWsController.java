@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/im")
+@RequestMapping(path = "/im/v{version}", version = "1")
 @RequirePermission("sys:im:chat")
 @RequiredArgsConstructor
 public class ImWsController {

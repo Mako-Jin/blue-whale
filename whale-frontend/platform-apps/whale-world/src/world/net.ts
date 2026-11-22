@@ -293,7 +293,7 @@ export function createWorldChannel(opts: WorldChannelOptions = {}): WorldChannel
       return null;
     }
     try {
-      const response = await fetch('/im/ws-ticket', {
+      const response = await fetch('/im/v1/ws-ticket', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       });

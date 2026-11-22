@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/party/integration")
+@RequestMapping(path = "/party/v{version}/integration", version = "1")
 @RequiredArgsConstructor
 public class PartyIntegrationController {
 

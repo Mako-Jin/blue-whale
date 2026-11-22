@@ -58,6 +58,6 @@ export async function pageAlertRecords(
 
 /** 查询当前用户 IM 会话列表（含未读数与最后一条消息） */
 export async function listConversations(): Promise<Conversation[]> {
-  const list = await http.get<Conversation[]>('/im/conversations');
+  const list = await http.get<Conversation[]>('/im/v1/conversations');
   return list ?? [];
 }

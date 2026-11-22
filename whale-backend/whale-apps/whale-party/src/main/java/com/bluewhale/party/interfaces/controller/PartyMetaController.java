@@ -21,7 +21,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/party")
+@RequestMapping(path = "/party/v{version}", version = "1")
 @RequiredArgsConstructor
 public class PartyMetaController {
 

@@ -176,7 +176,7 @@ class PartyOverviewProviderTest {
         List<OverviewLink> links = provider.build(null).links();
 
         assertThat(links).singleElement().satisfies(link -> {
-            assertThat(link.path()).isEqualTo("/party/member/page");
+            assertThat(link.path()).isEqualTo("/party/v1/member/page");
             assertThat(link.permission()).isEqualTo("sys:party:member:list");
         });
     }

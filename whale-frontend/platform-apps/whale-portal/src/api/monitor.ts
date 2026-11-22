@@ -6,6 +6,6 @@ import { http } from './client';
 
 /** 查询在线服务数；请求失败由调用方降级展示 */
 export async function countServices(): Promise<number> {
-  const list = await http.get<unknown[]>('/monitor/service/list');
+  const list = await http.get<unknown[]>('/monitor/v1/service/list');
   return list?.length ?? 0;
 }

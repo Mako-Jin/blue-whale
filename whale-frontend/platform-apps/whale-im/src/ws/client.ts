@@ -1,6 +1,6 @@
 // IM WebSocket 客户端：一次性 ticket 握手、心跳、指数退避重连、帧分发
 //
-// 安全口径：JWT 严禁进入 WS URL；每次建连前调用 POST /im/ws-ticket 换取 60s 一次性 ticket。
+// 安全口径：JWT 严禁进入 WS URL；每次建连前调用 POST /im/v1/ws-ticket 换取 60s 一次性 ticket。
 
 import { createLogger } from '@bluewhale/whale-common-tools';
 

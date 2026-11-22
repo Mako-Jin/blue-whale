@@ -58,7 +58,7 @@ public class PartyOverviewProvider implements OverviewProvider {
     private static final String PERMISSION = PartyPermissions.METRIC_LIST;
 
     /** 党员台账列表接口：屏风页直接取这个路径 */
-    private static final String MEMBER_PAGE_PATH = "/party/member/page";
+    private static final String MEMBER_PAGE_PATH = "/party/v1/member/page";
 
     /** 百分数 → 比率的除数 */
     private static final BigDecimal HUNDRED = BigDecimal.valueOf(100);

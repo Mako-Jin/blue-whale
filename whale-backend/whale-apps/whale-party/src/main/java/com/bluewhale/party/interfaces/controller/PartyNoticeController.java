@@ -29,7 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/party/notice")
+@RequestMapping(path = "/party/v{version}/notice", version = "1")
 @RequiredArgsConstructor
 public class PartyNoticeController {
 

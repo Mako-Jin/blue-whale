@@ -42,7 +42,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/im/conversations")
+@RequestMapping(path = "/im/v{version}/conversations", version = "1")
 @RequirePermission("sys:im:chat")
 @RequiredArgsConstructor
 public class ImConversationController {

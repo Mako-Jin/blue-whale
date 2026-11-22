@@ -17,7 +17,7 @@ interface ProxyRequest {
 
 // `/im` 同时是子应用路由与后端 API 前缀：只有后端接口需要转发网关，
 // 文档导航与静态资源（qiankun 拉入口时 Accept 为 `*/*`）必须旁路给 vite，否则会 401 白屏
-const IM_API_PREFIXES = ['/im/conversations', '/im/agent-runs', '/im/ws-ticket', '/im/ws'];
+const IM_API_PREFIXES = ['/im/v1/conversations', '/im/v1/agent-runs', '/im/v1/ws-ticket', '/im/ws'];
 
 const isImApi = (pathname: string): boolean =>
   IM_API_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));

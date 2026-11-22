@@ -75,7 +75,7 @@ export function useImUnread(enabled: boolean): number {
     /** 全量校准：以服务端会话列表为准重建计数 */
     const reconcile = async () => {
       try {
-        const list = await get<ConversationUnread[]>('/im/conversations');
+        const list = await get<ConversationUnread[]>('/im/v1/conversations');
         if (disposed) {
           return;
         }
@@ -159,7 +159,7 @@ export function useImUnread(enabled: boolean): number {
       let ticket: string;
       try {
         // JWT 严禁进入 WS URL；每次建连前换取 60s 一次性 ticket
-        ticket = (await post<WsTicketVO>('/im/ws-ticket')).ticket;
+        ticket = (await post<WsTicketVO>('/im/v1/ws-ticket')).ticket;
       } catch (error) {
         logger.warn('WS ticket 获取失败', error);
         scheduleReconnect();

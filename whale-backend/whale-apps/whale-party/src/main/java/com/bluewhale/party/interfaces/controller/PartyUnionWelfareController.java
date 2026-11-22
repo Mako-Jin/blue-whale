@@ -36,7 +36,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/party/union/welfare")
+@RequestMapping(path = "/party/v{version}/union/welfare", version = "1")
 @RequiredArgsConstructor
 public class PartyUnionWelfareController {
 

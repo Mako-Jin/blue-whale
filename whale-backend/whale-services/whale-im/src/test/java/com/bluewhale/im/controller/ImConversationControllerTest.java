@@ -72,6 +72,7 @@ class ImConversationControllerTest {
         validator.afterPropertiesSet();
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setValidator(validator)
+                .setApiVersionStrategy(ImApiVersionTestSupport.strategy())
                 .build();
     }
 
@@ -85,12 +86,12 @@ class ImConversationControllerTest {
     }
 
     @Test
-    @DisplayName("GET /im/conversations：返回当前用户会话列表")
+    @DisplayName("GET /im/v1/conversations：返回当前用户会话列表")
     void listShouldReturnConversations() throws Exception {
         ConversationVO vo = ConversationVO.builder().id("100").type("SINGLE").unread(2L).build();
         when(conversationService.list(USER_ID)).thenReturn(List.of(vo));
 
-        mockMvc.perform(get("/im/conversations").header(WebHeaders.USER_ID, String.valueOf(USER_ID)))
+        mockMvc.perform(get("/im/v1/conversations").header(WebHeaders.USER_ID, String.valueOf(USER_ID)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
                 .andExpect(jsonPath("$.data[0].id").value("100"))
@@ -98,9 +99,9 @@ class ImConversationControllerTest {
     }
 
     @Test
-    @DisplayName("POST /im/conversations：类型非法时返回 400")
+    @DisplayName("POST /im/v1/conversations：类型非法时返回 400")
     void createShouldRejectInvalidType() throws Exception {
-        mockMvc.perform(post("/im/conversations")
+        mockMvc.perform(post("/im/v1/conversations")
                         .header(WebHeaders.USER_ID, String.valueOf(USER_ID))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"type\":\"PUBLIC\",\"memberIds\":[2]}"))
@@ -108,7 +109,7 @@ class ImConversationControllerTest {
     }
 
     @Test
-    @DisplayName("POST /im/conversations：合法单聊返回会话ID")
+    @DisplayName("POST /im/v1/conversations：合法单聊返回会话ID")
     void createShouldReturnConversation() throws Exception {
         ConversationVO vo = ConversationVO.builder()
                 .id(String.valueOf(CONVERSATION_ID))
@@ -116,7 +117,7 @@ class ImConversationControllerTest {
                 .build();
         when(conversationService.createVo(anyLong(), any())).thenReturn(vo);
 
-        mockMvc.perform(post("/im/conversations")
+        mockMvc.perform(post("/im/v1/conversations")
                         .header(WebHeaders.USER_ID, String.valueOf(USER_ID))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"type\":\"SINGLE\",\"memberIds\":[2]}"))
@@ -126,13 +127,13 @@ class ImConversationControllerTest {
     }
 
     @Test
-    @DisplayName("GET /im/conversations/{id}/messages：返回游标页")
+    @DisplayName("GET /im/v1/conversations/{id}/messages：返回游标页")
     void messagesShouldReturnPage() throws Exception {
         MessageVO vo = MessageVO.builder().id("1").seq(5L).content("hi").build();
         MessagePageVO page = MessagePageVO.builder().records(List.of(vo)).hasMore(false).build();
         when(messageService.history(CONVERSATION_ID, USER_ID, null, null, 30)).thenReturn(page);
 
-        mockMvc.perform(get("/im/conversations/{id}/messages", CONVERSATION_ID)
+        mockMvc.perform(get("/im/v1/conversations/{id}/messages", CONVERSATION_ID)
                         .header(WebHeaders.USER_ID, String.valueOf(USER_ID)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.records[0].seq").value(5))
@@ -140,7 +141,7 @@ class ImConversationControllerTest {
     }
 
     @Test
-    @DisplayName("POST /im/conversations/{id}/messages：返回落库消息")
+    @DisplayName("POST /im/v1/conversations/{id}/messages：返回落库消息")
     void sendShouldReturnMessage() throws Exception {
         MessageVO vo = MessageVO.builder()
                 .id("1")
@@ -150,7 +151,7 @@ class ImConversationControllerTest {
                 .build();
         when(messageSendService.send(anyLong(), anyLong(), any(), any())).thenReturn(vo);
 
-        mockMvc.perform(post("/im/conversations/{id}/messages", CONVERSATION_ID)
+        mockMvc.perform(post("/im/v1/conversations/{id}/messages", CONVERSATION_ID)
                         .header(WebHeaders.USER_ID, String.valueOf(USER_ID))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"clientMsgId\":\"c-1\",\"contentType\":\"TEXT\",\"content\":\"hi\"}"))
@@ -162,9 +163,9 @@ class ImConversationControllerTest {
     }
 
     @Test
-    @DisplayName("POST /im/conversations/{id}/read：透传已读序号")
+    @DisplayName("POST /im/v1/conversations/{id}/read：透传已读序号")
     void readShouldDelegateToService() throws Exception {
-        mockMvc.perform(post("/im/conversations/{id}/read", CONVERSATION_ID)
+        mockMvc.perform(post("/im/v1/conversations/{id}/read", CONVERSATION_ID)
                         .header(WebHeaders.USER_ID, String.valueOf(USER_ID))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"seq\":5}"))
@@ -174,9 +175,9 @@ class ImConversationControllerTest {
     }
 
     @Test
-    @DisplayName("POST /im/conversations/{id}/messages/{messageId}/recall：透传撤回")
+    @DisplayName("POST /im/v1/conversations/{id}/messages/{messageId}/recall：透传撤回")
     void recallShouldDelegateToService() throws Exception {
-        mockMvc.perform(post("/im/conversations/{id}/messages/{messageId}/recall", CONVERSATION_ID, 9L)
+        mockMvc.perform(post("/im/v1/conversations/{id}/messages/{messageId}/recall", CONVERSATION_ID, 9L)
                         .header(WebHeaders.USER_ID, String.valueOf(USER_ID)))
                 .andExpect(status().isOk());
 
@@ -184,12 +185,12 @@ class ImConversationControllerTest {
     }
 
     @Test
-    @DisplayName("POST /im/conversations/bot：返回机器人会话")
+    @DisplayName("POST /im/v1/conversations/bot：返回机器人会话")
     void botConversationShouldReturnVo() throws Exception {
         when(botService.openDefault(USER_ID))
                 .thenReturn(ConversationVO.builder().id("200").type("BOT").title("蓝鲸助手").unread(0L).build());
 
-        mockMvc.perform(post("/im/conversations/bot")
+        mockMvc.perform(post("/im/v1/conversations/bot")
                         .header(WebHeaders.USER_ID, String.valueOf(USER_ID)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.id").value("200"))
@@ -197,12 +198,12 @@ class ImConversationControllerTest {
     }
 
     @Test
-    @DisplayName("GET /im/conversations/{id}/members：返回成员列表")
+    @DisplayName("GET /im/v1/conversations/{id}/members：返回成员列表")
     void membersShouldReturnList() throws Exception {
         when(memberService.list(CONVERSATION_ID, USER_ID))
                 .thenReturn(List.of(MemberVO.builder().userId("10").role("OWNER").build()));
 
-        mockMvc.perform(get("/im/conversations/{id}/members", CONVERSATION_ID)
+        mockMvc.perform(get("/im/v1/conversations/{id}/members", CONVERSATION_ID)
                         .header(WebHeaders.USER_ID, String.valueOf(USER_ID)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].userId").value("10"))
@@ -210,9 +211,9 @@ class ImConversationControllerTest {
     }
 
     @Test
-    @DisplayName("POST /im/conversations/{id}/members：memberIds 为空时返回 400")
+    @DisplayName("POST /im/v1/conversations/{id}/members：memberIds 为空时返回 400")
     void addMembersShouldRejectEmpty() throws Exception {
-        mockMvc.perform(post("/im/conversations/{id}/members", CONVERSATION_ID)
+        mockMvc.perform(post("/im/v1/conversations/{id}/members", CONVERSATION_ID)
                         .header(WebHeaders.USER_ID, String.valueOf(USER_ID))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"memberIds\":[]}"))
@@ -220,9 +221,9 @@ class ImConversationControllerTest {
     }
 
     @Test
-    @DisplayName("DELETE /im/conversations/{id}/members/{userId}：透传移除成员")
+    @DisplayName("DELETE /im/v1/conversations/{id}/members/{userId}：透传移除成员")
     void removeMemberShouldDelegateToService() throws Exception {
-        mockMvc.perform(delete("/im/conversations/{id}/members/{userId}", CONVERSATION_ID, 9L)
+        mockMvc.perform(delete("/im/v1/conversations/{id}/members/{userId}", CONVERSATION_ID, 9L)
                         .header(WebHeaders.USER_ID, String.valueOf(USER_ID)))
                 .andExpect(status().isOk());
 
@@ -230,9 +231,9 @@ class ImConversationControllerTest {
     }
 
     @Test
-    @DisplayName("POST /im/conversations/{id}/quit：透传退群")
+    @DisplayName("POST /im/v1/conversations/{id}/quit：透传退群")
     void quitShouldDelegateToService() throws Exception {
-        mockMvc.perform(post("/im/conversations/{id}/quit", CONVERSATION_ID)
+        mockMvc.perform(post("/im/v1/conversations/{id}/quit", CONVERSATION_ID)
                         .header(WebHeaders.USER_ID, String.valueOf(USER_ID)))
                 .andExpect(status().isOk());
 

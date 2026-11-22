@@ -35,9 +35,9 @@ Write-Host "P0 hasToken=$([bool]$token)"
 $h = @{ Authorization = "Bearer $token" }
 
 # monitor
-Call 'P1 monitor/service/list' 'GET' "$gw/monitor/service/list" $h $null | Out-Null
-Call 'P2 monitor/instances(gateway)' 'GET' "$gw/monitor/service/whale-service-gateway/instances" $h $null | Out-Null
-Call 'P2b monitor/instances(no-such-svc)' 'GET' "$gw/monitor/service/NO_SUCH_SVC/instances" $h $null | Out-Null
+Call 'P1 monitor/service/list' 'GET' "$gw/monitor/v1/service/list" $h $null | Out-Null
+Call 'P2 monitor/instances(gateway)' 'GET' "$gw/monitor/v1/service/whale-service-gateway/instances" $h $null | Out-Null
+Call 'P2b monitor/instances(no-such-svc)' 'GET' "$gw/monitor/v1/service/NO_SUCH_SVC/instances" $h $null | Out-Null
 
 # alert
 Call 'P3 alert/rule/page' 'GET' "$gw/alert/v1/rule/page?current=1&size=10" $h $null | Out-Null
@@ -59,6 +59,6 @@ if ($order -and $order.data) {
 Call 'P12 audit/v1/log/page' 'GET' "$gw/audit/v1/log/page?current=1&size=10" $h $null | Out-Null
 
 # no-token -> real 401
-Call 'P13 no-token monitor/list' 'GET' "$gw/monitor/service/list" $null $null | Out-Null
+Call 'P13 no-token monitor/list' 'GET' "$gw/monitor/v1/service/list" $null $null | Out-Null
 
 Write-Host 'DONE'

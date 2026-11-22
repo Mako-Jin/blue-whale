@@ -9,7 +9,7 @@
  * 网关先回 401，前端 net.ts 收到失败后<b>静默退回本地模拟</b>，画面里"其他玩家"全是假的，
  * 只有 console 一行 warn。直连 8091 会绕过这个缺陷，测了等于没测。</p>
  *
- * <p>ticket 来源：正常流程是 `POST /im/ws-ticket`（要 JWT）。本机超管口令已被改过，
+ * <p>ticket 来源：正常流程是 `POST /im/v1/ws-ticket`（要 JWT）。本机超管口令已被改过，
  * 为了不碰真实账号，这里用 Redis 直接种一张票——票的读写格式与
  * {@code WsTicketService} 完全一致（`whale:im:ticket:` 前缀 + userId），
  * 属于测试侧后门，不进产品代码。</p>

@@ -40,7 +40,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/party/content")
+@RequestMapping(path = "/party/v{version}/content", version = "1")
 @RequiredArgsConstructor
 public class PartyContentController {
 
