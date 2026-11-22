@@ -436,7 +436,10 @@ const exited = await page.evaluate(() => {
 });
 check('Esc 退出屏风', exited.engaged === null, exited);
 check('退出后恢复非贴脸态', exited.focus === 'false', exited.focus);
-check('退出后回到 3D 尺寸（不是糊满整个镜头）', exited.w > 0 && exited.w < 800 && exited.h < 600, exited);
+/* 阈值给到 1000×700：贴脸态是 1440×900 级别的糊满，退出后是 600~900 的 3D 尺寸，
+   两者差得足够远；写死 800 会把"相机离得稍近一点"误判成没退出（外城去掉坊墙后
+   退出时的相机距离就变过一次）。状态本身由 engaged/focus 两条断言把住。 */
+check('退出后回到 3D 尺寸（不是糊满整个镜头）', exited.w > 0 && exited.w < 1000 && exited.h < 700, exited);
 
 /* ---- 12. 接口全挂时不白屏：有旧值标"陈旧"，列表给人话 + 重试 ---- */
 await page.route('**/music/overview**', (route) =>

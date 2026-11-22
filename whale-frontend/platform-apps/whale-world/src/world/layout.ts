@@ -195,8 +195,21 @@ export interface DistrictSpec {
   portal: { x: number; z: number; color: number };
 }
 
-/** 十二坊（与 {@link PALACES} 一一对应，附带坊域范围） */
-export const DISTRICTS: DistrictSpec[] = PALACES.map((p) => ({
+/**
+ * 内城十二坊（带坊域范围；**外城诸司不生成坊墙**）。
+ *
+ * <p><b>为什么外城不算"坊"。</b>坊墙是内城的组织方式：十二坊挤在 r=76 的环路上，
+ * 相邻中心弦长 39.3 米、坊台基 18 米宽，只有围出"墙—门—墙"才有街区感。
+ * 外城诸司（S7 九处）在 r≈94 的外城带，本来就散在景观里，再各围一圈墙会把
+ * 内外城之间的通行带切成互不连通的小块——实测外城带被这些墙切成若干封闭区，
+ * 自动寻路从城内到乐坊/影戏院一律报"过不去那道墙"，玩家只能靠运气绕。
+ * 所以：坊墙只为 {@code parentKey === 'inner-city'} 的建筑生成，外城建筑只留
+ * 自己的台基与建筑碰撞。</p>
+ */
+export const DISTRICTS: DistrictSpec[] = PALACES.filter((p) => {
+  const node = buildings.find((b) => b.nodeKey === p.nodeKey);
+  return node?.parentKey === 'inner-city';
+}).map((p) => ({
   nodeKey: p.nodeKey,
   name: p.name,
   sub: p.sub,

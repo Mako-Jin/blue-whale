@@ -25,6 +25,21 @@ const checkOnly = process.argv.includes('--check');
 const schema = JSON.parse(readFileSync(schemaPath, 'utf8'));
 const defs = schema.$defs ?? {};
 
+/**
+ * 枚举字面量用**单引号**输出。
+ *
+ * <p>仓库的前端代码经 prettier 统一成单引号，生成物在提交前也会被格式化；
+ * 若这里用 {@code JSON.stringify} 出双引号，`--check` 就会因为引号风格
+ * 永远报"不同步"——真不同步与假不同步混在一起，门禁等于没有。
+ * 枚举值都是标识符式字符串（live / bar / count），转义只防单引号本身。</p>
+ *
+ * @param value 枚举值
+ * @returns 单引号 TS 字面量
+ */
+function literal(value) {
+  return `'${String(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
+}
+
 /** 把 schema 的类型表达式翻成 TS */
 function tsType(node, indent) {
   if (!node || typeof node !== 'object') return 'unknown';
@@ -33,7 +48,7 @@ function tsType(node, indent) {
     return name;
   }
   if (Array.isArray(node.enum)) {
-    return node.enum.map((value) => JSON.stringify(value)).join(' | ');
+    return node.enum.map((value) => literal(value)).join(' | ');
   }
   if (node.type === 'array') {
     const item = tsType(node.items, indent);
@@ -66,7 +81,7 @@ function emitBlock(name, node) {
   const doc = node.description ? [`/** ${node.description} */`] : [];
   if (node.enum) {
     if (doc.length > 0) lines.push(...doc);
-    lines.push(`export type ${name} = ${node.enum.map((v) => JSON.stringify(v)).join(' | ')};`);
+    lines.push(`export type ${name} = ${node.enum.map((v) => literal(v)).join(' | ')};`);
     return lines.join('\n');
   }
   if (node.type === 'object' && node.properties) {
