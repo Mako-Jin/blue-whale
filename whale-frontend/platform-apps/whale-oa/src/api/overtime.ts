@@ -74,30 +74,30 @@ function buildQuery(params: OaOvertimeQuery): string {
 
 /** 分页查询加班申请 */
 export function pageOvertimes(params: OaOvertimeQuery = {}): Promise<PageResult<OaOvertime>> {
-  return http.get<PageResult<OaOvertime>>(`/oa/overtime/page${buildQuery(params)}`);
+  return http.get<PageResult<OaOvertime>>(`/oa/v1/overtime/page${buildQuery(params)}`);
 }
 
 /** 加班申请详情 */
 export function getOvertime(id: number): Promise<OaOvertime> {
-  return http.get<OaOvertime>(`/oa/overtime/${id}`);
+  return http.get<OaOvertime>(`/oa/v1/overtime/${id}`);
 }
 
 /** 新增加班申请 */
 export function createOvertime(input: OaOvertimeInput): Promise<OaOvertime> {
-  return http.post<OaOvertime>('/oa/overtime', input);
+  return http.post<OaOvertime>('/oa/v1/overtime', input);
 }
 
 /** 更新加班申请 */
 export function updateOvertime(id: number, input: OaOvertimeInput): Promise<OaOvertime> {
-  return http.put<OaOvertime>(`/oa/overtime/${id}`, input);
+  return http.put<OaOvertime>(`/oa/v1/overtime/${id}`, input);
 }
 
 /** 审批 / 撤销加班申请 */
 export function updateOvertimeStatus(id: number, status: OaOvertimeStatus): Promise<void> {
-  return http.put<void>(`/oa/overtime/${id}/status`, { status });
+  return http.put<void>(`/oa/v1/overtime/${id}/status`, { status });
 }
 
 /** 删除加班申请（逻辑删除） */
 export function deleteOvertime(id: number): Promise<void> {
-  return http.del<void>(`/oa/overtime/${id}`);
+  return http.del<void>(`/oa/v1/overtime/${id}`);
 }

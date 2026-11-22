@@ -274,54 +274,54 @@ function buildQuery(params: object): string {
 
 /** 分页查询会议室 */
 export function pageRooms(params: OaCollabQuery = {}): Promise<PageResult<OaMeetingRoom>> {
-  return http.get<PageResult<OaMeetingRoom>>(`/oa/meeting/rooms/page${buildQuery(params)}`);
+  return http.get<PageResult<OaMeetingRoom>>(`/oa/v1/meeting/rooms/page${buildQuery(params)}`);
 }
 
 /** 查询全部启用会议室 */
 export function listRooms(): Promise<OaMeetingRoom[]> {
-  return http.get<OaMeetingRoom[]>('/oa/meeting/rooms/all');
+  return http.get<OaMeetingRoom[]>('/oa/v1/meeting/rooms/all');
 }
 
 /** 新增会议室 */
 export function createRoom(input: OaMeetingRoomInput): Promise<OaMeetingRoom> {
-  return http.post<OaMeetingRoom>('/oa/meeting/rooms', input);
+  return http.post<OaMeetingRoom>('/oa/v1/meeting/rooms', input);
 }
 
 /** 更新会议室 */
 export function updateRoom(id: number, input: OaMeetingRoomInput): Promise<OaMeetingRoom> {
-  return http.put<OaMeetingRoom>(`/oa/meeting/rooms/${id}`, input);
+  return http.put<OaMeetingRoom>(`/oa/v1/meeting/rooms/${id}`, input);
 }
 
 /** 删除会议室 */
 export function deleteRoom(id: number): Promise<void> {
-  return http.del<void>(`/oa/meeting/rooms/${id}`);
+  return http.del<void>(`/oa/v1/meeting/rooms/${id}`);
 }
 
 // ---------------------------------------------------------------- 会议与纪要
 
 /** 分页查询会议 */
 export function pageMeetings(params: OaCollabQuery = {}): Promise<PageResult<OaMeeting>> {
-  return http.get<PageResult<OaMeeting>>(`/oa/meeting/page${buildQuery(params)}`);
+  return http.get<PageResult<OaMeeting>>(`/oa/v1/meeting/page${buildQuery(params)}`);
 }
 
 /** 会议详情 */
 export function getMeeting(id: number): Promise<OaMeetingDetail> {
-  return http.get<OaMeetingDetail>(`/oa/meeting/${id}`);
+  return http.get<OaMeetingDetail>(`/oa/v1/meeting/${id}`);
 }
 
 /** 创建会议 */
 export function createMeeting(input: OaMeetingInput): Promise<OaMeetingDetail> {
-  return http.post<OaMeetingDetail>('/oa/meeting', input);
+  return http.post<OaMeetingDetail>('/oa/v1/meeting', input);
 }
 
 /** 更新会议 */
 export function updateMeeting(id: number, input: OaMeetingInput): Promise<OaMeetingDetail> {
-  return http.put<OaMeetingDetail>(`/oa/meeting/${id}`, input);
+  return http.put<OaMeetingDetail>(`/oa/v1/meeting/${id}`, input);
 }
 
 /** 变更会议状态 */
 export function changeMeetingStatus(id: number, status: OaMeetingStatus): Promise<boolean> {
-  return http.put<boolean>(`/oa/meeting/${id}/status`, { status });
+  return http.put<boolean>(`/oa/v1/meeting/${id}/status`, { status });
 }
 
 /** 登记参会状态 */
@@ -330,7 +330,7 @@ export function changeParticipantStatus(
   userId: number,
   status: OaParticipantStatus,
 ): Promise<OaMeetingParticipant> {
-  return http.put<OaMeetingParticipant>(`/oa/meeting/${meetingId}/participants/${userId}/status`, {
+  return http.put<OaMeetingParticipant>(`/oa/v1/meeting/${meetingId}/participants/${userId}/status`, {
     status,
   });
 }
@@ -340,24 +340,24 @@ export function saveMeetingMinute(
   id: number,
   input: OaMeetingMinuteInput,
 ): Promise<OaMeetingDetail> {
-  return http.put<OaMeetingDetail>(`/oa/meeting/${id}/minute`, input);
+  return http.put<OaMeetingDetail>(`/oa/v1/meeting/${id}/minute`, input);
 }
 
 // ---------------------------------------------------------------- 公告
 
 /** 分页查询公告 */
 export function pageNotices(params: OaCollabQuery = {}): Promise<PageResult<OaNotice>> {
-  return http.get<PageResult<OaNotice>>(`/oa/notice/page${buildQuery(params)}`);
+  return http.get<PageResult<OaNotice>>(`/oa/v1/notice/page${buildQuery(params)}`);
 }
 
 /** 分页查询我的公告 */
 export function pageMyNotices(params: OaCollabQuery = {}): Promise<PageResult<OaNotice>> {
-  return http.get<PageResult<OaNotice>>(`/oa/notice/my/page${buildQuery(params)}`);
+  return http.get<PageResult<OaNotice>>(`/oa/v1/notice/my/page${buildQuery(params)}`);
 }
 
 /** 公告详情 */
 export function getNotice(id: number): Promise<OaNoticeDetail> {
-  return http.get<OaNoticeDetail>(`/oa/notice/${id}`);
+  return http.get<OaNoticeDetail>(`/oa/v1/notice/${id}`);
 }
 
 /** 接收人候选 */
@@ -368,37 +368,37 @@ export function listNoticeRecipients(
     limit?: number;
   } = {},
 ): Promise<OaUserCandidate[]> {
-  return http.get<OaUserCandidate[]>(`/oa/notice/recipients${buildQuery(params)}`);
+  return http.get<OaUserCandidate[]>(`/oa/v1/notice/recipients${buildQuery(params)}`);
 }
 
 /** 新建公告 */
 export function createNotice(input: OaNoticeInput): Promise<OaNotice> {
-  return http.post<OaNotice>('/oa/notice', input);
+  return http.post<OaNotice>('/oa/v1/notice', input);
 }
 
 /** 更新公告 */
 export function updateNotice(id: number, input: OaNoticeInput): Promise<OaNotice> {
-  return http.put<OaNotice>(`/oa/notice/${id}`, input);
+  return http.put<OaNotice>(`/oa/v1/notice/${id}`, input);
 }
 
 /** 发布公告 */
 export function publishNotice(id: number): Promise<OaNotice> {
-  return http.put<OaNotice>(`/oa/notice/${id}/publish`);
+  return http.put<OaNotice>(`/oa/v1/notice/${id}/publish`);
 }
 
 /** 撤回公告 */
 export function withdrawNotice(id: number): Promise<OaNotice> {
-  return http.put<OaNotice>(`/oa/notice/${id}/withdraw`);
+  return http.put<OaNotice>(`/oa/v1/notice/${id}/withdraw`);
 }
 
 /** 标记公告已读 */
 export function markNoticeRead(id: number): Promise<void> {
-  return http.put<void>(`/oa/notice/${id}/read`);
+  return http.put<void>(`/oa/v1/notice/${id}/read`);
 }
 
 /** 公告已读统计 */
 export function getNoticeStats(id: number): Promise<OaNoticeDetail> {
-  return http.get<OaNoticeDetail>(`/oa/notice/${id}/stats`);
+  return http.get<OaNoticeDetail>(`/oa/v1/notice/${id}/stats`);
 }
 
 // ---------------------------------------------------------------- 任务
@@ -407,45 +407,45 @@ export function getNoticeStats(id: number): Promise<OaNoticeDetail> {
 export function pageTasks(
   params: OaCollabQuery & { mine?: boolean } = {},
 ): Promise<PageResult<OaTask>> {
-  return http.get<PageResult<OaTask>>(`/oa/task/page${buildQuery(params)}`);
+  return http.get<PageResult<OaTask>>(`/oa/v1/task/page${buildQuery(params)}`);
 }
 
 /** 任务详情 */
 export function getTask(id: number): Promise<OaTask> {
-  return http.get<OaTask>(`/oa/task/${id}`);
+  return http.get<OaTask>(`/oa/v1/task/${id}`);
 }
 
 /** 创建任务 */
 export function createTask(input: OaTaskInput): Promise<OaTask> {
-  return http.post<OaTask>('/oa/task', input);
+  return http.post<OaTask>('/oa/v1/task', input);
 }
 
 /** 更新任务 */
 export function updateTask(id: number, input: OaTaskInput): Promise<OaTask> {
-  return http.put<OaTask>(`/oa/task/${id}`, input);
+  return http.put<OaTask>(`/oa/v1/task/${id}`, input);
 }
 
 /** 删除任务 */
 export function deleteTask(id: number): Promise<void> {
-  return http.del<void>(`/oa/task/${id}`);
+  return http.del<void>(`/oa/v1/task/${id}`);
 }
 
 /** 变更任务状态 */
 export function changeTaskStatus(id: number, status: OaTaskStatus): Promise<boolean> {
-  return http.put<boolean>(`/oa/task/${id}/status`, { status });
+  return http.put<boolean>(`/oa/v1/task/${id}/status`, { status });
 }
 
 /** 任务评论列表 */
 export function listTaskComments(id: number): Promise<OaTaskComment[]> {
-  return http.get<OaTaskComment[]>(`/oa/task/${id}/comments`);
+  return http.get<OaTaskComment[]>(`/oa/v1/task/${id}/comments`);
 }
 
 /** 新增任务评论 */
 export function addTaskComment(id: number, content: string): Promise<OaTaskComment> {
-  return http.post<OaTaskComment>(`/oa/task/${id}/comments`, { content });
+  return http.post<OaTaskComment>(`/oa/v1/task/${id}/comments`, { content });
 }
 
 /** 删除任务评论 */
 export function deleteTaskComment(id: number, commentId: number): Promise<void> {
-  return http.del<void>(`/oa/task/${id}/comments/${commentId}`);
+  return http.del<void>(`/oa/v1/task/${id}/comments/${commentId}`);
 }

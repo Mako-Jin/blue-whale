@@ -63,30 +63,30 @@ export function pageQuestions(params: {
   current?: number;
   size?: number;
 }) {
-  return http.get<PageData<QuestionItem>>('/lms/question/page', { ...params });
+  return http.get<PageData<QuestionItem>>('/lms/v1/question/page', { ...params });
 }
 
 /** 题目详情 */
 export function questionDetail(id: number | string) {
-  return http.get<QuestionItem>(`/lms/question/${id}`);
+  return http.get<QuestionItem>(`/lms/v1/question/${id}`);
 }
 
 /** 新建题目 */
 export function createQuestion(body: QuestionPayload) {
-  return http.post<number>('/lms/question', body);
+  return http.post<number>('/lms/v1/question', body);
 }
 
 /** 编辑题目 */
 export function updateQuestion(id: number, body: QuestionPayload) {
-  return http.put<void>(`/lms/question/${id}`, body);
+  return http.put<void>(`/lms/v1/question/${id}`, body);
 }
 
 /** 启用 / 停用 */
 export function changeQuestionStatus(id: number, action: 'ACTIVATE' | 'DISABLE') {
-  return http.put<void>(`/lms/question/${id}/status`, { action });
+  return http.put<void>(`/lms/v1/question/${id}/status`, { action });
 }
 
 /** 删除题目（被试卷引用时后端拒绝） */
 export function deleteQuestion(id: number) {
-  return http.del<void>(`/lms/question/${id}`);
+  return http.del<void>(`/lms/v1/question/${id}`);
 }

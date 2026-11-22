@@ -35,7 +35,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/oa/hr/leave-balance")
+@RequestMapping(path = "/oa/v{version}/hr/leave-balance", version = "1")
 @RequiredArgsConstructor
 public class LeaveBalanceController {
 

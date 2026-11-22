@@ -240,63 +240,63 @@ export function pagePurchaseOrders(
   params: ScmQueryParams = {},
 ): Promise<PageResult<PurchaseOrderView>> {
   return http.get<PageResult<PurchaseOrderView>>(
-    `/erp/scm/purchase-order/page?${buildQuery(params)}`,
+    `/erp/v1/scm/purchase-order/page?${buildQuery(params)}`,
   );
 }
 
 /** 采购订单详情（含分录） */
 export function getPurchaseOrder(id: number): Promise<PurchaseOrderView> {
-  return http.get<PurchaseOrderView>(`/erp/scm/purchase-order/${id}`);
+  return http.get<PurchaseOrderView>(`/erp/v1/scm/purchase-order/${id}`);
 }
 
 /** 新增采购订单 */
 export function createPurchaseOrder(input: PurchaseOrderInput): Promise<PurchaseOrderView> {
-  return http.post<PurchaseOrderView>('/erp/scm/purchase-order', input);
+  return http.post<PurchaseOrderView>('/erp/v1/scm/purchase-order', input);
 }
 
 /** 审核采购订单 */
 export function approvePurchaseOrder(id: number): Promise<PurchaseOrderView> {
-  return http.post<PurchaseOrderView>(`/erp/scm/purchase-order/${id}/approve`);
+  return http.post<PurchaseOrderView>(`/erp/v1/scm/purchase-order/${id}/approve`);
 }
 
 /** 采购收货 */
 export function receivePurchaseOrder(id: number, input: ReceiveInput): Promise<PurchaseOrderView> {
-  return http.post<PurchaseOrderView>(`/erp/scm/purchase-order/${id}/receive`, input);
+  return http.post<PurchaseOrderView>(`/erp/v1/scm/purchase-order/${id}/receive`, input);
 }
 
 /** 取消采购订单 */
 export function cancelPurchaseOrder(id: number): Promise<PurchaseOrderView> {
-  return http.post<PurchaseOrderView>(`/erp/scm/purchase-order/${id}/cancel`);
+  return http.post<PurchaseOrderView>(`/erp/v1/scm/purchase-order/${id}/cancel`);
 }
 
 /** 销售订单分页 */
 export function pageSalesOrders(params: ScmQueryParams = {}): Promise<PageResult<SalesOrderView>> {
-  return http.get<PageResult<SalesOrderView>>(`/erp/scm/sales-order/page?${buildQuery(params)}`);
+  return http.get<PageResult<SalesOrderView>>(`/erp/v1/scm/sales-order/page?${buildQuery(params)}`);
 }
 
 /** 销售订单详情（含分录） */
 export function getSalesOrder(id: number): Promise<SalesOrderView> {
-  return http.get<SalesOrderView>(`/erp/scm/sales-order/${id}`);
+  return http.get<SalesOrderView>(`/erp/v1/scm/sales-order/${id}`);
 }
 
 /** 新增销售订单 */
 export function createSalesOrder(input: SalesOrderInput): Promise<SalesOrderView> {
-  return http.post<SalesOrderView>('/erp/scm/sales-order', input);
+  return http.post<SalesOrderView>('/erp/v1/scm/sales-order', input);
 }
 
 /** 审核销售订单 */
 export function approveSalesOrder(id: number): Promise<SalesOrderView> {
-  return http.post<SalesOrderView>(`/erp/scm/sales-order/${id}/approve`);
+  return http.post<SalesOrderView>(`/erp/v1/scm/sales-order/${id}/approve`);
 }
 
 /** 销售发货 */
 export function shipSalesOrder(id: number, input: ShipInput): Promise<SalesOrderView> {
-  return http.post<SalesOrderView>(`/erp/scm/sales-order/${id}/ship`, input);
+  return http.post<SalesOrderView>(`/erp/v1/scm/sales-order/${id}/ship`, input);
 }
 
 /** 取消销售订单 */
 export function cancelSalesOrder(id: number): Promise<SalesOrderView> {
-  return http.post<SalesOrderView>(`/erp/scm/sales-order/${id}/cancel`);
+  return http.post<SalesOrderView>(`/erp/v1/scm/sales-order/${id}/cancel`);
 }
 
 /** 客户信用占用视图 */
@@ -314,7 +314,7 @@ export interface CreditUsageView {
 
 /** 查询客户信用占用（未结应收 + 在途预占、可用额度） */
 export function getCreditUsage(customerId: number): Promise<CreditUsageView> {
-  return http.get<CreditUsageView>(`/erp/scm/sales-order/credit-usage?customerId=${customerId}`);
+  return http.get<CreditUsageView>(`/erp/v1/scm/sales-order/credit-usage?customerId=${customerId}`);
 }
 
 /** 库存余额分页 */
@@ -322,7 +322,7 @@ export function pageStockBalances(
   params: ScmQueryParams = {},
 ): Promise<PageResult<StockBalanceView>> {
   return http.get<PageResult<StockBalanceView>>(
-    `/erp/scm/stock/balance/page?${buildQuery(params)}`,
+    `/erp/v1/scm/stock/balance/page?${buildQuery(params)}`,
   );
 }
 
@@ -331,63 +331,63 @@ export function pageStockMovements(
   params: ScmQueryParams = {},
 ): Promise<PageResult<StockMovementView>> {
   return http.get<PageResult<StockMovementView>>(
-    `/erp/scm/stock/movement/page?${buildQuery(params)}`,
+    `/erp/v1/scm/stock/movement/page?${buildQuery(params)}`,
   );
 }
 
 /** 库存调整（盘盈/盘亏） */
 export function adjustStock(input: StockAdjustInput): Promise<StockMovementView> {
-  return http.post<StockMovementView>('/erp/scm/stock/adjust', input);
+  return http.post<StockMovementView>('/erp/v1/scm/stock/adjust', input);
 }
 
 /** 库存调拨单分页 */
 export function pageTransfers(params: ScmQueryParams = {}): Promise<PageResult<TransferView>> {
-  return http.get<PageResult<TransferView>>(`/erp/scm/transfer/page?${buildQuery(params)}`);
+  return http.get<PageResult<TransferView>>(`/erp/v1/scm/transfer/page?${buildQuery(params)}`);
 }
 
 /** 库存调拨单详情（含分录） */
 export function getTransfer(id: number): Promise<TransferView> {
-  return http.get<TransferView>(`/erp/scm/transfer/${id}`);
+  return http.get<TransferView>(`/erp/v1/scm/transfer/${id}`);
 }
 
 /** 新增库存调拨单 */
 export function createTransfer(input: TransferInput): Promise<TransferView> {
-  return http.post<TransferView>('/erp/scm/transfer', input);
+  return http.post<TransferView>('/erp/v1/scm/transfer', input);
 }
 
 /** 库存调拨过账 */
 export function postTransfer(id: number): Promise<TransferView> {
-  return http.post<TransferView>(`/erp/scm/transfer/${id}/post`);
+  return http.post<TransferView>(`/erp/v1/scm/transfer/${id}/post`);
 }
 
 /** 取消库存调拨单 */
 export function cancelTransfer(id: number): Promise<TransferView> {
-  return http.post<TransferView>(`/erp/scm/transfer/${id}/cancel`);
+  return http.post<TransferView>(`/erp/v1/scm/transfer/${id}/cancel`);
 }
 
 /** 库存盘点单分页 */
 export function pageStocktakes(params: ScmQueryParams = {}): Promise<PageResult<StocktakeView>> {
-  return http.get<PageResult<StocktakeView>>(`/erp/scm/stocktake/page?${buildQuery(params)}`);
+  return http.get<PageResult<StocktakeView>>(`/erp/v1/scm/stocktake/page?${buildQuery(params)}`);
 }
 
 /** 库存盘点单详情（含分录） */
 export function getStocktake(id: number): Promise<StocktakeView> {
-  return http.get<StocktakeView>(`/erp/scm/stocktake/${id}`);
+  return http.get<StocktakeView>(`/erp/v1/scm/stocktake/${id}`);
 }
 
 /** 新增库存盘点单（账面数量由后端快照） */
 export function createStocktake(input: StocktakeInput): Promise<StocktakeView> {
-  return http.post<StocktakeView>('/erp/scm/stocktake', input);
+  return http.post<StocktakeView>('/erp/v1/scm/stocktake', input);
 }
 
 /** 库存盘点过账（生成差异流水与凭证） */
 export function postStocktake(id: number): Promise<StocktakeView> {
-  return http.post<StocktakeView>(`/erp/scm/stocktake/${id}/post`);
+  return http.post<StocktakeView>(`/erp/v1/scm/stocktake/${id}/post`);
 }
 
 /** 取消库存盘点单 */
 export function cancelStocktake(id: number): Promise<StocktakeView> {
-  return http.post<StocktakeView>(`/erp/scm/stocktake/${id}/cancel`);
+  return http.post<StocktakeView>(`/erp/v1/scm/stocktake/${id}/cancel`);
 }
 
 /** 退货分录视图 */
@@ -464,55 +464,55 @@ export function pagePurchaseReturns(
   params: ScmQueryParams = {},
 ): Promise<PageResult<PurchaseReturnView>> {
   return http.get<PageResult<PurchaseReturnView>>(
-    `/erp/scm/purchase-return/page?${buildQuery(params)}`,
+    `/erp/v1/scm/purchase-return/page?${buildQuery(params)}`,
   );
 }
 
 /** 采购退货单详情（含分录） */
 export function getPurchaseReturn(id: number): Promise<PurchaseReturnView> {
-  return http.get<PurchaseReturnView>(`/erp/scm/purchase-return/${id}`);
+  return http.get<PurchaseReturnView>(`/erp/v1/scm/purchase-return/${id}`);
 }
 
 /** 新增采购退货单 */
 export function createPurchaseReturn(input: PurchaseReturnInput): Promise<PurchaseReturnView> {
-  return http.post<PurchaseReturnView>('/erp/scm/purchase-return', input);
+  return http.post<PurchaseReturnView>('/erp/v1/scm/purchase-return', input);
 }
 
 /** 采购退货过账 */
 export function postPurchaseReturn(id: number): Promise<PurchaseReturnView> {
-  return http.post<PurchaseReturnView>(`/erp/scm/purchase-return/${id}/post`);
+  return http.post<PurchaseReturnView>(`/erp/v1/scm/purchase-return/${id}/post`);
 }
 
 /** 取消采购退货单 */
 export function cancelPurchaseReturn(id: number): Promise<PurchaseReturnView> {
-  return http.post<PurchaseReturnView>(`/erp/scm/purchase-return/${id}/cancel`);
+  return http.post<PurchaseReturnView>(`/erp/v1/scm/purchase-return/${id}/cancel`);
 }
 
 /** 销售退货单分页 */
 export function pageSalesReturns(
   params: ScmQueryParams = {},
 ): Promise<PageResult<SalesReturnView>> {
-  return http.get<PageResult<SalesReturnView>>(`/erp/scm/sales-return/page?${buildQuery(params)}`);
+  return http.get<PageResult<SalesReturnView>>(`/erp/v1/scm/sales-return/page?${buildQuery(params)}`);
 }
 
 /** 销售退货单详情（含分录） */
 export function getSalesReturn(id: number): Promise<SalesReturnView> {
-  return http.get<SalesReturnView>(`/erp/scm/sales-return/${id}`);
+  return http.get<SalesReturnView>(`/erp/v1/scm/sales-return/${id}`);
 }
 
 /** 新增销售退货单 */
 export function createSalesReturn(input: SalesReturnInput): Promise<SalesReturnView> {
-  return http.post<SalesReturnView>('/erp/scm/sales-return', input);
+  return http.post<SalesReturnView>('/erp/v1/scm/sales-return', input);
 }
 
 /** 销售退货过账 */
 export function postSalesReturn(id: number): Promise<SalesReturnView> {
-  return http.post<SalesReturnView>(`/erp/scm/sales-return/${id}/post`);
+  return http.post<SalesReturnView>(`/erp/v1/scm/sales-return/${id}/post`);
 }
 
 /** 取消销售退货单 */
 export function cancelSalesReturn(id: number): Promise<SalesReturnView> {
-  return http.post<SalesReturnView>(`/erp/scm/sales-return/${id}/cancel`);
+  return http.post<SalesReturnView>(`/erp/v1/scm/sales-return/${id}/cancel`);
 }
 
 /** 采购申请分录视图 */
@@ -598,35 +598,35 @@ export function pagePurchaseRequisitions(
   params: ScmQueryParams = {},
 ): Promise<PageResult<PurchaseRequisitionView>> {
   return http.get<PageResult<PurchaseRequisitionView>>(
-    `/erp/scm/purchase-requisition/page?${buildQuery(params)}`,
+    `/erp/v1/scm/purchase-requisition/page?${buildQuery(params)}`,
   );
 }
 
 /** 采购申请单详情（含分录） */
 export function getPurchaseRequisition(id: number): Promise<PurchaseRequisitionView> {
-  return http.get<PurchaseRequisitionView>(`/erp/scm/purchase-requisition/${id}`);
+  return http.get<PurchaseRequisitionView>(`/erp/v1/scm/purchase-requisition/${id}`);
 }
 
 /** 新增采购申请单 */
 export function createPurchaseRequisition(
   input: PurchaseRequisitionInput,
 ): Promise<PurchaseRequisitionView> {
-  return http.post<PurchaseRequisitionView>('/erp/scm/purchase-requisition', input);
+  return http.post<PurchaseRequisitionView>('/erp/v1/scm/purchase-requisition', input);
 }
 
 /** 审核采购申请单 */
 export function approvePurchaseRequisition(id: number): Promise<PurchaseRequisitionView> {
-  return http.post<PurchaseRequisitionView>(`/erp/scm/purchase-requisition/${id}/approve`);
+  return http.post<PurchaseRequisitionView>(`/erp/v1/scm/purchase-requisition/${id}/approve`);
 }
 
 /** 采购申请转采购订单 */
 export function convertPurchaseRequisition(id: number): Promise<PurchaseRequisitionView> {
-  return http.post<PurchaseRequisitionView>(`/erp/scm/purchase-requisition/${id}/convert`);
+  return http.post<PurchaseRequisitionView>(`/erp/v1/scm/purchase-requisition/${id}/convert`);
 }
 
 /** 取消采购申请单 */
 export function cancelPurchaseRequisition(id: number): Promise<PurchaseRequisitionView> {
-  return http.post<PurchaseRequisitionView>(`/erp/scm/purchase-requisition/${id}/cancel`);
+  return http.post<PurchaseRequisitionView>(`/erp/v1/scm/purchase-requisition/${id}/cancel`);
 }
 
 /** 销售报价单分页 */
@@ -634,33 +634,33 @@ export function pageSalesQuotations(
   params: ScmQueryParams = {},
 ): Promise<PageResult<SalesQuotationView>> {
   return http.get<PageResult<SalesQuotationView>>(
-    `/erp/scm/sales-quotation/page?${buildQuery(params)}`,
+    `/erp/v1/scm/sales-quotation/page?${buildQuery(params)}`,
   );
 }
 
 /** 销售报价单详情（含分录） */
 export function getSalesQuotation(id: number): Promise<SalesQuotationView> {
-  return http.get<SalesQuotationView>(`/erp/scm/sales-quotation/${id}`);
+  return http.get<SalesQuotationView>(`/erp/v1/scm/sales-quotation/${id}`);
 }
 
 /** 新增销售报价单 */
 export function createSalesQuotation(input: SalesQuotationInput): Promise<SalesQuotationView> {
-  return http.post<SalesQuotationView>('/erp/scm/sales-quotation', input);
+  return http.post<SalesQuotationView>('/erp/v1/scm/sales-quotation', input);
 }
 
 /** 客户接受销售报价 */
 export function acceptSalesQuotation(id: number): Promise<SalesQuotationView> {
-  return http.post<SalesQuotationView>(`/erp/scm/sales-quotation/${id}/accept`);
+  return http.post<SalesQuotationView>(`/erp/v1/scm/sales-quotation/${id}/accept`);
 }
 
 /** 销售报价转销售订单 */
 export function convertSalesQuotation(id: number): Promise<SalesQuotationView> {
-  return http.post<SalesQuotationView>(`/erp/scm/sales-quotation/${id}/convert`);
+  return http.post<SalesQuotationView>(`/erp/v1/scm/sales-quotation/${id}/convert`);
 }
 
 /** 取消销售报价单 */
 export function cancelSalesQuotation(id: number): Promise<SalesQuotationView> {
-  return http.post<SalesQuotationView>(`/erp/scm/sales-quotation/${id}/cancel`);
+  return http.post<SalesQuotationView>(`/erp/v1/scm/sales-quotation/${id}/cancel`);
 }
 
 /** 价格类型：销售价 / 采购价 */
@@ -733,28 +733,28 @@ function buildPriceListQuery(params: PriceListQuery): string {
 /** 价目表分页 */
 export function pagePriceLists(params: PriceListQuery = {}): Promise<PageResult<PriceListView>> {
   return http.get<PageResult<PriceListView>>(
-    `/erp/scm/price-list/page?${buildPriceListQuery(params)}`,
+    `/erp/v1/scm/price-list/page?${buildPriceListQuery(params)}`,
   );
 }
 
 /** 价目详情 */
 export function getPriceList(id: number): Promise<PriceListView> {
-  return http.get<PriceListView>(`/erp/scm/price-list/${id}`);
+  return http.get<PriceListView>(`/erp/v1/scm/price-list/${id}`);
 }
 
 /** 新增价目 */
 export function createPriceList(input: PriceListInput): Promise<PriceListView> {
-  return http.post<PriceListView>('/erp/scm/price-list', input);
+  return http.post<PriceListView>('/erp/v1/scm/price-list', input);
 }
 
 /** 编辑价目 */
 export function updatePriceList(id: number, input: PriceListInput): Promise<PriceListView> {
-  return http.put<PriceListView>(`/erp/scm/price-list/${id}`, input);
+  return http.put<PriceListView>(`/erp/v1/scm/price-list/${id}`, input);
 }
 
 /** 启用/停用价目 */
 export function togglePriceList(id: number): Promise<PriceListView> {
-  return http.post<PriceListView>(`/erp/scm/price-list/${id}/toggle`);
+  return http.post<PriceListView>(`/erp/v1/scm/price-list/${id}/toggle`);
 }
 
 /** 按类型 + 往来方 + 物料 + 日期取价 */
@@ -764,7 +764,7 @@ export function resolvePriceList(params: PriceResolveQuery): Promise<PriceListVi
   search.set('partnerId', String(params.partnerId));
   search.set('itemId', String(params.itemId));
   if (params.date) search.set('date', params.date);
-  return http.get<PriceListView>(`/erp/scm/price-list/resolve?${search.toString()}`);
+  return http.get<PriceListView>(`/erp/v1/scm/price-list/resolve?${search.toString()}`);
 }
 
 /** 供应商比价 */
@@ -797,12 +797,12 @@ export function compareSupplierPrices(
 ): Promise<SupplierPriceCompareView[]> {
   const search = new URLSearchParams({ itemId: String(itemId) });
   if (date) search.set('date', date);
-  return http.get<SupplierPriceCompareView[]>(`/erp/scm/price-list/compare?${search.toString()}`);
+  return http.get<SupplierPriceCompareView[]>(`/erp/v1/scm/price-list/compare?${search.toString()}`);
 }
 
 /** 物料采购价格趋势（按月汇总） */
 export function priceTrend(itemId: number, months = 6): Promise<PriceTrendView[]> {
-  return http.get<PriceTrendView[]>(`/erp/scm/price-list/trend?itemId=${itemId}&months=${months}`);
+  return http.get<PriceTrendView[]>(`/erp/v1/scm/price-list/trend?itemId=${itemId}&months=${months}`);
 }
 
 /** 安全库存配置 */
@@ -881,18 +881,18 @@ export function pageSafetyStocks(
   params: SafetyStockQuery = {},
 ): Promise<PageResult<SafetyStockView>> {
   return http.get<PageResult<SafetyStockView>>(
-    `/erp/scm/safety-stock/page?${buildSafetyStockQuery(params)}`,
+    `/erp/v1/scm/safety-stock/page?${buildSafetyStockQuery(params)}`,
   );
 }
 
 /** 安全库存详情 */
 export function getSafetyStock(id: number): Promise<SafetyStockView> {
-  return http.get<SafetyStockView>(`/erp/scm/safety-stock/${id}`);
+  return http.get<SafetyStockView>(`/erp/v1/scm/safety-stock/${id}`);
 }
 
 /** 新增安全库存 */
 export function createSafetyStock(input: SafetyStockInput): Promise<SafetyStockView> {
-  return http.post<SafetyStockView>('/erp/scm/safety-stock', input);
+  return http.post<SafetyStockView>('/erp/v1/scm/safety-stock', input);
 }
 
 /** 更新安全库存 */
@@ -900,18 +900,18 @@ export function updateSafetyStock(
   id: number,
   input: SafetyStockUpdateInput,
 ): Promise<SafetyStockView> {
-  return http.put<SafetyStockView>(`/erp/scm/safety-stock/${id}`, input);
+  return http.put<SafetyStockView>(`/erp/v1/scm/safety-stock/${id}`, input);
 }
 
 /** 删除安全库存 */
 export function deleteSafetyStock(id: number): Promise<void> {
-  return http.del<void>(`/erp/scm/safety-stock/${id}`);
+  return http.del<void>(`/erp/v1/scm/safety-stock/${id}`);
 }
 
 /** 缺料预警分页 */
 export function pageShortages(params: SafetyStockQuery = {}): Promise<PageResult<ShortageView>> {
   return http.get<PageResult<ShortageView>>(
-    `/erp/scm/safety-stock/shortage?${buildSafetyStockQuery(params)}`,
+    `/erp/v1/scm/safety-stock/shortage?${buildSafetyStockQuery(params)}`,
   );
 }
 
@@ -921,5 +921,5 @@ export function pageIdleStocks(
 ): Promise<PageResult<IdleStockView>> {
   const search = new URLSearchParams(buildSafetyStockQuery(params));
   if (params.idleDays !== undefined) search.set('idleDays', String(params.idleDays));
-  return http.get<PageResult<IdleStockView>>(`/erp/scm/safety-stock/idle?${search.toString()}`);
+  return http.get<PageResult<IdleStockView>>(`/erp/v1/scm/safety-stock/idle?${search.toString()}`);
 }

@@ -8,11 +8,11 @@
 //      没有 keyword。给它配搜索框就是发一个后端会默默忽略的参数名；
 //   ③ 日状态是五个枚举（NORMAL/LATE/EARLY/LATE_AND_EARLY/ABSENT），靠页面级字典
 //      译中文并打灯；「迟到+早退」是**一档**，不是两盏灯；
-//   ④ 列表行即详情（不配 detailPath）：`/oa/attendance/daily/page` 返回的就是整行明细，
+//   ④ 列表行即详情（不配 detailPath）：`/oa/v1/attendance/daily/page` 返回的就是整行明细，
 //      这个模块根本没有 `/daily/{id}` 详情接口；
 //   ⑤ 接口全挂时不白屏：标 stale + 给一句人话。
 //
-// 数据来源：page.route 拦 /oa/overview 与 /oa/attendance/daily/page，返回与后端同形状的信封。
+// 数据来源：page.route 拦 /oa/overview 与 /oa/v1/attendance/daily/page，返回与后端同形状的信封。
 
 import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
@@ -68,7 +68,7 @@ const OVERVIEW = {
     { level: 'info', text: '今日 1 人迟到', count: 1 },
   ],
   links: [
-    { key: 'attendance', label: '考勤日报', path: '/oa/attendance/daily/page', permission: 'sys:oa:attendance:daily:list' },
+    { key: 'attendance', label: '考勤日报', path: '/oa/v1/attendance/daily/page', permission: 'sys:oa:attendance:daily:list' },
   ],
   notes: ['口径：考勤日报 oa_att_daily，与 2D 考勤月报同一条 SQL'],
 };
@@ -125,7 +125,7 @@ await page.route('**/oa/overview**', async (route) => {
 
 /* 详情路由先注册、列表路由后注册：Playwright 后注册的优先匹配。
    吏部坊不配 detailPath，这条路由只用来断言"点行不会打详情接口"。 */
-await page.route('**/oa/attendance/daily/*', async (route) => {
+await page.route('**/oa/v1/attendance/daily/*', async (route) => {
   const url = new URL(route.request().url());
   if (url.pathname.endsWith('/page')) {
     await route.fallback();
@@ -135,7 +135,7 @@ await page.route('**/oa/attendance/daily/*', async (route) => {
   await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(json(null)) });
 });
 
-await page.route('**/oa/attendance/daily/page**', async (route) => {
+await page.route('**/oa/v1/attendance/daily/page**', async (route) => {
   const url = new URL(route.request().url());
   const current = Number(url.searchParams.get('current') ?? '1');
   const size = Number(url.searchParams.get('size') ?? '6');
@@ -311,7 +311,7 @@ await page.locator(SCOPE + '.bwsp-table tbody tr').first().click();
 await page.waitForTimeout(700);
 probe = await page.evaluate(() => window.__bwwScreenPage?.('libu'));
 check('点行打开详情态', probe?.detail.open === true, probe?.detail);
-check('不配 detailPath：不打详情接口（OA 没有 /oa/attendance/daily/{id}）', detailHits.length === 0, detailHits);
+check('不配 detailPath：不打详情接口（OA 没有 /oa/v1/attendance/daily/{id}）', detailHits.length === 0, detailHits);
 check('详情 10 个字段用列表行数据（含打卡时刻与备注）',
   probe?.detail.fields === 10 && probe?.detail.lines === 0, probe?.detail);
 await page.screenshot({ path: `${OUT}/21-libu-detail.png` });
@@ -341,7 +341,7 @@ check('退出后回到 3D 尺寸（不是糊满整个镜头）', exited.w > 0 &&
 await page.route('**/oa/overview**', (route) =>
   route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }),
 );
-await page.route('**/oa/attendance/daily/page**', (route) =>
+await page.route('**/oa/v1/attendance/daily/page**', (route) =>
   route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }),
 );
 await page.locator('[data-screen-id="libu"]').click();

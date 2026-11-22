@@ -52,7 +52,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/mes/equipment")
+@RequestMapping(path = "/mes/v{version}/equipment", version = "1")
 @RequiredArgsConstructor
 public class MesEquipmentController {
 

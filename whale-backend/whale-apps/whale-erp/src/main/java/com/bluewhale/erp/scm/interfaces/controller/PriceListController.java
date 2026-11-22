@@ -37,7 +37,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/erp/scm/price-list")
+@RequestMapping(path = "/erp/v{version}/scm/price-list", version = "1")
 @RequiredArgsConstructor
 public class PriceListController {
 

@@ -20,7 +20,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/lms")
+@RequestMapping(path = "/lms/v{version}", version = "1")
 @RequiredArgsConstructor
 public class LmsMetaController {
 

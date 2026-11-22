@@ -29,7 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/oa/poll")
+@RequestMapping(path = "/oa/v{version}/poll", version = "1")
 @RequiredArgsConstructor
 public class PollController {
 

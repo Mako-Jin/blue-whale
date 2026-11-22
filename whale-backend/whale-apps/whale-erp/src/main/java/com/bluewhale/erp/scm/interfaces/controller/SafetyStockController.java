@@ -33,7 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/erp/scm/safety-stock")
+@RequestMapping(path = "/erp/v{version}/scm/safety-stock", version = "1")
 @RequiredArgsConstructor
 public class SafetyStockController {
 

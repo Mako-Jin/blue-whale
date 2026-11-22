@@ -28,7 +28,7 @@ import java.time.LocalDate;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/oa/hr/calendar")
+@RequestMapping(path = "/oa/v{version}/hr/calendar", version = "1")
 @RequiredArgsConstructor
 public class WorkCalendarController {
 

@@ -69,13 +69,13 @@ export interface RefreshResult {
 
 /** 看板总览（statDate 为空取今天） */
 export function getOverview(statDate?: string) {
-  return http.get<AnalyticsOverview>('/lms/analytics/overview', { statDate });
+  return http.get<AnalyticsOverview>('/lms/v1/analytics/overview', { statDate });
 }
 
 /** 刷新并落库某统计日快照（同日重跑覆盖） */
 export function refreshSnapshot(statDate?: string) {
   return http.post<RefreshResult>(
-    `/lms/analytics/refresh${statDate ? `?statDate=${statDate}` : ''}`,
+    `/lms/v1/analytics/refresh${statDate ? `?statDate=${statDate}` : ''}`,
   );
 }
 
@@ -87,7 +87,7 @@ export function pageSnapshots(params: {
   current?: number;
   size?: number;
 }) {
-  return http.get<PageData<MetricSnapshotItem>>('/lms/analytics/snapshot/page', { ...params });
+  return http.get<PageData<MetricSnapshotItem>>('/lms/v1/analytics/snapshot/page', { ...params });
 }
 
 /**
@@ -98,7 +98,7 @@ export function pageSnapshots(params: {
  */
 export async function exportCsv(days: number): Promise<void> {
   const token = getToken();
-  const response = await fetch(`/lms/analytics/export?days=${days}`, {
+  const response = await fetch(`/lms/v1/analytics/export?days=${days}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
   });
   if (!response.ok) {

@@ -28,7 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/oa/suggestion")
+@RequestMapping(path = "/oa/v{version}/suggestion", version = "1")
 @RequiredArgsConstructor
 public class SuggestionController {
 

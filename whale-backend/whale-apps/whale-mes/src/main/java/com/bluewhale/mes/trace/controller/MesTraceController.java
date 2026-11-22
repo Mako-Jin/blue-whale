@@ -46,7 +46,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/mes/trace")
+@RequestMapping(path = "/mes/v{version}/trace", version = "1")
 @RequiredArgsConstructor
 public class MesTraceController {
 

@@ -37,7 +37,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/lms/attempt")
+@RequestMapping(path = "/lms/v{version}/attempt", version = "1")
 @RequiredArgsConstructor
 public class AttemptController {
 

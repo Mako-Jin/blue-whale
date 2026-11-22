@@ -32,7 +32,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/lms/urge")
+@RequestMapping(path = "/lms/v{version}/urge", version = "1")
 @RequiredArgsConstructor
 public class UrgeController {
 

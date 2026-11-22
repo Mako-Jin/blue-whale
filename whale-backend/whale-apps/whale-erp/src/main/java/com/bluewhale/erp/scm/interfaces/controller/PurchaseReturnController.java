@@ -29,7 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/erp/scm/purchase-return")
+@RequestMapping(path = "/erp/v{version}/scm/purchase-return", version = "1")
 @RequiredArgsConstructor
 public class PurchaseReturnController {
 

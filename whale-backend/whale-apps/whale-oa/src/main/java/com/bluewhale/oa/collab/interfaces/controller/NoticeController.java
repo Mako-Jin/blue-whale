@@ -33,7 +33,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/oa/notice")
+@RequestMapping(path = "/oa/v{version}/notice", version = "1")
 @RequiredArgsConstructor
 public class NoticeController {
 

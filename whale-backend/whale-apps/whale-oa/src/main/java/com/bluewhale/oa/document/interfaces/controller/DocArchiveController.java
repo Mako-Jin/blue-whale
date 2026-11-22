@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/oa/document/archive")
+@RequestMapping(path = "/oa/v{version}/document/archive", version = "1")
 @RequiredArgsConstructor
 public class DocArchiveController {
 

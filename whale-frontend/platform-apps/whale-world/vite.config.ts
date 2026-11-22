@@ -11,7 +11,7 @@ const GATEWAY = 'http://127.0.0.1:8080';
 /**
  * 走网关的代理表。
  *
- * <p>网关不剥前缀（服务自持一级前缀，如 {@code @RequestMapping("/erp/bi/cockpit")} 就是对外路径），
+ * <p>网关不剥前缀（服务自持一级前缀，如 {@code @RequestMapping("/erp/v{version}/bi/cockpit")} 就是对外路径），
  * 所以这里只做原样转发。内嵌基座时由基座代理；独立跑 8124 / 预览跑 8125 时必须自己代理，
  * 否则请求落到 SPA 回退页，拿到的是 index.html 而不是 JSON——表现为「所有牌都说未接通」，
  * 但网络面板里 HTTP 状态是 200，极易误判。</p>

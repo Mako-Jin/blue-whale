@@ -23,7 +23,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/mall/report")
+@RequestMapping(path = "/mall/v{version}/report", version = "1")
 @RequiredArgsConstructor
 public class MallReportController {
 

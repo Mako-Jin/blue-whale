@@ -18,7 +18,7 @@
 //   ⑥ 折线必须横向铺满（viewBox 100×34 配 830×48，默认等比缩放只占中间 17%）；
 //   ⑦ 接口全挂时不白屏：标 stale + 给一句人话。
 //
-// 数据来源：page.route 拦 /lms/overview 与 /lms/course/page，返回与后端同形状的信封。
+// 数据来源：page.route 拦 /lms/overview 与 /lms/v1/course/page，返回与后端同形状的信封。
 
 import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
@@ -82,7 +82,7 @@ const OVERVIEW = {
     { level: 'warning', text: '已开始学的人里只有 75% 学完，课程可能太长或没人催', count: null },
     { level: 'info', text: '今日还没有看板快照，这一屏是实时算的（不会写库）', count: null },
   ],
-  links: [{ key: 'courses', label: '课程目录', path: '/lms/course/page', permission: 'sys:lms:course:list' }],
+  links: [{ key: 'courses', label: '课程目录', path: '/lms/v1/course/page', permission: 'sys:lms:course:list' }],
   notes: ['口径：覆盖 = 已学 ÷ 在职（630/1001），完成 = 学完 ÷ 已学（473/630），通过 = 通过 ÷ 参考（90/100）；学分累计 120 分，18 人获得'],
 };
 
@@ -138,7 +138,7 @@ await page.route('**/lms/overview**', async (route) => {
 
 /* 详情路由先注册、列表路由后注册：Playwright 后注册的优先匹配。
    杏坛坊不配 detailPath，这条路由只用来断言"点行不会打详情接口"。 */
-await page.route('**/lms/course/*', async (route) => {
+await page.route('**/lms/v1/course/*', async (route) => {
   const url = new URL(route.request().url());
   if (url.pathname.endsWith('/page')) {
     await route.fallback();
@@ -148,7 +148,7 @@ await page.route('**/lms/course/*', async (route) => {
   await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(json(null)) });
 });
 
-await page.route('**/lms/course/page**', async (route) => {
+await page.route('**/lms/v1/course/page**', async (route) => {
   const url = new URL(route.request().url());
   const current = Number(url.searchParams.get('current') ?? '1');
   const size = Number(url.searchParams.get('size') ?? '6');
@@ -416,7 +416,7 @@ check('退出后回到 3D 尺寸（不是糊满整个镜头）', exited.w > 0 &&
 await page.route('**/lms/overview**', (route) =>
   route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }),
 );
-await page.route('**/lms/course/page**', (route) =>
+await page.route('**/lms/v1/course/page**', (route) =>
   route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }),
 );
 await page.locator('[data-screen-id="xingtan"]').click();

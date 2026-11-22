@@ -33,7 +33,7 @@ import java.time.LocalDate;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/erp/bi/report")
+@RequestMapping(path = "/erp/v{version}/bi/report", version = "1")
 @RequiredArgsConstructor
 public class AnalyticsReportController {
 

@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/mall/member")
+@RequestMapping(path = "/mall/v{version}/member", version = "1")
 @RequiredArgsConstructor
 public class MallMemberController {
 

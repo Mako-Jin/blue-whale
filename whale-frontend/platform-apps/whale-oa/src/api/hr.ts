@@ -206,59 +206,59 @@ function buildQuery(params: object): string {
 export function pageProfiles(
   params: EmployeeProfileQuery = {},
 ): Promise<PageResult<EmployeeProfile>> {
-  return http.get<PageResult<EmployeeProfile>>(`/oa/hr/profile/page${buildQuery(params)}`);
+  return http.get<PageResult<EmployeeProfile>>(`/oa/v1/hr/profile/page${buildQuery(params)}`);
 }
 
 /** 按用户ID查询员工档案 */
 export function getProfile(userId: number): Promise<EmployeeProfile> {
-  return http.get<EmployeeProfile>(`/oa/hr/profile/${userId}`);
+  return http.get<EmployeeProfile>(`/oa/v1/hr/profile/${userId}`);
 }
 
 /** 保存员工档案（按 userId 幂等 upsert） */
 export function saveProfile(input: EmployeeProfileSaveCommand): Promise<EmployeeProfile> {
-  return http.post<EmployeeProfile>('/oa/hr/profile', input);
+  return http.post<EmployeeProfile>('/oa/v1/hr/profile', input);
 }
 
 /** 删除员工档案 */
 export function deleteProfile(userId: number): Promise<void> {
-  return http.del<void>(`/oa/hr/profile/${userId}`);
+  return http.del<void>(`/oa/v1/hr/profile/${userId}`);
 }
 
 /** 分页查询假期类型 */
 export function pageLeaveTypes(params: LeaveTypeQuery = {}): Promise<PageResult<LeaveTypeView>> {
-  return http.get<PageResult<LeaveTypeView>>(`/oa/hr/leave-type/page${buildQuery(params)}`);
+  return http.get<PageResult<LeaveTypeView>>(`/oa/v1/hr/leave-type/page${buildQuery(params)}`);
 }
 
 /** 查询全部启用假期类型 */
 export function listEnabledLeaveTypes(): Promise<LeaveTypeView[]> {
-  return http.get<LeaveTypeView[]>('/oa/hr/leave-type/enabled');
+  return http.get<LeaveTypeView[]>('/oa/v1/hr/leave-type/enabled');
 }
 
 /** 新增假期类型 */
 export function createLeaveType(input: LeaveTypeSaveCommand): Promise<LeaveTypeView> {
-  return http.post<LeaveTypeView>('/oa/hr/leave-type', input);
+  return http.post<LeaveTypeView>('/oa/v1/hr/leave-type', input);
 }
 
 /** 更新假期类型 */
 export function updateLeaveType(id: number, input: LeaveTypeSaveCommand): Promise<LeaveTypeView> {
-  return http.put<LeaveTypeView>(`/oa/hr/leave-type/${id}`, input);
+  return http.put<LeaveTypeView>(`/oa/v1/hr/leave-type/${id}`, input);
 }
 
 /** 启用 / 停用假期类型 */
 export function toggleLeaveType(id: number, enabled: boolean): Promise<LeaveTypeView> {
-  return http.put<LeaveTypeView>(`/oa/hr/leave-type/${id}/toggle${buildQuery({ enabled })}`);
+  return http.put<LeaveTypeView>(`/oa/v1/hr/leave-type/${id}/toggle${buildQuery({ enabled })}`);
 }
 
 /** 分页查询年度假期额度 */
 export function pageLeaveBalances(
   params: LeaveBalanceQuery = {},
 ): Promise<PageResult<LeaveBalanceView>> {
-  return http.get<PageResult<LeaveBalanceView>>(`/oa/hr/leave-balance/page${buildQuery(params)}`);
+  return http.get<PageResult<LeaveBalanceView>>(`/oa/v1/hr/leave-balance/page${buildQuery(params)}`);
 }
 
 /** 查询当前用户某年度额度 */
 export function myLeaveBalances(year: number): Promise<LeaveBalanceView[]> {
-  return http.get<LeaveBalanceView[]>(`/oa/hr/leave-balance/my${buildQuery({ year })}`);
+  return http.get<LeaveBalanceView[]>(`/oa/v1/hr/leave-balance/my${buildQuery({ year })}`);
 }
 
 /** 分页查询额度流水 */
@@ -267,13 +267,13 @@ export function pageLeaveBalanceLogs(
   params: LeaveBalanceLogQuery = {},
 ): Promise<PageResult<LeaveBalanceLogView>> {
   return http.get<PageResult<LeaveBalanceLogView>>(
-    `/oa/hr/leave-balance/${id}/logs${buildQuery(params)}`,
+    `/oa/v1/hr/leave-balance/${id}/logs${buildQuery(params)}`,
   );
 }
 
 /** 初始化某用户某年度额度（幂等） */
 export function initLeaveBalance(input: LeaveBalanceInitCommand): Promise<LeaveBalanceView[]> {
-  return http.post<LeaveBalanceView[]>('/oa/hr/leave-balance/init', input);
+  return http.post<LeaveBalanceView[]>('/oa/v1/hr/leave-balance/init', input);
 }
 
 /** 调整额度总额度 */
@@ -281,14 +281,14 @@ export function adjustLeaveBalance(
   id: number,
   input: LeaveBalanceAdjustCommand,
 ): Promise<LeaveBalanceView> {
-  return http.put<LeaveBalanceView>(`/oa/hr/leave-balance/${id}`, input);
+  return http.put<LeaveBalanceView>(`/oa/v1/hr/leave-balance/${id}`, input);
 }
 
 /** 分页查询工作日历 */
 export function pageWorkCalendars(
   params: WorkCalendarQuery = {},
 ): Promise<PageResult<WorkCalendarView>> {
-  return http.get<PageResult<WorkCalendarView>>(`/oa/hr/calendar/page${buildQuery(params)}`);
+  return http.get<PageResult<WorkCalendarView>>(`/oa/v1/hr/calendar/page${buildQuery(params)}`);
 }
 
 /** 按日期保存工作日历（幂等 upsert） */
@@ -296,7 +296,7 @@ export function saveWorkCalendar(
   date: string,
   input: WorkCalendarSaveCommand,
 ): Promise<WorkCalendarView> {
-  return http.put<WorkCalendarView>(`/oa/hr/calendar/${date}`, input);
+  return http.put<WorkCalendarView>(`/oa/v1/hr/calendar/${date}`, input);
 }
 
 /** 人员异动类型 */
@@ -402,17 +402,17 @@ export interface EmployeeChangeExecuteResult {
 export function pageChanges(
   params: EmployeeChangeQuery = {},
 ): Promise<PageResult<EmployeeChangeListItem>> {
-  return http.get<PageResult<EmployeeChangeListItem>>(`/oa/hr/change/page${buildQuery(params)}`);
+  return http.get<PageResult<EmployeeChangeListItem>>(`/oa/v1/hr/change/page${buildQuery(params)}`);
 }
 
 /** 查询人员异动单详情 */
 export function getChange(id: number): Promise<EmployeeChangeDetail> {
-  return http.get<EmployeeChangeDetail>(`/oa/hr/change/${id}`);
+  return http.get<EmployeeChangeDetail>(`/oa/v1/hr/change/${id}`);
 }
 
 /** 新建人员异动单 */
 export function createChange(input: EmployeeChangeSaveCommand): Promise<EmployeeChangeDetail> {
-  return http.post<EmployeeChangeDetail>('/oa/hr/change', input);
+  return http.post<EmployeeChangeDetail>('/oa/v1/hr/change', input);
 }
 
 /** 编辑人员异动单 */
@@ -420,20 +420,20 @@ export function updateChange(
   id: number,
   input: EmployeeChangeSaveCommand,
 ): Promise<EmployeeChangeDetail> {
-  return http.put<EmployeeChangeDetail>(`/oa/hr/change/${id}`, input);
+  return http.put<EmployeeChangeDetail>(`/oa/v1/hr/change/${id}`, input);
 }
 
 /** 提交人员异动审批 */
 export function submitChange(id: number): Promise<EmployeeChangeDetail> {
-  return http.post<EmployeeChangeDetail>(`/oa/hr/change/${id}/submit`);
+  return http.post<EmployeeChangeDetail>(`/oa/v1/hr/change/${id}/submit`);
 }
 
 /** 执行审批通过的人员异动 */
 export function executeChange(id: number): Promise<EmployeeChangeExecuteResult> {
-  return http.post<EmployeeChangeExecuteResult>(`/oa/hr/change/${id}/execute`);
+  return http.post<EmployeeChangeExecuteResult>(`/oa/v1/hr/change/${id}/execute`);
 }
 
 /** 完成离职清单任务 */
 export function doneChangeTask(changeId: number, taskId: number, remark?: string): Promise<void> {
-  return http.put<void>(`/oa/hr/change/${changeId}/tasks/${taskId}/done`, { remark });
+  return http.put<void>(`/oa/v1/hr/change/${changeId}/tasks/${taskId}/done`, { remark });
 }

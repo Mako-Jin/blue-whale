@@ -27,7 +27,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/erp/hr/org")
+@RequestMapping(path = "/erp/v{version}/hr/org", version = "1")
 @RequiredArgsConstructor
 public class HrOrgController {
 

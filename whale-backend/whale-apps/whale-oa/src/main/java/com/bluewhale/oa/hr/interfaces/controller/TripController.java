@@ -31,7 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/oa/trip")
+@RequestMapping(path = "/oa/v{version}/trip", version = "1")
 @RequiredArgsConstructor
 public class TripController {
 

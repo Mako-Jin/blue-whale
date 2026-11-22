@@ -724,11 +724,11 @@ VALUES
     (167, 0, 'sys:user:tenant', '绑定用户租户', 'API',
      '/user/{id}/tenants,/user/{id}/tenants/{tenantId}', 'POST,DELETE', 167, 1),
     -- Wave 5.46 轨 G：OA 请假闭环（168–171）
-    (168, 0, 'sys:oa:leave:list', '查询请假申请', 'API', '/oa/leave/page,/oa/leave/{id}', 'GET', 168, 1),
-    (169, 0, 'sys:oa:leave:add', '新增请假申请', 'API', '/oa/leave', 'POST', 169, 1),
+    (168, 0, 'sys:oa:leave:list', '查询请假申请', 'API', '/oa/v1/leave/page,/oa/v1/leave/{id}', 'GET', 168, 1),
+    (169, 0, 'sys:oa:leave:add', '新增请假申请', 'API', '/oa/v1/leave', 'POST', 169, 1),
     (170, 0, 'sys:oa:leave:edit', '编辑/审批请假申请', 'API',
-     '/oa/leave/{id},/oa/leave/{id}/status', 'PUT', 170, 1),
-    (171, 0, 'sys:oa:leave:delete', '删除请假申请', 'API', '/oa/leave/{id}', 'DELETE', 171, 1),
+     '/oa/v1/leave/{id},/oa/v1/leave/{id}/status', 'PUT', 170, 1),
+    (171, 0, 'sys:oa:leave:delete', '删除请假申请', 'API', '/oa/v1/leave/{id}', 'DELETE', 171, 1),
     -- REQ-SEC-023：租户口令策略（172–173 下发给租户管理员，平台专属码清单不含这两项）
     (172, 0, 'sys:tenant:pwdpolicy:list', '查询租户口令策略', 'API', '/tenant/password-policy', 'GET', 172, 1),
     (173, 0, 'sys:tenant:pwdpolicy:edit', '配置租户口令策略', 'API', '/tenant/password-policy', 'PUT', 173, 1);

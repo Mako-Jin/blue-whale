@@ -30,7 +30,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/oa/hr/leave-type")
+@RequestMapping(path = "/oa/v{version}/hr/leave-type", version = "1")
 @RequiredArgsConstructor
 public class LeaveTypeController {
 

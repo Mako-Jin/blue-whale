@@ -29,7 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/erp/hr/payroll")
+@RequestMapping(path = "/erp/v{version}/hr/payroll", version = "1")
 @RequiredArgsConstructor
 public class HrPayrollController {
 

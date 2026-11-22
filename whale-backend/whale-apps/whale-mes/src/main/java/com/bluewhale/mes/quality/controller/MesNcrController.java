@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/mes/quality/ncr")
+@RequestMapping(path = "/mes/v{version}/quality/ncr", version = "1")
 @RequiredArgsConstructor
 public class MesNcrController {
 

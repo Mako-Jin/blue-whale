@@ -34,7 +34,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/oa/calendar")
+@RequestMapping(path = "/oa/v{version}/calendar", version = "1")
 @RequiredArgsConstructor
 public class CalendarController {
 

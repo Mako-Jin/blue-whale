@@ -30,7 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/erp/bi/alert")
+@RequestMapping(path = "/erp/v{version}/bi/alert", version = "1")
 @RequiredArgsConstructor
 public class AnalyticsAlertController {
 

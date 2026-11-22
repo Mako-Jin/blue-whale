@@ -35,7 +35,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/oa/task")
+@RequestMapping(path = "/oa/v{version}/task", version = "1")
 @RequiredArgsConstructor
 public class TaskController {
 

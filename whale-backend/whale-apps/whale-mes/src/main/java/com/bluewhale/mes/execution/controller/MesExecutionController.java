@@ -35,7 +35,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/mes/execution")
+@RequestMapping(path = "/mes/v{version}/execution", version = "1")
 @RequiredArgsConstructor
 public class MesExecutionController {
 

@@ -35,7 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/lms/question")
+@RequestMapping(path = "/lms/v{version}/question", version = "1")
 @RequiredArgsConstructor
 public class QuestionController {
 

@@ -42,7 +42,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/oa/drive")
+@RequestMapping(path = "/oa/v{version}/drive", version = "1")
 @RequiredArgsConstructor
 public class DriveController {
 

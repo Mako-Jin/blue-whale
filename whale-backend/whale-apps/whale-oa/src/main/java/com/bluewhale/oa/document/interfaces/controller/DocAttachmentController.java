@@ -22,7 +22,7 @@ import java.nio.charset.StandardCharsets;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/oa/document/attachments")
+@RequestMapping(path = "/oa/v{version}/document/attachments", version = "1")
 @RequiredArgsConstructor
 public class DocAttachmentController {
 

@@ -79,27 +79,27 @@ function buildQuery(params: object): string {
 
 /** 分页查询当前用户可见日程 */
 export function pageCalendars(params: OaCalendarQuery = {}): Promise<PageResult<OaCalendarEntry>> {
-  return http.get<PageResult<OaCalendarEntry>>(`/oa/calendar/page${buildQuery(params)}`);
+  return http.get<PageResult<OaCalendarEntry>>(`/oa/v1/calendar/page${buildQuery(params)}`);
 }
 
 /** 日程详情 */
 export function getCalendar(id: number): Promise<OaCalendarDetail> {
-  return http.get<OaCalendarDetail>(`/oa/calendar/${id}`);
+  return http.get<OaCalendarDetail>(`/oa/v1/calendar/${id}`);
 }
 
 /** 新建日程 */
 export function createCalendar(input: OaCalendarInput): Promise<OaCalendarEntry> {
-  return http.post<OaCalendarEntry>('/oa/calendar', input);
+  return http.post<OaCalendarEntry>('/oa/v1/calendar', input);
 }
 
 /** 编辑日程 */
 export function updateCalendar(id: number, input: OaCalendarInput): Promise<OaCalendarEntry> {
-  return http.put<OaCalendarEntry>(`/oa/calendar/${id}`, input);
+  return http.put<OaCalendarEntry>(`/oa/v1/calendar/${id}`, input);
 }
 
 /** 删除日程 */
 export function deleteCalendar(id: number): Promise<void> {
-  return http.del<void>(`/oa/calendar/${id}`);
+  return http.del<void>(`/oa/v1/calendar/${id}`);
 }
 
 /** 替换日程共享名单 */
@@ -107,10 +107,10 @@ export function replaceCalendarShares(
   id: number,
   users: OaCalendarShare[],
 ): Promise<OaCalendarShare[]> {
-  return http.put<OaCalendarShare[]>(`/oa/calendar/${id}/shares`, { users });
+  return http.put<OaCalendarShare[]>(`/oa/v1/calendar/${id}/shares`, { users });
 }
 
 /** 查询当前用户即将提醒的日程 */
 export function listCalendarReminders(minutes = 30): Promise<OaCalendarEntry[]> {
-  return http.get<OaCalendarEntry[]>(`/oa/calendar/reminders${buildQuery({ minutes })}`);
+  return http.get<OaCalendarEntry[]>(`/oa/v1/calendar/reminders${buildQuery({ minutes })}`);
 }

@@ -32,7 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/lms/credit/rule")
+@RequestMapping(path = "/lms/v{version}/credit/rule", version = "1")
 @RequiredArgsConstructor
 public class CreditRuleController {
 

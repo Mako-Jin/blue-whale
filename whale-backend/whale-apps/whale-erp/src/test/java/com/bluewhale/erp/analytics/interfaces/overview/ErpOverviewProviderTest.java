@@ -133,7 +133,7 @@ class ErpOverviewProviderTest {
         OverviewSnapshot granted = provider.build(context());
         OverviewLink link = granted.links().get(0);
         assertThat(link.key()).isEqualTo("purchase-orders");
-        assertThat(link.path()).isEqualTo("/erp/scm/purchase-order/page");
+        assertThat(link.path()).isEqualTo("/erp/v1/scm/purchase-order/page");
         assertThat(link.permission()).isEqualTo("sys:erp:purchase:list");
 
         OverviewSnapshot denied = provider.build(OverviewContext.of(1L, 1L, Set.of("sys:erp:bi:cockpit:list")));

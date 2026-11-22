@@ -223,22 +223,22 @@ function buildQuery(params: BiQueryParams): string {
 /** 查询经营驾驶舱（缓存缺失时后端按当前口径懒加载） */
 export function getCockpit(periodCode?: string): Promise<CockpitView> {
   const suffix = periodCode ? `?periodCode=${encodeURIComponent(periodCode)}` : '';
-  return http.get<CockpitView>(`/erp/bi/cockpit${suffix}`);
+  return http.get<CockpitView>(`/erp/v1/bi/cockpit${suffix}`);
 }
 
 /** 刷新驾驶舱快照 */
 export function refreshCockpit(input: CockpitRefreshInput): Promise<CockpitView> {
-  return http.post<CockpitView>('/erp/bi/cockpit/refresh', input);
+  return http.post<CockpitView>('/erp/v1/bi/cockpit/refresh', input);
 }
 
 /** 主动失效快照 */
 export function invalidateCockpit(periodCode: string): Promise<void> {
-  return http.post<void>(`/erp/bi/cockpit/invalidate?periodCode=${encodeURIComponent(periodCode)}`);
+  return http.post<void>(`/erp/v1/bi/cockpit/invalidate?periodCode=${encodeURIComponent(periodCode)}`);
 }
 
 /** 多维分析 */
 export function queryCube(params: BiQueryParams): Promise<CubeResult> {
-  return http.get<CubeResult>(`/erp/bi/cube?${buildQuery(params)}`);
+  return http.get<CubeResult>(`/erp/v1/bi/cube?${buildQuery(params)}`);
 }
 
 /** 报表定义分页 */
@@ -246,7 +246,7 @@ export function pageReportDefinitions(
   params: BiQueryParams = {},
 ): Promise<PageResult<ReportDefinitionView>> {
   return http.get<PageResult<ReportDefinitionView>>(
-    `/erp/bi/report/definition/page?${buildQuery(params)}`,
+    `/erp/v1/bi/report/definition/page?${buildQuery(params)}`,
   );
 }
 
@@ -254,7 +254,7 @@ export function pageReportDefinitions(
 export function createReportDefinition(
   input: ReportDefinitionInput,
 ): Promise<ReportDefinitionView> {
-  return http.post<ReportDefinitionView>('/erp/bi/report/definition', input);
+  return http.post<ReportDefinitionView>('/erp/v1/bi/report/definition', input);
 }
 
 /** 编辑报表定义 */
@@ -263,7 +263,7 @@ export function updateReportDefinition(
   input: ReportDefinitionInput,
 ): Promise<ReportDefinitionView> {
   return http.put<ReportDefinitionView>(
-    `/erp/bi/report/definition/${encodeURIComponent(reportNo)}`,
+    `/erp/v1/bi/report/definition/${encodeURIComponent(reportNo)}`,
     input,
   );
 }
@@ -275,7 +275,7 @@ export function executeReport(reportNo: string, from?: string, to?: string): Pro
   if (to) search.set('to', to);
   const query = search.toString();
   return http.post<CubeResult>(
-    `/erp/bi/report/${encodeURIComponent(reportNo)}/execute${query ? `?${query}` : ''}`,
+    `/erp/v1/bi/report/${encodeURIComponent(reportNo)}/execute${query ? `?${query}` : ''}`,
   );
 }
 
@@ -286,7 +286,7 @@ export function exportReportCsv(reportNo: string, from?: string, to?: string): P
   if (to) search.set('to', to);
   const query = search.toString();
   return http.get<string>(
-    `/erp/bi/report/${encodeURIComponent(reportNo)}/export${query ? `?${query}` : ''}`,
+    `/erp/v1/bi/report/${encodeURIComponent(reportNo)}/export${query ? `?${query}` : ''}`,
   );
 }
 
@@ -295,13 +295,13 @@ export function pageReportSchedules(
   params: BiQueryParams = {},
 ): Promise<PageResult<ReportScheduleView>> {
   return http.get<PageResult<ReportScheduleView>>(
-    `/erp/bi/report/schedule/page?${buildQuery(params)}`,
+    `/erp/v1/bi/report/schedule/page?${buildQuery(params)}`,
   );
 }
 
 /** 新增报表计划 */
 export function createReportSchedule(input: ReportScheduleInput): Promise<ReportScheduleView> {
-  return http.post<ReportScheduleView>('/erp/bi/report/schedule', input);
+  return http.post<ReportScheduleView>('/erp/v1/bi/report/schedule', input);
 }
 
 /** 编辑报表计划 */
@@ -310,7 +310,7 @@ export function updateReportSchedule(
   input: ReportScheduleInput,
 ): Promise<ReportScheduleView> {
   return http.put<ReportScheduleView>(
-    `/erp/bi/report/schedule/${encodeURIComponent(scheduleNo)}`,
+    `/erp/v1/bi/report/schedule/${encodeURIComponent(scheduleNo)}`,
     input,
   );
 }
@@ -318,34 +318,34 @@ export function updateReportSchedule(
 /** 手动执行报表计划 */
 export function runReportSchedule(scheduleNo: string): Promise<ReportScheduleView> {
   return http.post<ReportScheduleView>(
-    `/erp/bi/report/schedule/${encodeURIComponent(scheduleNo)}/run`,
+    `/erp/v1/bi/report/schedule/${encodeURIComponent(scheduleNo)}/run`,
   );
 }
 
 /** 预警规则分页 */
 export function pageAlertRules(params: BiQueryParams = {}): Promise<PageResult<AlertRuleView>> {
-  return http.get<PageResult<AlertRuleView>>(`/erp/bi/alert/rule/page?${buildQuery(params)}`);
+  return http.get<PageResult<AlertRuleView>>(`/erp/v1/bi/alert/rule/page?${buildQuery(params)}`);
 }
 
 /** 新增预警规则 */
 export function createAlertRule(input: AlertRuleInput): Promise<AlertRuleView> {
-  return http.post<AlertRuleView>('/erp/bi/alert/rule', input);
+  return http.post<AlertRuleView>('/erp/v1/bi/alert/rule', input);
 }
 
 /** 编辑预警规则 */
 export function updateAlertRule(ruleNo: string, input: AlertRuleInput): Promise<AlertRuleView> {
-  return http.put<AlertRuleView>(`/erp/bi/alert/rule/${encodeURIComponent(ruleNo)}`, input);
+  return http.put<AlertRuleView>(`/erp/v1/bi/alert/rule/${encodeURIComponent(ruleNo)}`, input);
 }
 
 /** 预警事件分页 */
 export function pageAlertEvents(params: BiQueryParams = {}): Promise<PageResult<AlertEventView>> {
-  return http.get<PageResult<AlertEventView>>(`/erp/bi/alert/event/page?${buildQuery(params)}`);
+  return http.get<PageResult<AlertEventView>>(`/erp/v1/bi/alert/event/page?${buildQuery(params)}`);
 }
 
 /** 评估预警规则 */
 export function evaluateAlerts(ruleNo?: string): Promise<AlertEvaluationView> {
   const suffix = ruleNo ? `?ruleNo=${encodeURIComponent(ruleNo)}` : '';
-  return http.post<AlertEvaluationView>(`/erp/bi/alert/evaluate${suffix}`);
+  return http.post<AlertEvaluationView>(`/erp/v1/bi/alert/evaluate${suffix}`);
 }
 
 /** 确认预警事件 */
@@ -353,10 +353,10 @@ export function acknowledgeAlert(
   id: number,
   input: AlertHandleInput = {},
 ): Promise<AlertEventView> {
-  return http.post<AlertEventView>(`/erp/bi/alert/event/${id}/acknowledge`, input);
+  return http.post<AlertEventView>(`/erp/v1/bi/alert/event/${id}/acknowledge`, input);
 }
 
 /** 关闭预警事件 */
 export function closeAlert(id: number, input: AlertHandleInput = {}): Promise<AlertEventView> {
-  return http.post<AlertEventView>(`/erp/bi/alert/event/${id}/close`, input);
+  return http.post<AlertEventView>(`/erp/v1/bi/alert/event/${id}/close`, input);
 }

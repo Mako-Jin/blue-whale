@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/oa/hr/profile")
+@RequestMapping(path = "/oa/v{version}/hr/profile", version = "1")
 @RequiredArgsConstructor
 public class EmployeeProfileController {
 

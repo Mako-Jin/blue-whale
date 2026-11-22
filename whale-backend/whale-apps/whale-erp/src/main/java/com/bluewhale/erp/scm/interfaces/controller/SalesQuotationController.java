@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/erp/scm/sales-quotation")
+@RequestMapping(path = "/erp/v{version}/scm/sales-quotation", version = "1")
 @RequiredArgsConstructor
 public class SalesQuotationController {
 

@@ -218,102 +218,102 @@ function buildQuery(params: object): string {
 export function pageCultureEvents(
   params: CultureEventQuery = {},
 ): Promise<PageResult<CultureEvent>> {
-  return http.get<PageResult<CultureEvent>>(`/oa/culture/events/page${buildQuery(params)}`);
+  return http.get<PageResult<CultureEvent>>(`/oa/v1/culture/events/page${buildQuery(params)}`);
 }
 
 /** 文化动态详情 */
 export function getCultureEvent(id: number): Promise<CultureEvent> {
-  return http.get<CultureEvent>(`/oa/culture/events/${id}`);
+  return http.get<CultureEvent>(`/oa/v1/culture/events/${id}`);
 }
 
 /** 新增文化动态 */
 export function createCultureEvent(input: CultureEventInput): Promise<CultureEvent> {
-  return http.post<CultureEvent>('/oa/culture/events', input);
+  return http.post<CultureEvent>('/oa/v1/culture/events', input);
 }
 
 /** 编辑文化动态 */
 export function updateCultureEvent(id: number, input: CultureEventInput): Promise<CultureEvent> {
-  return http.put<CultureEvent>(`/oa/culture/events/${id}`, input);
+  return http.put<CultureEvent>(`/oa/v1/culture/events/${id}`, input);
 }
 
 /** 删除文化动态 */
 export function deleteCultureEvent(id: number): Promise<void> {
-  return http.del<void>(`/oa/culture/events/${id}`);
+  return http.del<void>(`/oa/v1/culture/events/${id}`);
 }
 
 /** 发布文化动态 */
 export function publishCultureEvent(id: number): Promise<CultureEvent> {
-  return http.put<CultureEvent>(`/oa/culture/events/${id}/publish`);
+  return http.put<CultureEvent>(`/oa/v1/culture/events/${id}/publish`);
 }
 
 /** 查询指定日期的生日 / 周年（缺省为今天） */
 export function listBirthdays(date?: string): Promise<BirthdayCelebration[]> {
-  return http.get<BirthdayCelebration[]>(`/oa/culture/birthdays${buildQuery({ date })}`);
+  return http.get<BirthdayCelebration[]>(`/oa/v1/culture/birthdays${buildQuery({ date })}`);
 }
 
 /** 分页查询祝福 */
 export function pageCultureWishes(params: CultureWishQuery = {}): Promise<PageResult<CultureWish>> {
-  return http.get<PageResult<CultureWish>>(`/oa/culture/wishes/page${buildQuery(params)}`);
+  return http.get<PageResult<CultureWish>>(`/oa/v1/culture/wishes/page${buildQuery(params)}`);
 }
 
 /** 送祝福 */
 export function createCultureWish(input: CultureWishInput): Promise<CultureWish> {
-  return http.post<CultureWish>('/oa/culture/wishes', input);
+  return http.post<CultureWish>('/oa/v1/culture/wishes', input);
 }
 
 /** 分页查询投票 */
 export function pagePolls(params: PollQuery = {}): Promise<PageResult<Poll>> {
-  return http.get<PageResult<Poll>>(`/oa/poll/page${buildQuery(params)}`);
+  return http.get<PageResult<Poll>>(`/oa/v1/poll/page${buildQuery(params)}`);
 }
 
 /** 投票详情（含选项票数与我的选择） */
 export function getPoll(id: number): Promise<PollDetail> {
-  return http.get<PollDetail>(`/oa/poll/${id}`);
+  return http.get<PollDetail>(`/oa/v1/poll/${id}`);
 }
 
 /** 新增投票 */
 export function createPoll(input: PollInput): Promise<Poll> {
-  return http.post<Poll>('/oa/poll', input);
+  return http.post<Poll>('/oa/v1/poll', input);
 }
 
 /** 编辑投票 */
 export function updatePoll(id: number, input: PollInput): Promise<Poll> {
-  return http.put<Poll>(`/oa/poll/${id}`, input);
+  return http.put<Poll>(`/oa/v1/poll/${id}`, input);
 }
 
 /** 删除投票 */
 export function deletePoll(id: number): Promise<void> {
-  return http.del<void>(`/oa/poll/${id}`);
+  return http.del<void>(`/oa/v1/poll/${id}`);
 }
 
 /** 发布投票 */
 export function publishPoll(id: number): Promise<Poll> {
-  return http.put<Poll>(`/oa/poll/${id}/publish`);
+  return http.put<Poll>(`/oa/v1/poll/${id}/publish`);
 }
 
 /** 关闭投票 */
 export function closePoll(id: number): Promise<Poll> {
-  return http.put<Poll>(`/oa/poll/${id}/close`);
+  return http.put<Poll>(`/oa/v1/poll/${id}/close`);
 }
 
 /** 参与投票 */
 export function votePoll(id: number, optionIds: number[]): Promise<void> {
-  return http.post<void>(`/oa/poll/${id}/vote`, { optionIds });
+  return http.post<void>(`/oa/v1/poll/${id}/vote`, { optionIds });
 }
 
 /** 分页查询建议 */
 export function pageSuggestions(params: SuggestionQuery = {}): Promise<PageResult<Suggestion>> {
-  return http.get<PageResult<Suggestion>>(`/oa/suggestion/page${buildQuery(params)}`);
+  return http.get<PageResult<Suggestion>>(`/oa/v1/suggestion/page${buildQuery(params)}`);
 }
 
 /** 建议详情（含回复） */
 export function getSuggestion(id: number): Promise<SuggestionDetail> {
-  return http.get<SuggestionDetail>(`/oa/suggestion/${id}`);
+  return http.get<SuggestionDetail>(`/oa/v1/suggestion/${id}`);
 }
 
 /** 提交建议 */
 export function createSuggestion(input: SuggestionInput): Promise<Suggestion> {
-  return http.post<Suggestion>('/oa/suggestion', input);
+  return http.post<Suggestion>('/oa/v1/suggestion', input);
 }
 
 /** 回复建议 */
@@ -321,10 +321,10 @@ export function replySuggestion(
   id: number,
   input: { content: string; status?: SuggestionStatus },
 ): Promise<SuggestionDetail> {
-  return http.post<SuggestionDetail>(`/oa/suggestion/${id}/reply`, input);
+  return http.post<SuggestionDetail>(`/oa/v1/suggestion/${id}/reply`, input);
 }
 
 /** 关闭建议 */
 export function closeSuggestion(id: number): Promise<Suggestion> {
-  return http.put<Suggestion>(`/oa/suggestion/${id}/close`);
+  return http.put<Suggestion>(`/oa/v1/suggestion/${id}/close`);
 }

@@ -32,7 +32,7 @@ import java.time.format.DateTimeFormatter;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/mes/dashboard")
+@RequestMapping(path = "/mes/v{version}/dashboard", version = "1")
 @RequiredArgsConstructor
 public class MesDashboardController {
 

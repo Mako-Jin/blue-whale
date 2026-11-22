@@ -29,7 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/oa/document/outgoing")
+@RequestMapping(path = "/oa/v{version}/document/outgoing", version = "1")
 @RequiredArgsConstructor
 public class DocOutgoingController {
 

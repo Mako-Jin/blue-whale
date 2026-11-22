@@ -28,7 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/oa/vehicle")
+@RequestMapping(path = "/oa/v{version}/vehicle", version = "1")
 @RequiredArgsConstructor
 public class VehicleController {
 

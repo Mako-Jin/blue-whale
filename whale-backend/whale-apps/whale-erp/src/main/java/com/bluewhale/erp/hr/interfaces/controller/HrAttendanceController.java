@@ -26,7 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/erp/hr/attendance")
+@RequestMapping(path = "/erp/v{version}/hr/attendance", version = "1")
 @RequiredArgsConstructor
 public class HrAttendanceController {
 

@@ -260,52 +260,52 @@ function buildQuery(params: MfgQueryParams): string {
 
 /** 需求预测分页 */
 export function pageForecasts(params: MfgQueryParams = {}): Promise<PageResult<ForecastView>> {
-  return http.get<PageResult<ForecastView>>(`/erp/mfg/forecast/page?${buildQuery(params)}`);
+  return http.get<PageResult<ForecastView>>(`/erp/v1/mfg/forecast/page?${buildQuery(params)}`);
 }
 
 /** 需求预测详情 */
 export function getForecast(id: number): Promise<ForecastView> {
-  return http.get<ForecastView>(`/erp/mfg/forecast/${id}`);
+  return http.get<ForecastView>(`/erp/v1/mfg/forecast/${id}`);
 }
 
 /** 新增需求预测 */
 export function createForecast(input: ForecastInput): Promise<ForecastView> {
-  return http.post<ForecastView>('/erp/mfg/forecast', input);
+  return http.post<ForecastView>('/erp/v1/mfg/forecast', input);
 }
 
 /** 发布需求预测 */
 export function publishForecast(id: number): Promise<ForecastView> {
-  return http.post<ForecastView>(`/erp/mfg/forecast/${id}/publish`);
+  return http.post<ForecastView>(`/erp/v1/mfg/forecast/${id}/publish`);
 }
 
 /** 取消需求预测 */
 export function cancelForecast(id: number): Promise<ForecastView> {
-  return http.post<ForecastView>(`/erp/mfg/forecast/${id}/cancel`);
+  return http.post<ForecastView>(`/erp/v1/mfg/forecast/${id}/cancel`);
 }
 
 /** 主生产计划分页 */
 export function pageMpsPlans(params: MfgQueryParams = {}): Promise<PageResult<MpsPlanView>> {
-  return http.get<PageResult<MpsPlanView>>(`/erp/mfg/mps/page?${buildQuery(params)}`);
+  return http.get<PageResult<MpsPlanView>>(`/erp/v1/mfg/mps/page?${buildQuery(params)}`);
 }
 
 /** 主生产计划详情 */
 export function getMpsPlan(id: number): Promise<MpsPlanView> {
-  return http.get<MpsPlanView>(`/erp/mfg/mps/${id}`);
+  return http.get<MpsPlanView>(`/erp/v1/mfg/mps/${id}`);
 }
 
 /** 新增主生产计划 */
 export function createMpsPlan(input: MpsInput): Promise<MpsPlanView> {
-  return http.post<MpsPlanView>('/erp/mfg/mps', input);
+  return http.post<MpsPlanView>('/erp/v1/mfg/mps', input);
 }
 
 /** 下达主生产计划 */
 export function releaseMpsPlan(id: number): Promise<MpsPlanView> {
-  return http.post<MpsPlanView>(`/erp/mfg/mps/${id}/release`);
+  return http.post<MpsPlanView>(`/erp/v1/mfg/mps/${id}/release`);
 }
 
 /** 取消主生产计划 */
 export function cancelMpsPlan(id: number): Promise<MpsPlanView> {
-  return http.post<MpsPlanView>(`/erp/mfg/mps/${id}/cancel`);
+  return http.post<MpsPlanView>(`/erp/v1/mfg/mps/${id}/cancel`);
 }
 
 /** 生产订单分页 */
@@ -313,18 +313,18 @@ export function pageProductionOrders(
   params: MfgQueryParams = {},
 ): Promise<PageResult<ProductionOrderView>> {
   return http.get<PageResult<ProductionOrderView>>(
-    `/erp/mfg/production/page?${buildQuery(params)}`,
+    `/erp/v1/mfg/production/page?${buildQuery(params)}`,
   );
 }
 
 /** 生产订单详情（含用料） */
 export function getProductionOrder(id: number): Promise<ProductionOrderView> {
-  return http.get<ProductionOrderView>(`/erp/mfg/production/${id}`);
+  return http.get<ProductionOrderView>(`/erp/v1/mfg/production/${id}`);
 }
 
 /** 新增生产订单 */
 export function createProductionOrder(input: ProductionOrderInput): Promise<ProductionOrderView> {
-  return http.post<ProductionOrderView>('/erp/mfg/production', input);
+  return http.post<ProductionOrderView>('/erp/v1/mfg/production', input);
 }
 
 /** 销售订单行转生产订单 */
@@ -334,14 +334,14 @@ export function createProductionFromSalesOrder(
   input: ProductionOrderFromSalesOrderInput,
 ): Promise<ProductionOrderView> {
   return http.post<ProductionOrderView>(
-    `/erp/mfg/production/from-sales-order/${salesOrderId}/lines/${lineNo}`,
+    `/erp/v1/mfg/production/from-sales-order/${salesOrderId}/lines/${lineNo}`,
     input,
   );
 }
 
 /** 下达生产订单 */
 export function releaseProductionOrder(id: number): Promise<ProductionOrderView> {
-  return http.post<ProductionOrderView>(`/erp/mfg/production/${id}/release`);
+  return http.post<ProductionOrderView>(`/erp/v1/mfg/production/${id}/release`);
 }
 
 /** 生产领料 */
@@ -349,7 +349,7 @@ export function issueProduction(
   id: number,
   input: { lines: { lineNo: number; quantity: number }[] },
 ): Promise<ProductionOrderView> {
-  return http.post<ProductionOrderView>(`/erp/mfg/production/${id}/issue`, input);
+  return http.post<ProductionOrderView>(`/erp/v1/mfg/production/${id}/issue`, input);
 }
 
 /** 完工入库 */
@@ -357,37 +357,37 @@ export function completeProduction(
   id: number,
   input: { completeDate: string; quantity: number },
 ): Promise<ProductionOrderView> {
-  return http.post<ProductionOrderView>(`/erp/mfg/production/${id}/complete`, input);
+  return http.post<ProductionOrderView>(`/erp/v1/mfg/production/${id}/complete`, input);
 }
 
 /** 生产订单结案 */
 export function closeProductionOrder(id: number): Promise<ProductionOrderView> {
-  return http.post<ProductionOrderView>(`/erp/mfg/production/${id}/close`);
+  return http.post<ProductionOrderView>(`/erp/v1/mfg/production/${id}/close`);
 }
 
 /** 取消生产订单 */
 export function cancelProductionOrder(id: number): Promise<ProductionOrderView> {
-  return http.post<ProductionOrderView>(`/erp/mfg/production/${id}/cancel`);
+  return http.post<ProductionOrderView>(`/erp/v1/mfg/production/${id}/cancel`);
 }
 
 /** 执行 MRP 运算 */
 export function runMrp(input: MrpRunInput): Promise<MrpRunView> {
-  return http.post<MrpRunView>('/erp/mfg/mrp/runs', input);
+  return http.post<MrpRunView>('/erp/v1/mfg/mrp/runs', input);
 }
 
 /** MRP 运行记录分页 */
 export function pageMrpRuns(params: MfgQueryParams = {}): Promise<PageResult<MrpRunView>> {
-  return http.get<PageResult<MrpRunView>>(`/erp/mfg/mrp/runs/page?${buildQuery(params)}`);
+  return http.get<PageResult<MrpRunView>>(`/erp/v1/mfg/mrp/runs/page?${buildQuery(params)}`);
 }
 
 /** MRP 运行记录详情（含输入需求行与计划订单概览） */
 export function getMrpRun(id: number): Promise<MrpRunView> {
-  return http.get<MrpRunView>(`/erp/mfg/mrp/runs/${id}`);
+  return http.get<MrpRunView>(`/erp/v1/mfg/mrp/runs/${id}`);
 }
 
 /** 按原输入重跑 MRP */
 export function rerunMrp(id: number): Promise<MrpRunView> {
-  return http.post<MrpRunView>(`/erp/mfg/mrp/runs/${id}/rerun`);
+  return http.post<MrpRunView>(`/erp/v1/mfg/mrp/runs/${id}/rerun`);
 }
 
 /** MRP 计划订单分页 */
@@ -395,13 +395,13 @@ export function pageMrpPlannedOrders(
   params: MfgQueryParams = {},
 ): Promise<PageResult<MrpPlannedOrderView>> {
   return http.get<PageResult<MrpPlannedOrderView>>(
-    `/erp/mfg/mrp/orders/page?${buildQuery(params)}`,
+    `/erp/v1/mfg/mrp/orders/page?${buildQuery(params)}`,
   );
 }
 
 /** MRP 计划订单详情（含需求追溯） */
 export function getMrpPlannedOrder(id: number): Promise<MrpPlannedOrderView> {
-  return http.get<MrpPlannedOrderView>(`/erp/mfg/mrp/orders/${id}`);
+  return http.get<MrpPlannedOrderView>(`/erp/v1/mfg/mrp/orders/${id}`);
 }
 
 /** 工作中心 */
@@ -464,37 +464,37 @@ export interface CrpView {
 
 /** 工作中心分页 */
 export function pageWorkCenters(params: MfgQueryParams = {}): Promise<PageResult<WorkCenterView>> {
-  return http.get<PageResult<WorkCenterView>>(`/erp/mfg/work-centers/page?${buildQuery(params)}`);
+  return http.get<PageResult<WorkCenterView>>(`/erp/v1/mfg/work-centers/page?${buildQuery(params)}`);
 }
 
 /** 全部工作中心（下拉用） */
 export function listAllWorkCenters(): Promise<WorkCenterView[]> {
-  return http.get<WorkCenterView[]>('/erp/mfg/work-centers/all');
+  return http.get<WorkCenterView[]>('/erp/v1/mfg/work-centers/all');
 }
 
 /** 新增工作中心 */
 export function createWorkCenter(input: WorkCenterInput): Promise<WorkCenterView> {
-  return http.post<WorkCenterView>('/erp/mfg/work-centers', input);
+  return http.post<WorkCenterView>('/erp/v1/mfg/work-centers', input);
 }
 
 /** 编辑工作中心 */
 export function updateWorkCenter(id: number, input: WorkCenterInput): Promise<WorkCenterView> {
-  return http.put<WorkCenterView>(`/erp/mfg/work-centers/${id}`, input);
+  return http.put<WorkCenterView>(`/erp/v1/mfg/work-centers/${id}`, input);
 }
 
 /** 删除工作中心 */
 export function deleteWorkCenter(id: number): Promise<void> {
-  return http.del<void>(`/erp/mfg/work-centers/${id}`);
+  return http.del<void>(`/erp/v1/mfg/work-centers/${id}`);
 }
 
 /** 查询产能负荷与工序排程 */
 export function getCrpLoad(params: MfgQueryParams = {}): Promise<CrpView> {
-  return http.get<CrpView>(`/erp/mfg/crp/load?${buildQuery(params)}`);
+  return http.get<CrpView>(`/erp/v1/mfg/crp/load?${buildQuery(params)}`);
 }
 
 /** 同步生产订单工艺路线 */
 export function syncProductionRouting(id: number): Promise<ProductionOrderView> {
-  return http.post<ProductionOrderView>(`/erp/mfg/production/${id}/routing/sync`);
+  return http.post<ProductionOrderView>(`/erp/v1/mfg/production/${id}/routing/sync`);
 }
 
 /** 工序报工 */
@@ -504,7 +504,7 @@ export function reportProductionOperation(
   input: ProductionOperationReportInput,
 ): Promise<ProductionOrderView> {
   return http.post<ProductionOrderView>(
-    `/erp/mfg/production/${id}/operations/${stepNo}/report`,
+    `/erp/v1/mfg/production/${id}/operations/${stepNo}/report`,
     input,
   );
 }
@@ -514,7 +514,7 @@ export function returnProductionMaterial(
   id: number,
   input: ProductionMaterialAdjustInput,
 ): Promise<ProductionOrderView> {
-  return http.post<ProductionOrderView>(`/erp/mfg/production/${id}/material/return`, input);
+  return http.post<ProductionOrderView>(`/erp/v1/mfg/production/${id}/material/return`, input);
 }
 
 /** 生产报废 */
@@ -522,7 +522,7 @@ export function scrapProductionMaterial(
   id: number,
   input: ProductionMaterialAdjustInput,
 ): Promise<ProductionOrderView> {
-  return http.post<ProductionOrderView>(`/erp/mfg/production/${id}/material/scrap`, input);
+  return http.post<ProductionOrderView>(`/erp/v1/mfg/production/${id}/material/scrap`, input);
 }
 
 /** MES 任务进度 */
@@ -601,23 +601,23 @@ export function pageMesReconcile(
   params: MfgQueryParams = {},
 ): Promise<PageResult<MesReconcileView>> {
   return http.get<PageResult<MesReconcileView>>(
-    `/erp/mfg/mes/reconcile/page?${buildQuery(params)}`,
+    `/erp/v1/mfg/mes/reconcile/page?${buildQuery(params)}`,
   );
 }
 
 /** MES 对账详情 */
 export function getMesReconcileDetail(orderId: number): Promise<MesReconcileDetailView> {
-  return http.get<MesReconcileDetailView>(`/erp/mfg/mes/reconcile/${orderId}`);
+  return http.get<MesReconcileDetailView>(`/erp/v1/mfg/mes/reconcile/${orderId}`);
 }
 
 /** 重推生产订单到 MES */
 export function pushMesOrder(orderId: number): Promise<ProductionOrderView> {
-  return http.post<ProductionOrderView>(`/erp/mfg/mes/reconcile/${orderId}/push`);
+  return http.post<ProductionOrderView>(`/erp/v1/mfg/mes/reconcile/${orderId}/push`);
 }
 
 /** 从 MES 拉取工单进度 */
 export function pullMesOrder(orderId: number): Promise<MesProgressView | null> {
-  return http.post<MesProgressView | null>(`/erp/mfg/mes/reconcile/${orderId}/pull`);
+  return http.post<MesProgressView | null>(`/erp/v1/mfg/mes/reconcile/${orderId}/pull`);
 }
 
 /** 人工确认 MES 完工入库 */
@@ -625,7 +625,7 @@ export function applyMesCompletion(
   orderId: number,
   quantity: number,
 ): Promise<ProductionOrderView> {
-  return http.post<ProductionOrderView>(`/erp/mfg/mes/reconcile/${orderId}/completion-apply`, {
+  return http.post<ProductionOrderView>(`/erp/v1/mfg/mes/reconcile/${orderId}/completion-apply`, {
     quantity,
   });
 }

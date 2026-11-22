@@ -30,7 +30,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/mes/quality/spc")
+@RequestMapping(path = "/mes/v{version}/quality/spc", version = "1")
 @RequiredArgsConstructor
 public class MesSpcController {
 

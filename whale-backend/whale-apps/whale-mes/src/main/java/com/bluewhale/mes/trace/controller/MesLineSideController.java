@@ -30,7 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/mes/trace/line-side")
+@RequestMapping(path = "/mes/v{version}/trace/line-side", version = "1")
 @RequiredArgsConstructor
 public class MesLineSideController {
 

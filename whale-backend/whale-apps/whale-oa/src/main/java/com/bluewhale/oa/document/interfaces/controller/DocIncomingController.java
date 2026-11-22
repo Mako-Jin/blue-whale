@@ -26,7 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/oa/document/incoming")
+@RequestMapping(path = "/oa/v{version}/document/incoming", version = "1")
 @RequiredArgsConstructor
 public class DocIncomingController {
 

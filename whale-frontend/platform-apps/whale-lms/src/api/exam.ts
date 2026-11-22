@@ -194,47 +194,47 @@ export function pageExams(params: {
   current?: number;
   size?: number;
 }) {
-  return http.get<PageData<ExamItem>>('/lms/exam/page', { ...params });
+  return http.get<PageData<ExamItem>>('/lms/v1/exam/page', { ...params });
 }
 
 /** 考试详情 */
 export function examDetail(id: number | string) {
-  return http.get<ExamItem>(`/lms/exam/${id}`);
+  return http.get<ExamItem>(`/lms/v1/exam/${id}`);
 }
 
 /** 新建考试 */
 export function createExam(body: ExamSaveBody) {
-  return http.post<number>('/lms/exam', body);
+  return http.post<number>('/lms/v1/exam', body);
 }
 
 /** 编辑考试（仅草稿） */
 export function updateExam(id: number, body: ExamSaveBody) {
-  return http.put<void>(`/lms/exam/${id}`, body);
+  return http.put<void>(`/lms/v1/exam/${id}`, body);
 }
 
 /** 删除考试（仅草稿） */
 export function deleteExam(id: number) {
-  return http.del<void>(`/lms/exam/${id}`);
+  return http.del<void>(`/lms/v1/exam/${id}`);
 }
 
 /** 发布考试 */
 export function publishExam(id: number) {
-  return http.put<void>(`/lms/exam/${id}/publish`);
+  return http.put<void>(`/lms/v1/exam/${id}/publish`);
 }
 
 /** 结课 */
 export function closeExam(id: number) {
-  return http.put<void>(`/lms/exam/${id}/close`);
+  return http.put<void>(`/lms/v1/exam/${id}/close`);
 }
 
 /** 开始作答（存在未交卷记录时复用） */
 export function startAttempt(examId: number) {
-  return http.post<number>(`/lms/attempt/start/${examId}`);
+  return http.post<number>(`/lms/v1/attempt/start/${examId}`);
 }
 
 /** 获取作答卷面 */
 export function attemptPaper(attemptId: number | string) {
-  return http.get<AttemptPaper>(`/lms/attempt/${attemptId}/paper`);
+  return http.get<AttemptPaper>(`/lms/v1/attempt/${attemptId}/paper`);
 }
 
 /** 保存答案（整卷或增量） */
@@ -242,12 +242,12 @@ export function saveAnswers(
   attemptId: number | string,
   body: { answers: { questionId: number; answer?: string }[]; switchCount?: number },
 ) {
-  return http.put<number>(`/lms/attempt/${attemptId}/answers`, body);
+  return http.put<number>(`/lms/v1/attempt/${attemptId}/answers`, body);
 }
 
 /** 交卷 */
 export function submitAttempt(attemptId: number | string) {
-  return http.post<AttemptResult>(`/lms/attempt/${attemptId}/submit`);
+  return http.post<AttemptResult>(`/lms/v1/attempt/${attemptId}/submit`);
 }
 
 /** 我的作答记录 */
@@ -257,27 +257,27 @@ export function myAttempts(params: {
   current?: number;
   size?: number;
 }) {
-  return http.get<PageData<AttemptItem>>('/lms/attempt/mine', { ...params });
+  return http.get<PageData<AttemptItem>>('/lms/v1/attempt/mine', { ...params });
 }
 
 /** 我的成绩 */
 export function myScores(params: { current?: number; size?: number }) {
-  return http.get<PageData<ScoreItem>>('/lms/attempt/scores/mine', { ...params });
+  return http.get<PageData<ScoreItem>>('/lms/v1/attempt/scores/mine', { ...params });
 }
 
 /** 某次作答结果 */
 export function attemptResult(attemptId: number | string) {
-  return http.get<AttemptResult>(`/lms/attempt/${attemptId}/result`);
+  return http.get<AttemptResult>(`/lms/v1/attempt/${attemptId}/result`);
 }
 
 /** 待判队列 */
 export function pendingGrades(params: { examId?: number; current?: number; size?: number }) {
-  return http.get<PageData<AttemptItem>>('/lms/grade/pending', { ...params });
+  return http.get<PageData<AttemptItem>>('/lms/v1/grade/pending', { ...params });
 }
 
 /** 判分明细 */
 export function gradeDetail(attemptId: number | string) {
-  return http.get<GradeDetail>(`/lms/grade/${attemptId}`);
+  return http.get<GradeDetail>(`/lms/v1/grade/${attemptId}`);
 }
 
 /** 提交判分 */
@@ -285,5 +285,5 @@ export function submitGrade(
   attemptId: number | string,
   body: { items: { questionId: number; score: number }[]; remark?: string },
 ) {
-  return http.post<ScoreItem>(`/lms/grade/${attemptId}`, body);
+  return http.post<ScoreItem>(`/lms/v1/grade/${attemptId}`, body);
 }

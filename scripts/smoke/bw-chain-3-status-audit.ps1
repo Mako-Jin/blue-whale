@@ -73,12 +73,12 @@ Assert '2e.timeOrder' (
     "submitted=$($crm.submittedAt) approved=$($crm.approvedAt) pushed=$($crm.pushedAt)"
 
 # 3) ERP 销售订单与生产订单终态
-$erpSales = Invoke-SmokeApi -Method Get -Path "/erp/scm/sales-order/$($crm.erpOrderId)"
+$erpSales = Invoke-SmokeApi -Method Get -Path "/erp/v1/scm/sales-order/$($crm.erpOrderId)"
 Check '3.erpSalesOrder' $erpSales
 Assert '3a.crmOrderNo' ($erpSales.data.crmOrderNo -eq $crm.orderNo) `
     "erp=$($erpSales.data.crmOrderNo) crm=$($crm.orderNo)"
 
-$production = Invoke-SmokeApi -Method Get -Path "/erp/mfg/production/$productionId"
+$production = Invoke-SmokeApi -Method Get -Path "/erp/v1/mfg/production/$productionId"
 Check '4.productionOrder' $production
 Assert '4a.productionCompleted' ($production.data.status -eq 'COMPLETED') "status=$($production.data.status)"
 Assert '4b.completedQuantity' (
@@ -88,11 +88,11 @@ Assert '4b.completedQuantity' (
 # 4) MES 工单终态
 $mesOrderId = if ($state -and $state.mesWorkOrderId) { $state.mesWorkOrderId } else { $null }
 if (-not $mesOrderId) {
-    $mesPage = Invoke-SmokeApi -Method Get -Path "/mes/work-order/page?erpOrderNo=$($production.data.orderNo)&current=1&size=10"
+    $mesPage = Invoke-SmokeApi -Method Get -Path "/mes/v1/work-order/page?erpOrderNo=$($production.data.orderNo)&current=1&size=10"
     $mesOrderId = ($mesPage.data.records | Select-Object -First 1).id
 }
 Assert '5.mesOrderId' ($null -ne $mesOrderId) "mesWorkOrderId=$mesOrderId"
-$mesOrder = Invoke-SmokeApi -Method Get -Path "/mes/work-order/$mesOrderId"
+$mesOrder = Invoke-SmokeApi -Method Get -Path "/mes/v1/work-order/$mesOrderId"
 Check '5a.mesOrder' $mesOrder
 Assert '5b.mesCompleted' ($mesOrder.data.status -eq 'COMPLETED') "status=$($mesOrder.data.status)"
 Assert '5c.mesErpOrderNo' ($mesOrder.data.erpOrderNo -eq $production.data.orderNo) `

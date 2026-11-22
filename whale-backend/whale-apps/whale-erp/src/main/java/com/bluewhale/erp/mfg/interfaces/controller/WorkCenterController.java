@@ -31,7 +31,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/erp/mfg/work-centers")
+@RequestMapping(path = "/erp/v{version}/mfg/work-centers", version = "1")
 @RequiredArgsConstructor
 public class WorkCenterController {
 

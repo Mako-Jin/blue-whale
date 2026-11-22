@@ -39,7 +39,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/erp/master-data")
+@RequestMapping(path = "/erp/v{version}/master-data", version = "1")
 @RequiredArgsConstructor
 public class MasterDataController {
 

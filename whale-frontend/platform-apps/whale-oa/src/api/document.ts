@@ -211,17 +211,17 @@ function buildQuery(params: object): string {
 
 /** 分页查询公文模板 */
 export function pageDocumentTemplates(params: OaDocQuery = {}): Promise<PageResult<OaDocTemplate>> {
-  return http.get<PageResult<OaDocTemplate>>(`/oa/document/templates/page${buildQuery(params)}`);
+  return http.get<PageResult<OaDocTemplate>>(`/oa/v1/document/templates/page${buildQuery(params)}`);
 }
 
 /** 查询全部公文模板 */
 export function listDocumentTemplates(docType?: OaDocType): Promise<OaDocTemplate[]> {
-  return http.get<OaDocTemplate[]>(`/oa/document/templates/all${buildQuery({ docType })}`);
+  return http.get<OaDocTemplate[]>(`/oa/v1/document/templates/all${buildQuery({ docType })}`);
 }
 
 /** 新增公文模板 */
 export function createDocumentTemplate(input: OaDocTemplateInput): Promise<OaDocTemplate> {
-  return http.post<OaDocTemplate>('/oa/document/templates', input);
+  return http.post<OaDocTemplate>('/oa/v1/document/templates', input);
 }
 
 /** 更新公文模板 */
@@ -229,62 +229,62 @@ export function updateDocumentTemplate(
   id: number,
   input: OaDocTemplateInput,
 ): Promise<OaDocTemplate> {
-  return http.put<OaDocTemplate>(`/oa/document/templates/${id}`, input);
+  return http.put<OaDocTemplate>(`/oa/v1/document/templates/${id}`, input);
 }
 
 /** 删除公文模板 */
 export function deleteDocumentTemplate(id: number): Promise<void> {
-  return http.del<void>(`/oa/document/templates/${id}`);
+  return http.del<void>(`/oa/v1/document/templates/${id}`);
 }
 
 /** 查询文号规则 */
 export function listDocNoRules(): Promise<OaDocNoRule[]> {
-  return http.get<OaDocNoRule[]>('/oa/document/no-rules');
+  return http.get<OaDocNoRule[]>('/oa/v1/document/no-rules');
 }
 
 /** 新增文号规则 */
 export function createDocNoRule(input: OaDocNoRuleInput): Promise<OaDocNoRule> {
-  return http.post<OaDocNoRule>('/oa/document/no-rules', input);
+  return http.post<OaDocNoRule>('/oa/v1/document/no-rules', input);
 }
 
 /** 更新文号规则 */
 export function updateDocNoRule(id: number, input: OaDocNoRuleInput): Promise<OaDocNoRule> {
-  return http.put<OaDocNoRule>(`/oa/document/no-rules/${id}`, input);
+  return http.put<OaDocNoRule>(`/oa/v1/document/no-rules/${id}`, input);
 }
 
 /** 分页查询发文 */
 export function pageOutgoingDocs(params: OaDocQuery = {}): Promise<PageResult<OaDocOutgoing>> {
-  return http.get<PageResult<OaDocOutgoing>>(`/oa/document/outgoing/page${buildQuery(params)}`);
+  return http.get<PageResult<OaDocOutgoing>>(`/oa/v1/document/outgoing/page${buildQuery(params)}`);
 }
 
 /** 发文详情 */
 export function getOutgoingDoc(id: number): Promise<OaDocOutgoing> {
-  return http.get<OaDocOutgoing>(`/oa/document/outgoing/${id}`);
+  return http.get<OaDocOutgoing>(`/oa/v1/document/outgoing/${id}`);
 }
 
 /** 拟稿 */
 export function createOutgoingDoc(input: OaDocOutgoingInput): Promise<OaDocOutgoing> {
-  return http.post<OaDocOutgoing>('/oa/document/outgoing', input);
+  return http.post<OaDocOutgoing>('/oa/v1/document/outgoing', input);
 }
 
 /** 编辑发文 */
 export function updateOutgoingDoc(id: number, input: OaDocOutgoingInput): Promise<OaDocOutgoing> {
-  return http.put<OaDocOutgoing>(`/oa/document/outgoing/${id}`, input);
+  return http.put<OaDocOutgoing>(`/oa/v1/document/outgoing/${id}`, input);
 }
 
 /** 删除发文 */
 export function deleteOutgoingDoc(id: number): Promise<void> {
-  return http.del<void>(`/oa/document/outgoing/${id}`);
+  return http.del<void>(`/oa/v1/document/outgoing/${id}`);
 }
 
 /** 提交审核 */
 export function submitOutgoingDoc(id: number): Promise<OaDocOutgoing> {
-  return http.post<OaDocOutgoing>(`/oa/document/outgoing/${id}/submit`);
+  return http.post<OaDocOutgoing>(`/oa/v1/document/outgoing/${id}/submit`);
 }
 
 /** 审核发文 */
 export function auditOutgoingDoc(id: number, approved: boolean): Promise<OaDocOutgoing> {
-  return http.post<OaDocOutgoing>(`/oa/document/outgoing/${id}/audit`, { approved });
+  return http.post<OaDocOutgoing>(`/oa/v1/document/outgoing/${id}/audit`, { approved });
 }
 
 /** 签发发文 */
@@ -292,42 +292,42 @@ export function signOutgoingDoc(
   id: number,
   input: { signer?: string; signDate?: string } = {},
 ): Promise<OaDocOutgoing> {
-  return http.post<OaDocOutgoing>(`/oa/document/outgoing/${id}/sign`, input);
+  return http.post<OaDocOutgoing>(`/oa/v1/document/outgoing/${id}/sign`, input);
 }
 
 /** 下发发文 */
 export function issueOutgoingDoc(id: number): Promise<OaDocOutgoing> {
-  return http.post<OaDocOutgoing>(`/oa/document/outgoing/${id}/issue`);
+  return http.post<OaDocOutgoing>(`/oa/v1/document/outgoing/${id}/issue`);
 }
 
 /** 归档发文 */
 export function archiveOutgoingDoc(id: number): Promise<OaDocOutgoing> {
-  return http.post<OaDocOutgoing>(`/oa/document/outgoing/${id}/archive`);
+  return http.post<OaDocOutgoing>(`/oa/v1/document/outgoing/${id}/archive`);
 }
 
 /** 分页查询收文 */
 export function pageIncomingDocs(params: OaDocQuery = {}): Promise<PageResult<OaDocIncoming>> {
-  return http.get<PageResult<OaDocIncoming>>(`/oa/document/incoming/page${buildQuery(params)}`);
+  return http.get<PageResult<OaDocIncoming>>(`/oa/v1/document/incoming/page${buildQuery(params)}`);
 }
 
 /** 收文详情 */
 export function getIncomingDoc(id: number): Promise<OaDocIncoming> {
-  return http.get<OaDocIncoming>(`/oa/document/incoming/${id}`);
+  return http.get<OaDocIncoming>(`/oa/v1/document/incoming/${id}`);
 }
 
 /** 收文登记 */
 export function createIncomingDoc(input: OaDocIncomingInput): Promise<OaDocIncoming> {
-  return http.post<OaDocIncoming>('/oa/document/incoming', input);
+  return http.post<OaDocIncoming>('/oa/v1/document/incoming', input);
 }
 
 /** 编辑收文 */
 export function updateIncomingDoc(id: number, input: OaDocIncomingInput): Promise<OaDocIncoming> {
-  return http.put<OaDocIncoming>(`/oa/document/incoming/${id}`, input);
+  return http.put<OaDocIncoming>(`/oa/v1/document/incoming/${id}`, input);
 }
 
 /** 删除收文 */
 export function deleteIncomingDoc(id: number): Promise<void> {
-  return http.del<void>(`/oa/document/incoming/${id}`);
+  return http.del<void>(`/oa/v1/document/incoming/${id}`);
 }
 
 /** 批阅收文 */
@@ -335,7 +335,7 @@ export function reviewIncomingDoc(
   id: number,
   input: { instruction: string; assigneeId?: number; assigneeName?: string },
 ): Promise<OaDocIncoming> {
-  return http.post<OaDocIncoming>(`/oa/document/incoming/${id}/review`, input);
+  return http.post<OaDocIncoming>(`/oa/v1/document/incoming/${id}/review`, input);
 }
 
 /** 转发收文 */
@@ -343,29 +343,29 @@ export function forwardIncomingDoc(
   id: number,
   input: { assigneeId?: number; assigneeName?: string; remark?: string } = {},
 ): Promise<OaDocIncoming> {
-  return http.post<OaDocIncoming>(`/oa/document/incoming/${id}/forward`, input);
+  return http.post<OaDocIncoming>(`/oa/v1/document/incoming/${id}/forward`, input);
 }
 
 /** 办结收文 */
 export function completeIncomingDoc(id: number): Promise<OaDocIncoming> {
-  return http.post<OaDocIncoming>(`/oa/document/incoming/${id}/complete`);
+  return http.post<OaDocIncoming>(`/oa/v1/document/incoming/${id}/complete`);
 }
 
 /** 归档收文 */
 export function archiveIncomingDoc(id: number): Promise<OaDocIncoming> {
-  return http.post<OaDocIncoming>(`/oa/document/incoming/${id}/archive`);
+  return http.post<OaDocIncoming>(`/oa/v1/document/incoming/${id}/archive`);
 }
 
 /** 分页查询归档映射 */
 export function pageArchiveRefs(params: OaDocQuery = {}): Promise<PageResult<OaDocArchiveRef>> {
   return http.get<PageResult<OaDocArchiveRef>>(
-    `/oa/document/archive/refs/page${buildQuery(params)}`,
+    `/oa/v1/document/archive/refs/page${buildQuery(params)}`,
   );
 }
 
 /** 重试归档 */
 export function retryArchiveRef(id: number): Promise<OaDocArchiveRef> {
-  return http.post<OaDocArchiveRef>(`/oa/document/archive/refs/${id}/retry`);
+  return http.post<OaDocArchiveRef>(`/oa/v1/document/archive/refs/${id}/retry`);
 }
 
 /** 下载公文附件 */
@@ -376,7 +376,7 @@ export async function downloadDocAttachment(
   fileName: string,
 ): Promise<void> {
   const result = await downloadBlob(
-    `/oa/document/attachments/${docType}/${docId}/${attachmentId}/download`,
+    `/oa/v1/document/attachments/${docType}/${docId}/${attachmentId}/download`,
   );
   const url = URL.createObjectURL(result.blob);
   const link = document.createElement('a');

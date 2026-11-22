@@ -71,18 +71,18 @@ function toQueryString(query: OaReportQuery = {}): string {
 
 /** 报表目录 */
 export function getReportCatalog() {
-  return http.get<OaReportCatalogItem[]>('/oa/report/catalog');
+  return http.get<OaReportCatalogItem[]>('/oa/v1/report/catalog');
 }
 
 /** 运行报表 */
 export function runReport(code: string, query: OaReportQuery = {}) {
-  return http.get<OaReportResult>(`/oa/report/${code}${toQueryString(query)}`);
+  return http.get<OaReportResult>(`/oa/v1/report/${code}${toQueryString(query)}`);
 }
 
 /** 生成月度快照 */
 export function createReportSnapshot(code: string, period?: string) {
   const suffix = period ? `?period=${encodeURIComponent(period)}` : '';
-  return http.post<OaReportSnapshot>(`/oa/report/${code}/snapshot${suffix}`);
+  return http.post<OaReportSnapshot>(`/oa/v1/report/${code}/snapshot${suffix}`);
 }
 
 /** 快照分页 */
@@ -95,15 +95,15 @@ export function pageReportSnapshots(
   }
   search.set('current', String(params.current ?? 1));
   search.set('size', String(params.size ?? 10));
-  return http.get<PageResult<OaReportSnapshot>>(`/oa/report/snapshots/page?${search.toString()}`);
+  return http.get<PageResult<OaReportSnapshot>>(`/oa/v1/report/snapshots/page?${search.toString()}`);
 }
 
 /** 读取快照内容 */
 export function getReportSnapshot(id: number) {
-  return http.get<OaReportResult>(`/oa/report/snapshots/${id}`);
+  return http.get<OaReportResult>(`/oa/v1/report/snapshots/${id}`);
 }
 
 /** 下载报表 CSV */
 export function downloadReportCsv(code: string, query: OaReportQuery = {}) {
-  return downloadBlob(`/oa/report/${code}/export${toQueryString(query)}`);
+  return downloadBlob(`/oa/v1/report/${code}/export${toQueryString(query)}`);
 }

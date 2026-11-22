@@ -50,10 +50,10 @@ function buildQuery(params: object): string {
 export function pageDirectoryUsers(
   params: OaDirectoryQuery = {},
 ): Promise<PageResult<OaDirectoryUser>> {
-  return http.get<PageResult<OaDirectoryUser>>(`/oa/directory/users${buildQuery(params)}`);
+  return http.get<PageResult<OaDirectoryUser>>(`/oa/v1/directory/users${buildQuery(params)}`);
 }
 
 /** 查询组织架构树 */
 export function listDepartments(): Promise<OaDeptNode[]> {
-  return http.get<OaDeptNode[]>('/oa/directory/depts');
+  return http.get<OaDeptNode[]>('/oa/v1/directory/depts');
 }

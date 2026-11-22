@@ -33,7 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/mall/after-sale")
+@RequestMapping(path = "/mall/v{version}/after-sale", version = "1")
 @RequiredArgsConstructor
 public class MallAfterSaleController {
 

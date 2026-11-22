@@ -156,7 +156,7 @@ const PROBES: ProbeSpec[] = [
     // 户部 = ERP：经营驾驶舱，一次给齐营收/订单/预警
     nodeKey: 'hubu-hall',
     permission: 'sys:erp:bi:cockpit:list',
-    url: '/erp/bi/cockpit',
+    url: '/erp/v1/bi/cockpit',
     extract: (d) => [
       { label: '营收', value: formatMoney(dig(d, 'revenueAmount')) },
       { label: '订单', value: formatCount(dig(d, 'orderCount')) },
@@ -171,7 +171,7 @@ const PROBES: ProbeSpec[] = [
     // 工部 = MES：生产达成率与故障设备，是"工部出没出事"最直接的两个数
     nodeKey: 'gongbu-hall',
     permission: 'sys:mes:dashboard:view',
-    url: '/mes/dashboard',
+    url: '/mes/v1/dashboard',
     extract: (d) => [
       { label: '达成率', value: formatPercent(dig(d, 'production.achievementRate')) },
       {
@@ -190,7 +190,7 @@ const PROBES: ProbeSpec[] = [
     // 吏部 = OA：待办与通告，是"我"在协同系统里的欠账
     nodeKey: 'libu-hall',
     permission: 'sys:oa:workbench:view',
-    url: '/oa/workbench/summary',
+    url: '/oa/v1/workbench/summary',
     extract: (d) => [
       {
         label: '待我审批',
@@ -258,7 +258,7 @@ const PROBES: ProbeSpec[] = [
     // 市舶司 = MALL：日报是列表，取当天那一行
     nodeKey: 'shibosi-hall',
     permission: 'sys:mall:order:list',
-    url: '/mall/report/daily',
+    url: '/mall/v1/report/daily',
     extract: (d) => {
       const rows = Array.isArray(d) ? (d as Array<Record<string, unknown>>) : [];
       const last = rows.length > 0 ? rows[rows.length - 1] : undefined;

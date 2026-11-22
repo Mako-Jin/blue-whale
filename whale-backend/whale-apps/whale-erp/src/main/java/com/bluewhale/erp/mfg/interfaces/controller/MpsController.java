@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/erp/mfg/mps")
+@RequestMapping(path = "/erp/v{version}/mfg/mps", version = "1")
 @RequiredArgsConstructor
 public class MpsController {
 

@@ -283,32 +283,32 @@ function buildQuery(params: HrQueryParams): string {
 
 /** 组织列表 */
 export function listHrOrgs(params: HrQueryParams = {}): Promise<OrgUnitView[]> {
-  return http.get<OrgUnitView[]>(`/erp/hr/org?${buildQuery(params)}`);
+  return http.get<OrgUnitView[]>(`/erp/v1/hr/org?${buildQuery(params)}`);
 }
 
 /** 新增组织 */
 export function createHrOrg(input: OrgUnitInput): Promise<OrgUnitView> {
-  return http.post<OrgUnitView>('/erp/hr/org', input);
+  return http.post<OrgUnitView>('/erp/v1/hr/org', input);
 }
 
 /** 编辑组织 */
 export function updateHrOrg(code: string, input: OrgUnitInput): Promise<OrgUnitView> {
-  return http.put<OrgUnitView>(`/erp/hr/org/${code}`, input);
+  return http.put<OrgUnitView>(`/erp/v1/hr/org/${code}`, input);
 }
 
 /** 员工分页 */
 export function pageEmployees(params: HrQueryParams = {}): Promise<PageResult<EmployeeView>> {
-  return http.get<PageResult<EmployeeView>>(`/erp/hr/employee/page?${buildQuery(params)}`);
+  return http.get<PageResult<EmployeeView>>(`/erp/v1/hr/employee/page?${buildQuery(params)}`);
 }
 
 /** 员工详情 */
 export function getEmployee(employeeNo: string): Promise<EmployeeView> {
-  return http.get<EmployeeView>(`/erp/hr/employee/${employeeNo}`);
+  return http.get<EmployeeView>(`/erp/v1/hr/employee/${employeeNo}`);
 }
 
 /** 新增员工 */
 export function createEmployee(input: EmployeeCreateInput): Promise<EmployeeView> {
-  return http.post<EmployeeView>('/erp/hr/employee', input);
+  return http.post<EmployeeView>('/erp/v1/hr/employee', input);
 }
 
 /** 编辑员工 */
@@ -316,7 +316,7 @@ export function updateEmployee(
   employeeNo: string,
   input: EmployeeUpdateInput,
 ): Promise<EmployeeView> {
-  return http.put<EmployeeView>(`/erp/hr/employee/${employeeNo}`, input);
+  return http.put<EmployeeView>(`/erp/v1/hr/employee/${employeeNo}`, input);
 }
 
 /** 异动单分页 */
@@ -324,7 +324,7 @@ export function pageEmploymentChanges(
   params: HrQueryParams = {},
 ): Promise<PageResult<EmploymentChangeView>> {
   return http.get<PageResult<EmploymentChangeView>>(
-    `/erp/hr/employee/change/page?${buildQuery(params)}`,
+    `/erp/v1/hr/employee/change/page?${buildQuery(params)}`,
   );
 }
 
@@ -332,67 +332,67 @@ export function pageEmploymentChanges(
 export function createEmploymentChange(
   input: EmploymentChangeInput,
 ): Promise<EmploymentChangeView> {
-  return http.post<EmploymentChangeView>('/erp/hr/employee/change', input);
+  return http.post<EmploymentChangeView>('/erp/v1/hr/employee/change', input);
 }
 
 /** 异动单生效 */
 export function effectiveEmploymentChange(id: number): Promise<EmploymentChangeView> {
-  return http.post<EmploymentChangeView>(`/erp/hr/employee/change/${id}/effective`);
+  return http.post<EmploymentChangeView>(`/erp/v1/hr/employee/change/${id}/effective`);
 }
 
 /** 考勤分页 */
 export function pageAttendances(params: HrQueryParams = {}): Promise<PageResult<AttendanceView>> {
-  return http.get<PageResult<AttendanceView>>(`/erp/hr/attendance/page?${buildQuery(params)}`);
+  return http.get<PageResult<AttendanceView>>(`/erp/v1/hr/attendance/page?${buildQuery(params)}`);
 }
 
 /** 登记考勤（按员工 + 期间 upsert） */
 export function saveAttendance(input: AttendanceInput): Promise<AttendanceView> {
-  return http.post<AttendanceView>('/erp/hr/attendance', input);
+  return http.post<AttendanceView>('/erp/v1/hr/attendance', input);
 }
 
 /** 薪资批次分页 */
 export function pagePayrolls(params: HrQueryParams = {}): Promise<PageResult<PayrollRunView>> {
-  return http.get<PageResult<PayrollRunView>>(`/erp/hr/payroll/page?${buildQuery(params)}`);
+  return http.get<PageResult<PayrollRunView>>(`/erp/v1/hr/payroll/page?${buildQuery(params)}`);
 }
 
 /** 薪资批次详情（含工资条） */
 export function getPayroll(id: number): Promise<PayrollRunView> {
-  return http.get<PayrollRunView>(`/erp/hr/payroll/${id}`);
+  return http.get<PayrollRunView>(`/erp/v1/hr/payroll/${id}`);
 }
 
 /** 新建薪资批次 */
 export function createPayroll(input: { period: string; remark?: string }): Promise<PayrollRunView> {
-  return http.post<PayrollRunView>('/erp/hr/payroll', input);
+  return http.post<PayrollRunView>('/erp/v1/hr/payroll', input);
 }
 
 /** 计算薪资 */
 export function calculatePayroll(id: number): Promise<PayrollRunView> {
-  return http.post<PayrollRunView>(`/erp/hr/payroll/${id}/calculate`);
+  return http.post<PayrollRunView>(`/erp/v1/hr/payroll/${id}/calculate`);
 }
 
 /** 审批薪资（生成计提凭证） */
 export function approvePayroll(id: number): Promise<PayrollRunView> {
-  return http.post<PayrollRunView>(`/erp/hr/payroll/${id}/approve`);
+  return http.post<PayrollRunView>(`/erp/v1/hr/payroll/${id}/approve`);
 }
 
 /** 发放薪资（生成发放凭证） */
 export function payPayroll(id: number): Promise<PayrollRunView> {
-  return http.post<PayrollRunView>(`/erp/hr/payroll/${id}/pay`);
+  return http.post<PayrollRunView>(`/erp/v1/hr/payroll/${id}/pay`);
 }
 
 /** 薪资批次结账 */
 export function closePayroll(id: number): Promise<PayrollRunView> {
-  return http.post<PayrollRunView>(`/erp/hr/payroll/${id}/close`);
+  return http.post<PayrollRunView>(`/erp/v1/hr/payroll/${id}/close`);
 }
 
 /** 取消薪资批次 */
 export function cancelPayroll(id: number): Promise<PayrollRunView> {
-  return http.post<PayrollRunView>(`/erp/hr/payroll/${id}/cancel`);
+  return http.post<PayrollRunView>(`/erp/v1/hr/payroll/${id}/cancel`);
 }
 
 /** 我的工资条（仅本人） */
 export function myPayslips(params: HrQueryParams = {}): Promise<PageResult<PayrollRunView>> {
-  return http.get<PageResult<PayrollRunView>>(`/erp/hr/payroll/payslip/my?${buildQuery(params)}`);
+  return http.get<PageResult<PayrollRunView>>(`/erp/v1/hr/payroll/payslip/my?${buildQuery(params)}`);
 }
 
 /** 绩效周期分页 */
@@ -400,33 +400,33 @@ export function pagePerformanceCycles(
   params: HrQueryParams = {},
 ): Promise<PageResult<PerformanceCycleView>> {
   return http.get<PageResult<PerformanceCycleView>>(
-    `/erp/hr/performance/page?${buildQuery(params)}`,
+    `/erp/v1/hr/performance/page?${buildQuery(params)}`,
   );
 }
 
 /** 绩效周期详情（含指标与考核） */
 export function getPerformanceCycle(id: number): Promise<PerformanceCycleView> {
-  return http.get<PerformanceCycleView>(`/erp/hr/performance/${id}`);
+  return http.get<PerformanceCycleView>(`/erp/v1/hr/performance/${id}`);
 }
 
 /** 新建绩效周期 */
 export function createPerformanceCycle(
   input: PerformanceCycleInput,
 ): Promise<PerformanceCycleView> {
-  return http.post<PerformanceCycleView>('/erp/hr/performance', input);
+  return http.post<PerformanceCycleView>('/erp/v1/hr/performance', input);
 }
 
 /** 新增绩效指标 */
 export function addKpi(id: number, input: KpiInput): Promise<PerformanceCycleView> {
-  return http.post<PerformanceCycleView>(`/erp/hr/performance/${id}/kpi`, input);
+  return http.post<PerformanceCycleView>(`/erp/v1/hr/performance/${id}/kpi`, input);
 }
 
 /** 录入考核结果 */
 export function appraise(id: number, input: AppraisalInput): Promise<PerformanceCycleView> {
-  return http.post<PerformanceCycleView>(`/erp/hr/performance/${id}/appraise`, input);
+  return http.post<PerformanceCycleView>(`/erp/v1/hr/performance/${id}/appraise`, input);
 }
 
 /** 关闭绩效周期 */
 export function closePerformanceCycle(id: number): Promise<PerformanceCycleView> {
-  return http.post<PerformanceCycleView>(`/erp/hr/performance/${id}/close`);
+  return http.post<PerformanceCycleView>(`/erp/v1/hr/performance/${id}/close`);
 }

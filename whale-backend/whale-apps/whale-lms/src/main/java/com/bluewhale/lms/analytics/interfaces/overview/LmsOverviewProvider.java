@@ -55,7 +55,7 @@ public class LmsOverviewProvider implements OverviewProvider {
     private static final String PERMISSION = LmsPermissions.ANALYTICS_VIEW;
 
     /** 课程目录列表接口：屏风页直接取这个路径 */
-    private static final String COURSE_PAGE_PATH = "/lms/course/page";
+    private static final String COURSE_PAGE_PATH = "/lms/v1/course/page";
 
     /** 百分数 → 比率的除数 */
     private static final BigDecimal HUNDRED = BigDecimal.valueOf(100);

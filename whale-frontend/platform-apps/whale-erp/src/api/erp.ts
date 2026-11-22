@@ -36,14 +36,14 @@ interface PageResult<T> {
 
 /** 查询商品/物料列表 */
 export async function listErpItems(): Promise<ErpItem[]> {
-  const page = await http.get<PageResult<ErpItem>>('/erp/item/page?current=1&size=200');
+  const page = await http.get<PageResult<ErpItem>>('/erp/v1/item/page?current=1&size=200');
   return page.records;
 }
 
 /** 保存商品/物料（无 id 走新增，有 id 走编辑） */
 export function saveErpItem(input: ErpItemInput): Promise<ErpItem> {
   const { id, ...body } = input;
-  return id ? http.put<ErpItem>(`/erp/item/${id}`, body) : http.post<ErpItem>('/erp/item', body);
+  return id ? http.put<ErpItem>(`/erp/v1/item/${id}`, body) : http.post<ErpItem>('/erp/v1/item', body);
 }
 
 /** 供应商分类 */
@@ -109,7 +109,7 @@ export interface ErpSupplierInput {
 
 /** 查询供应商列表 */
 export async function listErpSuppliers(): Promise<ErpSupplier[]> {
-  const page = await http.get<PageResult<ErpSupplier>>('/erp/supplier/page?current=1&size=200');
+  const page = await http.get<PageResult<ErpSupplier>>('/erp/v1/supplier/page?current=1&size=200');
   return page.records;
 }
 
@@ -117,11 +117,11 @@ export async function listErpSuppliers(): Promise<ErpSupplier[]> {
 export function saveErpSupplier(input: ErpSupplierInput): Promise<ErpSupplier> {
   const { id, ...body } = input;
   return id
-    ? http.put<ErpSupplier>(`/erp/supplier/${id}`, body)
-    : http.post<ErpSupplier>('/erp/supplier', body);
+    ? http.put<ErpSupplier>(`/erp/v1/supplier/${id}`, body)
+    : http.post<ErpSupplier>('/erp/v1/supplier', body);
 }
 
 /** 删除供应商（逻辑删除） */
 export function deleteErpSupplier(id: string): Promise<void> {
-  return http.del<void>(`/erp/supplier/${id}`);
+  return http.del<void>(`/erp/v1/supplier/${id}`);
 }

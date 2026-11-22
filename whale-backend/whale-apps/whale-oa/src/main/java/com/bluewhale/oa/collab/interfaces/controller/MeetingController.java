@@ -30,7 +30,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/oa/meeting")
+@RequestMapping(path = "/oa/v{version}/meeting", version = "1")
 @RequiredArgsConstructor
 public class MeetingController {
 

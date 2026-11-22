@@ -223,72 +223,72 @@ function buildQuery(params: object): string {
 
 /** 凭证分页 */
 export function pageVouchers(params: VoucherQueryParams = {}): Promise<PageResult<Voucher>> {
-  return http.get<PageResult<Voucher>>(`/erp/finance/voucher/page?${buildQuery(params)}`);
+  return http.get<PageResult<Voucher>>(`/erp/v1/finance/voucher/page?${buildQuery(params)}`);
 }
 
 /** 凭证详情 */
 export function getVoucher(id: number): Promise<Voucher> {
-  return http.get<Voucher>(`/erp/finance/voucher/${id}`);
+  return http.get<Voucher>(`/erp/v1/finance/voucher/${id}`);
 }
 
 /** 录入凭证 */
 export function createVoucher(input: VoucherInput): Promise<Voucher> {
-  return http.post<Voucher>('/erp/finance/voucher', input);
+  return http.post<Voucher>('/erp/v1/finance/voucher', input);
 }
 
 /** 记账 */
 export function postVoucher(id: number): Promise<Voucher> {
-  return http.post<Voucher>(`/erp/finance/voucher/${id}/post`);
+  return http.post<Voucher>(`/erp/v1/finance/voucher/${id}/post`);
 }
 
 /** 红冲 */
 export function reverseVoucher(id: number): Promise<Voucher> {
-  return http.post<Voucher>(`/erp/finance/voucher/${id}/reverse`);
+  return http.post<Voucher>(`/erp/v1/finance/voucher/${id}/reverse`);
 }
 
 /** 应收分页 */
 export function pageReceivables(params: ArApQueryParams = {}): Promise<PageResult<Receivable>> {
-  return http.get<PageResult<Receivable>>(`/erp/finance/receivable/page?${buildQuery(params)}`);
+  return http.get<PageResult<Receivable>>(`/erp/v1/finance/receivable/page?${buildQuery(params)}`);
 }
 
 /** 新增应收单 */
 export function createReceivable(input: ReceivableInput): Promise<Receivable> {
-  return http.post<Receivable>('/erp/finance/receivable', input);
+  return http.post<Receivable>('/erp/v1/finance/receivable', input);
 }
 
 /** 应收核销 */
 export function settleReceivable(id: number, input: SettleInput): Promise<Receivable> {
-  return http.post<Receivable>(`/erp/finance/receivable/${id}/settle`, input);
+  return http.post<Receivable>(`/erp/v1/finance/receivable/${id}/settle`, input);
 }
 
 /** 应收坏账计提 */
 export function provisionBadDebt(id: number, input: SettleInput): Promise<Receivable> {
-  return http.post<Receivable>(`/erp/finance/receivable/${id}/bad-debt`, input);
+  return http.post<Receivable>(`/erp/v1/finance/receivable/${id}/bad-debt`, input);
 }
 
 /** 应付分页 */
 export function pagePayables(params: ArApQueryParams = {}): Promise<PageResult<Payable>> {
-  return http.get<PageResult<Payable>>(`/erp/finance/payable/page?${buildQuery(params)}`);
+  return http.get<PageResult<Payable>>(`/erp/v1/finance/payable/page?${buildQuery(params)}`);
 }
 
 /** 新增应付单 */
 export function createPayable(input: PayableInput): Promise<Payable> {
-  return http.post<Payable>('/erp/finance/payable', input);
+  return http.post<Payable>('/erp/v1/finance/payable', input);
 }
 
 /** 应付付款核销 */
 export function settlePayable(id: number, input: SettleInput): Promise<Payable> {
-  return http.post<Payable>(`/erp/finance/payable/${id}/settle`, input);
+  return http.post<Payable>(`/erp/v1/finance/payable/${id}/settle`, input);
 }
 
 /** 应收账龄 */
 export function receivableAging(): Promise<AgingRow[]> {
-  return http.get<AgingRow[]>('/erp/finance/aging/receivable');
+  return http.get<AgingRow[]>('/erp/v1/finance/aging/receivable');
 }
 
 /** 应付账龄 */
 export function payableAging(): Promise<AgingRow[]> {
-  return http.get<AgingRow[]>('/erp/finance/aging/payable');
+  return http.get<AgingRow[]>('/erp/v1/finance/aging/payable');
 }
 
 /** 科目明细账 */
@@ -298,21 +298,21 @@ export function getLedger(
   toPeriod: string,
 ): Promise<Ledger> {
   return http.get<Ledger>(
-    `/erp/finance/report/ledger?${buildQuery({ accountCode, fromPeriod, toPeriod })}`,
+    `/erp/v1/finance/report/ledger?${buildQuery({ accountCode, fromPeriod, toPeriod })}`,
   );
 }
 
 /** 科目余额表 */
 export function getAccountBalances(period: string): Promise<AccountBalance[]> {
-  return http.get<AccountBalance[]>(`/erp/finance/report/account-balance?period=${period}`);
+  return http.get<AccountBalance[]>(`/erp/v1/finance/report/account-balance?period=${period}`);
 }
 
 /** 资产负债表 */
 export function getBalanceSheet(period: string): Promise<FinancialReport> {
-  return http.get<FinancialReport>(`/erp/finance/report/balance-sheet?period=${period}`);
+  return http.get<FinancialReport>(`/erp/v1/finance/report/balance-sheet?period=${period}`);
 }
 
 /** 利润表 */
 export function getIncomeStatement(period: string): Promise<FinancialReport> {
-  return http.get<FinancialReport>(`/erp/finance/report/income-statement?period=${period}`);
+  return http.get<FinancialReport>(`/erp/v1/finance/report/income-statement?period=${period}`);
 }

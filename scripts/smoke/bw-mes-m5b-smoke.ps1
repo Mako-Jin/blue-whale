@@ -30,7 +30,7 @@ $script:gateway = $base
 $token = $login.data.accessToken
 
 # 2) 综合看板聚合：四域齐全
-$dash = Invoke-SmokeApi -Method Get -Path '/mes/dashboard'
+$dash = Invoke-SmokeApi -Method Get -Path '/mes/v1/dashboard'
 Check '2.dashboard' $dash
 $payload = $dash.data
 Assert '2a.fourDomains' (
@@ -38,7 +38,7 @@ Assert '2a.fourDomains' (
     $null -ne $payload.equipment -and $null -ne $payload.workforce) "boardDate=$($payload.boardDate)"
 
 # 3) 口径一致性：生产域与独立生产看板同源
-$board = Invoke-SmokeApi -Method Get -Path '/mes/dispatch/board'
+$board = Invoke-SmokeApi -Method Get -Path '/mes/v1/dispatch/board'
 Check '3.dispatchBoard' $board
 Assert '3a.productionConsistent' (
     [string]$payload.production.completedQuantity -eq [string]$board.data.completedQuantity -and
@@ -46,7 +46,7 @@ Assert '3a.productionConsistent' (
     "dashboard=$($payload.production.completedQuantity) board=$($board.data.completedQuantity)"
 
 # 4) 质量域与质量看板同源
-$qboard = Invoke-SmokeApi -Method Get -Path '/mes/quality/board'
+$qboard = Invoke-SmokeApi -Method Get -Path '/mes/v1/quality/board'
 Check '4.qualityBoard' $qboard
 Assert '4a.qualityConsistent' (
     [string]$payload.quality.inspectionTaskCount -eq [string]$qboard.data.inspectionTaskCount) `

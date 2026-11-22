@@ -39,7 +39,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/lms/paper")
+@RequestMapping(path = "/lms/v{version}/paper", version = "1")
 @RequiredArgsConstructor
 public class PaperController {
 

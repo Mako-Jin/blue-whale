@@ -19,7 +19,7 @@ import java.time.LocalDate;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/erp/mfg/crp")
+@RequestMapping(path = "/erp/v{version}/mfg/crp", version = "1")
 @RequiredArgsConstructor
 public class CrpController {
 

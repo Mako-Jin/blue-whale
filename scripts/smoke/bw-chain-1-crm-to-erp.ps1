@@ -62,11 +62,11 @@ $itemCode = "SMOKE-ITEM-$stamp"
 $customerCode = "SMOKE-CUST-$stamp"
 
 # 3) ERP 主数据：仓库（优先复用启用仓）→ 物料 → 客户
-$warehouses = Invoke-SmokeApi -Method Get -Path '/erp/master-data/warehouse/page?current=1&size=50'
+$warehouses = Invoke-SmokeApi -Method Get -Path '/erp/v1/master-data/warehouse/page?current=1&size=50'
 Check '2.warehousePage' $warehouses
 $warehouse = $warehouses.data.records | Where-Object { $_.status -eq 'ENABLED' } | Select-Object -First 1
 if (-not $warehouse) {
-    $createdWarehouse = Invoke-SmokeApi -Method Post -Path '/erp/master-data/warehouse' -Body @{
+    $createdWarehouse = Invoke-SmokeApi -Method Post -Path '/erp/v1/master-data/warehouse' -Body @{
         code = $warehouseCode
         name = '链路冒烟仓'
         status = 'ENABLED'
@@ -77,7 +77,7 @@ if (-not $warehouse) {
 }
 Assert '3a.warehouseReady' ($null -ne $warehouse.id) "warehouseId=$($warehouse.id)"
 
-$item = Invoke-SmokeApi -Method Post -Path '/erp/item' -Body @{
+$item = Invoke-SmokeApi -Method Post -Path '/erp/v1/item' -Body @{
     code = $itemCode
     name = '链路冒烟物料'
     status = 'ENABLED'
@@ -85,7 +85,7 @@ $item = Invoke-SmokeApi -Method Post -Path '/erp/item' -Body @{
 }
 Check '4.createItem' $item
 
-$customer = Invoke-SmokeApi -Method Post -Path '/erp/master-data/customer' -Body @{
+$customer = Invoke-SmokeApi -Method Post -Path '/erp/v1/master-data/customer' -Body @{
     code = $customerCode
     name = "链路冒烟客户 $stamp"
     status = 'ENABLED'
@@ -178,7 +178,7 @@ $pushedOrder = Wait-SmokeUntil -Label "13.erpOrderPushed" -TimeoutSeconds $WaitS
 Assert '13a.erpOrderId' ($null -ne $pushedOrder.erpOrderId) "erpOrderId=$($pushedOrder.erpOrderId)"
 
 # 9) ERP 侧核对：crmOrderNo / 物料 / 数量
-$erpOrder = Invoke-SmokeApi -Method Get -Path "/erp/scm/sales-order/$($pushedOrder.erpOrderId)"
+$erpOrder = Invoke-SmokeApi -Method Get -Path "/erp/v1/scm/sales-order/$($pushedOrder.erpOrderId)"
 Check '14.erpSalesOrder' $erpOrder
 Assert '14a.crmOrderNo' ($erpOrder.data.crmOrderNo -eq $crmOrderNo) "erp=$($erpOrder.data.crmOrderNo) crm=$crmOrderNo"
 Assert '14b.itemCode' ($erpOrder.data.lines[0].itemCode -eq $itemCode) "itemCode=$($erpOrder.data.lines[0].itemCode)"

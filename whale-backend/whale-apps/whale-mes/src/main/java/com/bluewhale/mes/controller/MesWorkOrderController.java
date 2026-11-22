@@ -29,7 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/mes/work-order")
+@RequestMapping(path = "/mes/v{version}/work-order", version = "1")
 @RequiredArgsConstructor
 public class MesWorkOrderController {
 

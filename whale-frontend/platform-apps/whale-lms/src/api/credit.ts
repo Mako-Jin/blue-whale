@@ -69,7 +69,7 @@ export function pageCreditRules(params: {
   current?: number;
   size?: number;
 }) {
-  return http.get<PageData<CreditRuleItem>>('/lms/credit/rule/page', { ...params });
+  return http.get<PageData<CreditRuleItem>>('/lms/v1/credit/rule/page', { ...params });
 }
 
 /** 新建规则 */
@@ -81,7 +81,7 @@ export function createCreditRule(body: {
   credit: number;
   remark?: string;
 }) {
-  return http.post<number>('/lms/credit/rule', body);
+  return http.post<number>('/lms/v1/credit/rule', body);
 }
 
 /** 编辑规则 */
@@ -96,17 +96,17 @@ export function updateCreditRule(
     remark?: string;
   },
 ) {
-  return http.put<void>(`/lms/credit/rule/${id}`, body);
+  return http.put<void>(`/lms/v1/credit/rule/${id}`, body);
 }
 
 /** 删除规则 */
 export function deleteCreditRule(id: number) {
-  return http.del<void>(`/lms/credit/rule/${id}`);
+  return http.del<void>(`/lms/v1/credit/rule/${id}`);
 }
 
 /** 启用 / 停用规则 */
 export function changeCreditRuleStatus(id: number, enabled: boolean) {
-  return http.put<void>(`/lms/credit/rule/${id}/status?enabled=${enabled}`);
+  return http.put<void>(`/lms/v1/credit/rule/${id}/status?enabled=${enabled}`);
 }
 
 /** 记账（幂等） */
@@ -118,7 +118,7 @@ export function accrueCredit(body: {
   occurredAt?: string;
   remark?: string;
 }) {
-  return http.post<number>('/lms/credit/accrue', body);
+  return http.post<number>('/lms/v1/credit/accrue', body);
 }
 
 /** 台账分页（管理端） */
@@ -130,12 +130,12 @@ export function pageCredits(params: {
   current?: number;
   size?: number;
 }) {
-  return http.get<PageData<CreditLedgerItem>>('/lms/credit/page', { ...params });
+  return http.get<PageData<CreditLedgerItem>>('/lms/v1/credit/page', { ...params });
 }
 
 /** 年度汇总 */
 export function creditSummary(params: { userId?: number; periodYear?: number }) {
-  return http.get<CreditSummary>('/lms/credit/summary', { ...params });
+  return http.get<CreditSummary>('/lms/v1/credit/summary', { ...params });
 }
 
 /** 我的学分台账 */
@@ -145,5 +145,5 @@ export function myCredits(params: {
   current?: number;
   size?: number;
 }) {
-  return http.get<PageData<CreditLedgerItem>>('/lms/credit/mine', { ...params });
+  return http.get<PageData<CreditLedgerItem>>('/lms/v1/credit/mine', { ...params });
 }

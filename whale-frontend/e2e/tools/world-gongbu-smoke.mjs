@@ -10,7 +10,7 @@
 //   ③ 工单状态是七个枚举（RECEIVED…CANCELLED），靠页面级字典译中文并打灯；
 //   ④ 列表行即详情（不配 detailPath）：点行不发二次请求，详情字段用列表行数据。
 //
-// 数据来源：page.route 拦 /mes/overview 与 /mes/work-order/page，返回与后端同形状的信封。
+// 数据来源：page.route 拦 /mes/overview 与 /mes/v1/work-order/page，返回与后端同形状的信封。
 
 import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
@@ -67,7 +67,7 @@ const OVERVIEW = {
     { level: 'info', text: '1 个样本命中 SPC 规则', count: 1 },
   ],
   links: [
-    { key: 'work-orders', label: '生产工单', path: '/mes/work-order/page', permission: 'sys:mes:workorder:list' },
+    { key: 'work-orders', label: '生产工单', path: '/mes/v1/work-order/page', permission: 'sys:mes:workorder:list' },
   ],
   notes: ['口径：MES 综合看板快照'],
 };
@@ -121,7 +121,7 @@ await page.route('**/mes/overview**', async (route) => {
 
 /* 详情路由先注册、列表路由后注册：Playwright 后注册的优先匹配。
    工部坊不配 detailPath，这条路由只用来断言"点行不会打详情接口"。 */
-await page.route('**/mes/work-order/*', async (route) => {
+await page.route('**/mes/v1/work-order/*', async (route) => {
   const url = new URL(route.request().url());
   if (url.pathname.endsWith('/page')) {
     await route.fallback();
@@ -131,7 +131,7 @@ await page.route('**/mes/work-order/*', async (route) => {
   await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(json(null)) });
 });
 
-await page.route('**/mes/work-order/page**', async (route) => {
+await page.route('**/mes/v1/work-order/page**', async (route) => {
   const url = new URL(route.request().url());
   const current = Number(url.searchParams.get('current') ?? '1');
   const size = Number(url.searchParams.get('size') ?? '6');
@@ -311,7 +311,7 @@ await page.locator(SCOPE + '.bwsp-table tbody tr').first().click();
 await page.waitForTimeout(700);
 probe = await page.evaluate(() => window.__bwwScreenPage?.('gongbu'));
 check('点行打开详情态', probe?.detail.open === true, probe?.detail);
-check('不配 detailPath：不打详情接口（没有 /mes/work-order/{id} 请求）', detailHits.length === 0, detailHits);
+check('不配 detailPath：不打详情接口（没有 /mes/v1/work-order/{id} 请求）', detailHits.length === 0, detailHits);
 check('详情 12 个字段用列表行数据（工单无分录，不额外请求）',
   probe?.detail.fields === 12 && probe?.detail.lines === 0, probe?.detail);
 await page.screenshot({ path: `${OUT}/11-gongbu-detail.png` });
@@ -341,7 +341,7 @@ check('退出后回到 3D 尺寸（不是糊满整个镜头）', exited.w > 0 &&
 await page.route('**/mes/overview**', (route) =>
   route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }),
 );
-await page.route('**/mes/work-order/page**', (route) =>
+await page.route('**/mes/v1/work-order/page**', (route) =>
   route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }),
 );
 await page.locator('[data-screen-id="gongbu"]').click();

@@ -35,7 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/lms/cert/template")
+@RequestMapping(path = "/lms/v{version}/cert/template", version = "1")
 @RequiredArgsConstructor
 public class CertTemplateController {
 

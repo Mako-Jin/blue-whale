@@ -132,49 +132,49 @@ function buildQuery(params: PageParams): string {
 
 /** 科目分页 */
 export function pageAccounts(params: PageParams = {}): Promise<PageResult<ErpAccount>> {
-  return http.get<PageResult<ErpAccount>>(`/erp/master-data/account/page?${buildQuery(params)}`);
+  return http.get<PageResult<ErpAccount>>(`/erp/v1/master-data/account/page?${buildQuery(params)}`);
 }
 
 /** 保存科目（无 id 新增，有 id 编辑） */
 export function saveAccount(input: ErpAccountInput): Promise<ErpAccount> {
   const { id, ...body } = input;
   return id
-    ? http.put<ErpAccount>(`/erp/master-data/account/${id}`, body)
-    : http.post<ErpAccount>('/erp/master-data/account', body);
+    ? http.put<ErpAccount>(`/erp/v1/master-data/account/${id}`, body)
+    : http.post<ErpAccount>('/erp/v1/master-data/account', body);
 }
 
 /** 会计期间分页 */
 export function pagePeriods(params: PageParams = {}): Promise<PageResult<ErpPeriod>> {
-  return http.get<PageResult<ErpPeriod>>(`/erp/master-data/period/page?${buildQuery(params)}`);
+  return http.get<PageResult<ErpPeriod>>(`/erp/v1/master-data/period/page?${buildQuery(params)}`);
 }
 
 /** 关账 */
 export function closePeriod(id: number): Promise<ErpPeriod> {
-  return http.post<ErpPeriod>(`/erp/master-data/period/${id}/close`);
+  return http.post<ErpPeriod>(`/erp/v1/master-data/period/${id}/close`);
 }
 
 /** 反结账 */
 export function reopenPeriod(id: number): Promise<ErpPeriod> {
-  return http.post<ErpPeriod>(`/erp/master-data/period/${id}/reopen`);
+  return http.post<ErpPeriod>(`/erp/v1/master-data/period/${id}/reopen`);
 }
 
 /** 客户分页 */
 export function pageCustomers(params: PageParams = {}): Promise<PageResult<ErpCustomer>> {
-  return http.get<PageResult<ErpCustomer>>(`/erp/master-data/customer/page?${buildQuery(params)}`);
+  return http.get<PageResult<ErpCustomer>>(`/erp/v1/master-data/customer/page?${buildQuery(params)}`);
 }
 
 /** 保存客户 */
 export function saveCustomer(input: ErpCustomerInput): Promise<ErpCustomer> {
   const { id, ...body } = input;
   return id
-    ? http.put<ErpCustomer>(`/erp/master-data/customer/${id}`, body)
-    : http.post<ErpCustomer>('/erp/master-data/customer', body);
+    ? http.put<ErpCustomer>(`/erp/v1/master-data/customer/${id}`, body)
+    : http.post<ErpCustomer>('/erp/v1/master-data/customer', body);
 }
 
 /** 仓库分页 */
 export function pageWarehouses(params: PageParams = {}): Promise<PageResult<ErpWarehouse>> {
   return http.get<PageResult<ErpWarehouse>>(
-    `/erp/master-data/warehouse/page?${buildQuery(params)}`,
+    `/erp/v1/master-data/warehouse/page?${buildQuery(params)}`,
   );
 }
 
@@ -182,11 +182,11 @@ export function pageWarehouses(params: PageParams = {}): Promise<PageResult<ErpW
 export function saveWarehouse(input: ErpWarehouseInput): Promise<ErpWarehouse> {
   const { id, ...body } = input;
   return id
-    ? http.put<ErpWarehouse>(`/erp/master-data/warehouse/${id}`, body)
-    : http.post<ErpWarehouse>('/erp/master-data/warehouse', body);
+    ? http.put<ErpWarehouse>(`/erp/v1/master-data/warehouse/${id}`, body)
+    : http.post<ErpWarehouse>('/erp/v1/master-data/warehouse', body);
 }
 
 /** 参考数据 */
 export function getReferenceData(): Promise<ReferenceData> {
-  return http.get<ReferenceData>('/erp/master-data/reference');
+  return http.get<ReferenceData>('/erp/v1/master-data/reference');
 }

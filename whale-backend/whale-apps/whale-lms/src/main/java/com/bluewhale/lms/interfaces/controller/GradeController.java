@@ -35,7 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/lms/grade")
+@RequestMapping(path = "/lms/v{version}/grade", version = "1")
 @RequiredArgsConstructor
 public class GradeController {
 

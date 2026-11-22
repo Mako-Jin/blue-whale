@@ -32,7 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/mall/order")
+@RequestMapping(path = "/mall/v{version}/order", version = "1")
 @RequiredArgsConstructor
 public class MallOrderController {
 

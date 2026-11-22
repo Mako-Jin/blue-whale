@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/oa/approval/monitor")
+@RequestMapping(path = "/oa/v{version}/approval/monitor", version = "1")
 @RequiredArgsConstructor
 public class ApprovalMonitorController {
 

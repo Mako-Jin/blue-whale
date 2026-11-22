@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/mes/quality/rework")
+@RequestMapping(path = "/mes/v{version}/quality/rework", version = "1")
 @RequiredArgsConstructor
 public class MesReworkController {
 

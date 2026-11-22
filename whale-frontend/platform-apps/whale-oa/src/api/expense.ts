@@ -150,70 +150,70 @@ function buildQuery(params: object): string {
 
 /** 分页查询报销单 */
 export function pageExpenses(params: OaExpenseQuery = {}): Promise<PageResult<OaExpense>> {
-  return http.get<PageResult<OaExpense>>(`/oa/expense/page${buildQuery(params)}`);
+  return http.get<PageResult<OaExpense>>(`/oa/v1/expense/page${buildQuery(params)}`);
 }
 
 /** 报销单详情（含明细与发票） */
 export function getExpense(id: number): Promise<OaExpense> {
-  return http.get<OaExpense>(`/oa/expense/${id}`);
+  return http.get<OaExpense>(`/oa/v1/expense/${id}`);
 }
 
 /** 新建报销单 */
 export function createExpense(input: OaExpenseInput): Promise<OaExpense> {
-  return http.post<OaExpense>('/oa/expense', input);
+  return http.post<OaExpense>('/oa/v1/expense', input);
 }
 
 /** 更新报销单 */
 export function updateExpense(id: number, input: OaExpenseInput): Promise<OaExpense> {
-  return http.put<OaExpense>(`/oa/expense/${id}`, input);
+  return http.put<OaExpense>(`/oa/v1/expense/${id}`, input);
 }
 
 /** 删除报销单（仅待审批） */
 export function deleteExpense(id: number): Promise<void> {
-  return http.del<void>(`/oa/expense/${id}`);
+  return http.del<void>(`/oa/v1/expense/${id}`);
 }
 
 /** 提交报销单（登记审批实例） */
 export function submitExpense(id: number): Promise<OaExpense> {
-  return http.post<OaExpense>(`/oa/expense/${id}/submit`);
+  return http.post<OaExpense>(`/oa/v1/expense/${id}/submit`);
 }
 
 /** 审批 / 撤销报销单 */
 export function updateExpenseStatus(id: number, status: OaExpenseStatus): Promise<void> {
-  return http.put<void>(`/oa/expense/${id}/status`, { status });
+  return http.put<void>(`/oa/v1/expense/${id}/status`, { status });
 }
 
 /** 手工重试推送 ERP 应付单 */
 export function retryExpensePush(id: number): Promise<OaExpense> {
-  return http.post<OaExpense>(`/oa/expense/${id}/push-retry`);
+  return http.post<OaExpense>(`/oa/v1/expense/${id}/push-retry`);
 }
 
 /** 查询全部费用类别 */
 export function listCategories(): Promise<OaExpenseCategory[]> {
-  return http.get<OaExpenseCategory[]>('/oa/expense/category');
+  return http.get<OaExpenseCategory[]>('/oa/v1/expense/category');
 }
 
 /** 新增 / 更新费用类别 */
 export function saveCategory(input: OaExpenseCategoryInput): Promise<OaExpenseCategory> {
-  return http.post<OaExpenseCategory>('/oa/expense/category', input);
+  return http.post<OaExpenseCategory>('/oa/v1/expense/category', input);
 }
 
 /** 删除费用类别 */
 export function deleteCategory(id: number): Promise<void> {
-  return http.del<void>(`/oa/expense/category/${id}`);
+  return http.del<void>(`/oa/v1/expense/category/${id}`);
 }
 
 /** 查询指定类别的费用标准 */
 export function listStandards(categoryId: number): Promise<OaExpenseStandard[]> {
-  return http.get<OaExpenseStandard[]>(`/oa/expense/category/${categoryId}/standards`);
+  return http.get<OaExpenseStandard[]>(`/oa/v1/expense/category/${categoryId}/standards`);
 }
 
 /** 新增 / 更新费用标准 */
 export function saveStandard(input: OaExpenseStandardInput): Promise<OaExpenseStandard> {
-  return http.post<OaExpenseStandard>('/oa/expense/category/standards', input);
+  return http.post<OaExpenseStandard>('/oa/v1/expense/category/standards', input);
 }
 
 /** 删除费用标准 */
 export function deleteStandard(id: number): Promise<void> {
-  return http.del<void>(`/oa/expense/category/standards/${id}`);
+  return http.del<void>(`/oa/v1/expense/category/standards/${id}`);
 }

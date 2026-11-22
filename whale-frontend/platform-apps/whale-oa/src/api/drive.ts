@@ -103,57 +103,57 @@ function buildQuery(params: object): string {
 
 /** 查询指定父目录下的文件夹 */
 export function listDriveFolders(parentId: number): Promise<OaDriveFolder[]> {
-  return http.get<OaDriveFolder[]>(`/oa/drive/folders${buildQuery({ parentId })}`);
+  return http.get<OaDriveFolder[]>(`/oa/v1/drive/folders${buildQuery({ parentId })}`);
 }
 
 /** 新建文件夹 */
 export function createDriveFolder(input: OaDriveFolderInput): Promise<OaDriveFolder> {
-  return http.post<OaDriveFolder>('/oa/drive/folders', input);
+  return http.post<OaDriveFolder>('/oa/v1/drive/folders', input);
 }
 
 /** 更新文件夹（重命名/排序） */
 export function updateDriveFolder(id: number, input: OaDriveFolderUpdate): Promise<OaDriveFolder> {
-  return http.put<OaDriveFolder>(`/oa/drive/folders/${id}`, input);
+  return http.put<OaDriveFolder>(`/oa/v1/drive/folders/${id}`, input);
 }
 
 /** 删除文件夹 */
 export function deleteDriveFolder(id: number): Promise<void> {
-  return http.del<void>(`/oa/drive/folders/${id}`);
+  return http.del<void>(`/oa/v1/drive/folders/${id}`);
 }
 
 /** 分页查询文件 */
 export function pageDriveFiles(params: OaDriveFileQuery = {}): Promise<PageResult<OaDriveFile>> {
-  return http.get<PageResult<OaDriveFile>>(`/oa/drive/files${buildQuery(params)}`);
+  return http.get<PageResult<OaDriveFile>>(`/oa/v1/drive/files${buildQuery(params)}`);
 }
 
 /** 登记已上传文件到文件夹 */
 export function registerDriveFile(input: OaDriveFileInput): Promise<OaDriveFile> {
-  return http.post<OaDriveFile>('/oa/drive/files', input);
+  return http.post<OaDriveFile>('/oa/v1/drive/files', input);
 }
 
 /** 删除网盘文件 */
 export function deleteDriveFile(id: number): Promise<void> {
-  return http.del<void>(`/oa/drive/files/${id}`);
+  return http.del<void>(`/oa/v1/drive/files/${id}`);
 }
 
 /** 查询文件夹授权 */
 export function listDriveAcls(folderId: number): Promise<OaDriveAcl[]> {
-  return http.get<OaDriveAcl[]>(`/oa/drive/folders/${folderId}/acls`);
+  return http.get<OaDriveAcl[]>(`/oa/v1/drive/folders/${folderId}/acls`);
 }
 
 /** 替换文件夹授权 */
 export function replaceDriveAcls(folderId: number, entries: OaDriveAcl[]): Promise<OaDriveAcl[]> {
-  return http.put<OaDriveAcl[]>(`/oa/drive/folders/${folderId}/acls`, { entries });
+  return http.put<OaDriveAcl[]>(`/oa/v1/drive/folders/${folderId}/acls`, { entries });
 }
 
 /** 查询当前用户网盘配额 */
 export function getDriveQuota(): Promise<OaDriveQuota> {
-  return http.get<OaDriveQuota>('/oa/drive/quota');
+  return http.get<OaDriveQuota>('/oa/v1/drive/quota');
 }
 
 /** 下载网盘文件（经 OA 代理流式下载，Authorization 与 401 续期由 http 客户端处理） */
 export async function downloadDriveFile(id: number, fileName: string): Promise<void> {
-  const result = await downloadBlob(`/oa/drive/files/${id}/download`);
+  const result = await downloadBlob(`/oa/v1/drive/files/${id}/download`);
   const url = URL.createObjectURL(result.blob);
   const link = document.createElement('a');
   link.href = url;

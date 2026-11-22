@@ -32,7 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/erp/mfg/mes/reconcile")
+@RequestMapping(path = "/erp/v{version}/mfg/mes/reconcile", version = "1")
 @RequiredArgsConstructor
 public class MesReconcileController {
 

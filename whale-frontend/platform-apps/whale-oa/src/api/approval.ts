@@ -150,32 +150,32 @@ export function pageInitiated(
   params: ApprovalQuery = {},
 ): Promise<PageResult<ApprovalInstanceRow>> {
   return http.get<PageResult<ApprovalInstanceRow>>(
-    `/oa/approval/center/initiated/page${buildQuery(params)}`,
+    `/oa/v1/approval/center/initiated/page${buildQuery(params)}`,
   );
 }
 
 /** 待我审批分页 */
 export function pagePending(params: ApprovalQuery = {}): Promise<PageResult<ApprovalTaskRow>> {
   return http.get<PageResult<ApprovalTaskRow>>(
-    `/oa/approval/center/pending/page${buildQuery(params)}`,
+    `/oa/v1/approval/center/pending/page${buildQuery(params)}`,
   );
 }
 
 /** 我已审批分页 */
 export function pageApproved(params: ApprovalQuery = {}): Promise<PageResult<ApprovalTaskRow>> {
   return http.get<PageResult<ApprovalTaskRow>>(
-    `/oa/approval/center/approved/page${buildQuery(params)}`,
+    `/oa/v1/approval/center/approved/page${buildQuery(params)}`,
   );
 }
 
 /** 抄送我的分页 */
 export function pageCc(params: ApprovalQuery = {}): Promise<PageResult<ApprovalCcRow>> {
-  return http.get<PageResult<ApprovalCcRow>>(`/oa/approval/center/cc/page${buildQuery(params)}`);
+  return http.get<PageResult<ApprovalCcRow>>(`/oa/v1/approval/center/cc/page${buildQuery(params)}`);
 }
 
 /** 审批中心详情 */
 export function getDetail(workflowInstanceId: number): Promise<ApprovalDetail> {
-  return http.get<ApprovalDetail>(`/oa/approval/center/instance/${workflowInstanceId}`);
+  return http.get<ApprovalDetail>(`/oa/v1/approval/center/instance/${workflowInstanceId}`);
 }
 
 /** 同意任务 */
@@ -185,7 +185,7 @@ export function approveTask(
   comment?: string,
 ): Promise<void> {
   return http.post<void>(
-    `/oa/approval/center/instance/${workflowInstanceId}/task/${taskId}/approve`,
+    `/oa/v1/approval/center/instance/${workflowInstanceId}/task/${taskId}/approve`,
     { comment },
   );
 }
@@ -197,7 +197,7 @@ export function rejectTask(
   comment?: string,
 ): Promise<void> {
   return http.post<void>(
-    `/oa/approval/center/instance/${workflowInstanceId}/task/${taskId}/reject`,
+    `/oa/v1/approval/center/instance/${workflowInstanceId}/task/${taskId}/reject`,
     { comment },
   );
 }
@@ -209,7 +209,7 @@ export function transferTask(
   targetUser: string,
 ): Promise<void> {
   return http.post<void>(
-    `/oa/approval/center/instance/${workflowInstanceId}/task/${taskId}/transfer`,
+    `/oa/v1/approval/center/instance/${workflowInstanceId}/task/${taskId}/transfer`,
     { targetUser },
   );
 }
@@ -221,7 +221,7 @@ export function addSign(
   assignees: string[],
 ): Promise<void> {
   return http.post<void>(
-    `/oa/approval/center/instance/${workflowInstanceId}/task/${taskId}/add-sign`,
+    `/oa/v1/approval/center/instance/${workflowInstanceId}/task/${taskId}/add-sign`,
     { assignees },
   );
 }
@@ -233,7 +233,7 @@ export function rollbackTask(
   targetNodeKey: string,
 ): Promise<void> {
   return http.post<void>(
-    `/oa/approval/center/instance/${workflowInstanceId}/task/${taskId}/rollback`,
+    `/oa/v1/approval/center/instance/${workflowInstanceId}/task/${taskId}/rollback`,
     { targetNodeKey },
   );
 }
@@ -244,7 +244,7 @@ export function urgeInstance(
   targetAccount?: string,
   comment?: string,
 ): Promise<void> {
-  return http.post<void>(`/oa/approval/center/instance/${workflowInstanceId}/urge`, {
+  return http.post<void>(`/oa/v1/approval/center/instance/${workflowInstanceId}/urge`, {
     targetAccount,
     comment,
   });
@@ -252,24 +252,24 @@ export function urgeInstance(
 
 /** 撤销 */
 export function cancelInstance(workflowInstanceId: number): Promise<void> {
-  return http.post<void>(`/oa/approval/center/instance/${workflowInstanceId}/cancel`);
+  return http.post<void>(`/oa/v1/approval/center/instance/${workflowInstanceId}/cancel`);
 }
 
 /** 标记抄送已读 */
 export function markCcRead(ccId: number): Promise<void> {
-  return http.post<void>(`/oa/approval/center/cc/${ccId}/read`);
+  return http.post<void>(`/oa/v1/approval/center/cc/${ccId}/read`);
 }
 
 /** 流程监控分页 */
 export function pageMonitor(params: ApprovalQuery = {}): Promise<PageResult<ApprovalInstanceRow>> {
   return http.get<PageResult<ApprovalInstanceRow>>(
-    `/oa/approval/monitor/page${buildQuery(params)}`,
+    `/oa/v1/approval/monitor/page${buildQuery(params)}`,
   );
 }
 
 /** 流程监控详情（只读） */
 export function getMonitorDetail(workflowInstanceId: number): Promise<ApprovalDetail> {
-  return http.get<ApprovalDetail>(`/oa/approval/monitor/instance/${workflowInstanceId}`);
+  return http.get<ApprovalDetail>(`/oa/v1/approval/monitor/instance/${workflowInstanceId}`);
 }
 
 /** 本人代理规则分页 */
@@ -278,7 +278,7 @@ export function pageDelegateRules(
   size = 10,
 ): Promise<PageResult<ApprovalDelegateRule>> {
   return http.get<PageResult<ApprovalDelegateRule>>(
-    `/oa/approval/delegate/page${buildQuery({ current, size })}`,
+    `/oa/v1/approval/delegate/page${buildQuery({ current, size })}`,
   );
 }
 
@@ -286,7 +286,7 @@ export function pageDelegateRules(
 export function createDelegateRule(
   input: ApprovalDelegateRuleInput,
 ): Promise<ApprovalDelegateRule> {
-  return http.post<ApprovalDelegateRule>('/oa/approval/delegate', input);
+  return http.post<ApprovalDelegateRule>('/oa/v1/approval/delegate', input);
 }
 
 /** 修改代理规则 */
@@ -294,10 +294,10 @@ export function updateDelegateRule(
   id: number,
   input: ApprovalDelegateRuleInput,
 ): Promise<ApprovalDelegateRule> {
-  return http.put<ApprovalDelegateRule>(`/oa/approval/delegate/${id}`, input);
+  return http.put<ApprovalDelegateRule>(`/oa/v1/approval/delegate/${id}`, input);
 }
 
 /** 删除代理规则 */
 export function deleteDelegateRule(id: number): Promise<void> {
-  return http.del<void>(`/oa/approval/delegate/${id}`);
+  return http.del<void>(`/oa/v1/approval/delegate/${id}`);
 }

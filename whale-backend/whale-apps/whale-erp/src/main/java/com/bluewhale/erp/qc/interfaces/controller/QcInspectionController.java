@@ -33,7 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/erp/qc")
+@RequestMapping(path = "/erp/v{version}/qc", version = "1")
 @RequiredArgsConstructor
 public class QcInspectionController {
 

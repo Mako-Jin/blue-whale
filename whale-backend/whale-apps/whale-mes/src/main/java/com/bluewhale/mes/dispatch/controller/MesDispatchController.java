@@ -32,7 +32,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/mes/dispatch")
+@RequestMapping(path = "/mes/v{version}/dispatch", version = "1")
 @RequiredArgsConstructor
 public class MesDispatchController {
 

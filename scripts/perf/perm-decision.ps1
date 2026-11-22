@@ -6,14 +6,14 @@
 #       默认取 ERP 生产订单分页（sys:erp:mfg:list）。
 #
 # 用法：
-#   pwsh -File scripts/perf/perm-decision.ps1 [-Iterations 200] [-Path '/erp/mfg/production/page?current=1&size=10']
+#   pwsh -File scripts/perf/perm-decision.ps1 [-Iterations 200] [-Path '/erp/v1/mfg/production/page?current=1&size=10']
 # 前置：gateway + 目标服务在线，SMOKE_PASSWORD 提供管理员口令。
 # 输出：Markdown 表格行，粘进 docs/ops/m1-perf-baseline.md。
 # ============================================================
 
 param(
     [string]$BaseUri = '',
-    [string]$Path = '/erp/mfg/production/page?current=1&size=10',
+    [string]$Path = '/erp/v1/mfg/production/page?current=1&size=10',
     [int]$Iterations = 200,
     [int]$Warmup = 10
 )

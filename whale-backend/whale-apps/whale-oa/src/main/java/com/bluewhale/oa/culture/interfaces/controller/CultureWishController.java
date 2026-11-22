@@ -31,7 +31,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/oa/culture")
+@RequestMapping(path = "/oa/v{version}/culture", version = "1")
 @RequiredArgsConstructor
 public class CultureWishController {
 

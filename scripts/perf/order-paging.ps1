@@ -40,12 +40,12 @@ Write-Host "| 场景 | 成功样本 | 失败 | P50(ms) | P95(ms) | P99(ms) | 均
 Write-Host "| --- | --- | --- | --- | --- | --- | --- |"
 foreach ($size in @(10, 50, 100)) {
     for ($i = 0; $i -lt $Warmup; $i++) {
-        Invoke-SmokeApi -Method Get -Path "/erp/scm/sales-order/page?current=1&size=$size" | Out-Null
+        Invoke-SmokeApi -Method Get -Path "/erp/v1/scm/sales-order/page?current=1&size=$size" | Out-Null
     }
     # 预生成页码序列（1~5 轮转），用队列避免脚本块内变量作用域不回写
     $paths = New-Object 'System.Collections.Generic.Queue[string]'
     for ($i = 0; $i -lt $Iterations; $i++) {
-        $paths.Enqueue("/erp/scm/sales-order/page?current=$((($i % 5) + 1))&size=$size")
+        $paths.Enqueue("/erp/v1/scm/sales-order/page?current=$((($i % 5) + 1))&size=$size")
     }
     $stat = Invoke-PerfLoop -Label "销售订单分页 size=$size" -Iterations $Iterations -Call {
         Invoke-SmokeApi -Method Get -Path $paths.Dequeue()

@@ -43,5 +43,5 @@ export interface OaWorkbenchSummary {
 
 /** 查询工作台汇总 */
 export function getWorkbenchSummary(): Promise<OaWorkbenchSummary> {
-  return http.get<OaWorkbenchSummary>('/oa/workbench/summary');
+  return http.get<OaWorkbenchSummary>('/oa/v1/workbench/summary');
 }

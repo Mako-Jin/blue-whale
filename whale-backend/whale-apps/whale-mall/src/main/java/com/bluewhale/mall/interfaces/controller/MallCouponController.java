@@ -37,7 +37,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/mall/coupon")
+@RequestMapping(path = "/mall/v{version}/coupon", version = "1")
 @RequiredArgsConstructor
 public class MallCouponController {
 

@@ -99,7 +99,7 @@ export interface ScheduleConflictItem {
 
 /** 同步员工目录 */
 export function syncMembers() {
-  return http.post<MemberSyncResult>('/lms/integration/member/sync');
+  return http.post<MemberSyncResult>('/lms/v1/integration/member/sync');
 }
 
 /** 员工快照分页 */
@@ -110,7 +110,7 @@ export function pageMembers(params: {
   current?: number;
   size?: number;
 }) {
-  return http.get<PageData<MemberSnapshotItem>>('/lms/integration/member/page', { ...params });
+  return http.get<PageData<MemberSnapshotItem>>('/lms/v1/integration/member/page', { ...params });
 }
 
 /** 通知日志分页 */
@@ -122,20 +122,20 @@ export function pageNotifyLogs(params: {
   current?: number;
   size?: number;
 }) {
-  return http.get<PageData<NotifyLogItem>>('/lms/integration/notify/page', { ...params });
+  return http.get<PageData<NotifyLogItem>>('/lms/v1/integration/notify/page', { ...params });
 }
 
 /** 手动执行催办（可按天补跑） */
 export function runUrge(day?: string) {
-  return http.post<UrgeRunResult>(`/lms/urge/run${day ? `?day=${day}` : ''}`);
+  return http.post<UrgeRunResult>(`/lms/v1/urge/run${day ? `?day=${day}` : ''}`);
 }
 
 /** 预览单个培训班会催到谁 */
 export function previewUrge(classId: number) {
-  return http.get<UrgeItem>('/lms/urge/preview', { classId });
+  return http.get<UrgeItem>('/lms/v1/urge/preview', { classId });
 }
 
 /** 查询培训班场次与请假冲突 */
 export function leaveConflicts(classId: number) {
-  return http.get<ScheduleConflictItem[]>('/lms/urge/leave-conflicts', { classId });
+  return http.get<ScheduleConflictItem[]>('/lms/v1/urge/leave-conflicts', { classId });
 }

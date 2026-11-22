@@ -72,12 +72,12 @@ export function pageCertTemplates(params: {
   current?: number;
   size?: number;
 }) {
-  return http.get<PageData<CertTemplateItem>>('/lms/cert/template/page', { ...params });
+  return http.get<PageData<CertTemplateItem>>('/lms/v1/cert/template/page', { ...params });
 }
 
 /** 模板详情 */
 export function certTemplateDetail(id: number | string) {
-  return http.get<CertTemplateItem>(`/lms/cert/template/${id}`);
+  return http.get<CertTemplateItem>(`/lms/v1/cert/template/${id}`);
 }
 
 /** 新建模板 */
@@ -91,7 +91,7 @@ export function createCertTemplate(body: {
   content?: string;
   remark?: string;
 }) {
-  return http.post<number>('/lms/cert/template', body);
+  return http.post<number>('/lms/v1/cert/template', body);
 }
 
 /** 编辑模板 */
@@ -108,17 +108,17 @@ export function updateCertTemplate(
     remark?: string;
   },
 ) {
-  return http.put<void>(`/lms/cert/template/${id}`, body);
+  return http.put<void>(`/lms/v1/cert/template/${id}`, body);
 }
 
 /** 删除模板（已被证书引用时后端拒绝） */
 export function deleteCertTemplate(id: number) {
-  return http.del<void>(`/lms/cert/template/${id}`);
+  return http.del<void>(`/lms/v1/cert/template/${id}`);
 }
 
 /** 启用 / 停用模板 */
 export function changeCertTemplateStatus(id: number, enabled: boolean) {
-  return http.put<void>(`/lms/cert/template/${id}/status?enabled=${enabled}`);
+  return http.put<void>(`/lms/v1/cert/template/${id}/status?enabled=${enabled}`);
 }
 
 /** 证书分页（管理端） */
@@ -131,12 +131,12 @@ export function pageCertificates(params: {
   current?: number;
   size?: number;
 }) {
-  return http.get<PageData<CertificateItem>>('/lms/certificate/page', { ...params });
+  return http.get<PageData<CertificateItem>>('/lms/v1/certificate/page', { ...params });
 }
 
 /** 证书详情 */
 export function certificateDetail(id: number | string) {
-  return http.get<CertificateItem>(`/lms/certificate/${id}`);
+  return http.get<CertificateItem>(`/lms/v1/certificate/${id}`);
 }
 
 /** 发证 */
@@ -149,20 +149,20 @@ export function issueCertificate(body: {
   sourceTitle?: string;
   remark?: string;
 }) {
-  return http.post<number>('/lms/certificate/issue', body);
+  return http.post<number>('/lms/v1/certificate/issue', body);
 }
 
 /** 撤销证书 */
 export function revokeCertificate(id: number, reason: string) {
-  return http.put<void>(`/lms/certificate/${id}/revoke`, { reason });
+  return http.put<void>(`/lms/v1/certificate/${id}/revoke`, { reason });
 }
 
 /** 换发证书 */
 export function renewCertificate(id: number, remark?: string) {
-  return http.post<number>(`/lms/certificate/${id}/renew`, { remark });
+  return http.post<number>(`/lms/v1/certificate/${id}/renew`, { remark });
 }
 
 /** 我的证书 */
 export function myCertificates(params: { status?: string; current?: number; size?: number }) {
-  return http.get<PageData<CertificateItem>>('/lms/certificate/mine', { ...params });
+  return http.get<PageData<CertificateItem>>('/lms/v1/certificate/mine', { ...params });
 }

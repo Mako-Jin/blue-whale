@@ -39,7 +39,7 @@ public class ErpOverviewProvider implements OverviewProvider {
     private static final String PURCHASE_PERMISSION = "sys:erp:purchase:list";
 
     /** 采购订单列表接口：屏风页 T4.5 直接取这个路径，不再单发一套只读接口 */
-    private static final String PURCHASE_PAGE_PATH = "/erp/scm/purchase-order/page";
+    private static final String PURCHASE_PAGE_PATH = "/erp/v1/scm/purchase-order/page";
 
     /** 城内节点 key（户部坊），与 city-layout.json 对齐 */
     private static final String NODE_KEY = "hubu-hall";

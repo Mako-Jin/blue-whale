@@ -29,7 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/erp/scm/stock")
+@RequestMapping(path = "/erp/v{version}/scm/stock", version = "1")
 @RequiredArgsConstructor
 public class StockController {
 

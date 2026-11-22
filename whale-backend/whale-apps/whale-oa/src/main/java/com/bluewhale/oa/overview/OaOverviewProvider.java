@@ -58,7 +58,7 @@ public class OaOverviewProvider implements OverviewProvider {
     private static final String PROFILE_PERMISSION = "sys:oa:hr:profile:list";
 
     /** 考勤日报列表接口：屏风页直接取这个路径，不再单发一套只读接口 */
-    private static final String DAILY_PAGE_PATH = "/oa/attendance/daily/page";
+    private static final String DAILY_PAGE_PATH = "/oa/v1/attendance/daily/page";
 
     /** 已离职状态码（{@code EmploymentStatus.LEFT}）：在职人数 = 档案数 − 离职数 */
     private static final String STATUS_LEFT = "LEFT";

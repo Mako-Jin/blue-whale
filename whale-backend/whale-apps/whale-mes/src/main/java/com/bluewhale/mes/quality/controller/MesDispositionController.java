@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/mes/quality/disposition")
+@RequestMapping(path = "/mes/v{version}/quality/disposition", version = "1")
 @RequiredArgsConstructor
 public class MesDispositionController {
 

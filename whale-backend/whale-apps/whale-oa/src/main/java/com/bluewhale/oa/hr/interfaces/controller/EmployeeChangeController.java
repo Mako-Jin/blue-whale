@@ -32,7 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/oa/hr/change")
+@RequestMapping(path = "/oa/v{version}/hr/change", version = "1")
 @RequiredArgsConstructor
 public class EmployeeChangeController {
 

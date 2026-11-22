@@ -1,6 +1,6 @@
 // 商城子应用文案 / 字典 / 金额与时间格式化
 //
-// 枚举取值以 `/mall/meta` 为准（后端 MallMode / SettlementType / PriceType 等），
+// 枚举取值以 `/mall/v1/meta` 为准（后端 MallMode / SettlementType / PriceType 等），
 // 这里只做「中文文案 + 颜色」映射，不在前端重定义业务取值。
 
 /** 渠道形态文案（决定这一单按哪种价目计价） */

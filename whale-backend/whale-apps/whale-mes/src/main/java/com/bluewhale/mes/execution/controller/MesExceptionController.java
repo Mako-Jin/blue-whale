@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/mes/execution/exception")
+@RequestMapping(path = "/mes/v{version}/execution/exception", version = "1")
 @RequiredArgsConstructor
 public class MesExceptionController {
 

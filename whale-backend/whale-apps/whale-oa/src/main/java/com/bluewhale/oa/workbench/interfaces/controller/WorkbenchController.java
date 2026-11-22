@@ -22,7 +22,7 @@ import java.time.LocalDate;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/oa/workbench")
+@RequestMapping(path = "/oa/v{version}/workbench", version = "1")
 @RequiredArgsConstructor
 public class WorkbenchController {
 

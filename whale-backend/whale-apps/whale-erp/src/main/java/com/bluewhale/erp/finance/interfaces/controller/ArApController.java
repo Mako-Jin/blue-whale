@@ -36,7 +36,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/erp/finance")
+@RequestMapping(path = "/erp/v{version}/finance", version = "1")
 @RequiredArgsConstructor
 public class ArApController {
 

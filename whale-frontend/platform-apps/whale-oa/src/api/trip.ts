@@ -95,35 +95,35 @@ function buildQuery(params: OaTripQuery): string {
 
 /** 分页查询出差申请 */
 export function pageTrips(params: OaTripQuery = {}): Promise<PageResult<OaTrip>> {
-  return http.get<PageResult<OaTrip>>(`/oa/trip/page${buildQuery(params)}`);
+  return http.get<PageResult<OaTrip>>(`/oa/v1/trip/page${buildQuery(params)}`);
 }
 
 /** 出差申请详情 */
 export function getTrip(id: number): Promise<OaTrip> {
-  return http.get<OaTrip>(`/oa/trip/${id}`);
+  return http.get<OaTrip>(`/oa/v1/trip/${id}`);
 }
 
 /** 新增出差申请 */
 export function createTrip(input: OaTripInput): Promise<OaTrip> {
-  return http.post<OaTrip>('/oa/trip', input);
+  return http.post<OaTrip>('/oa/v1/trip', input);
 }
 
 /** 更新出差申请 */
 export function updateTrip(id: number, input: OaTripInput): Promise<OaTrip> {
-  return http.put<OaTrip>(`/oa/trip/${id}`, input);
+  return http.put<OaTrip>(`/oa/v1/trip/${id}`, input);
 }
 
 /** 审批 / 撤销出差申请 */
 export function updateTripStatus(id: number, status: OaTripStatus): Promise<void> {
-  return http.put<void>(`/oa/trip/${id}/status`, { status });
+  return http.put<void>(`/oa/v1/trip/${id}/status`, { status });
 }
 
 /** 提交出差报告 */
 export function submitTripReport(id: number, content: string): Promise<void> {
-  return http.post<void>(`/oa/trip/${id}/report`, { content });
+  return http.post<void>(`/oa/v1/trip/${id}/report`, { content });
 }
 
 /** 删除出差申请（逻辑删除） */
 export function deleteTrip(id: number): Promise<void> {
-  return http.del<void>(`/oa/trip/${id}`);
+  return http.del<void>(`/oa/v1/trip/${id}`);
 }

@@ -29,7 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/oa/culture/events")
+@RequestMapping(path = "/oa/v{version}/culture/events", version = "1")
 @RequiredArgsConstructor
 public class CultureEventController {
 

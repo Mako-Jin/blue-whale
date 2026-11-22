@@ -32,7 +32,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/lms/training")
+@RequestMapping(path = "/lms/v{version}/training", version = "1")
 @RequiredArgsConstructor
 public class CheckinController {
 

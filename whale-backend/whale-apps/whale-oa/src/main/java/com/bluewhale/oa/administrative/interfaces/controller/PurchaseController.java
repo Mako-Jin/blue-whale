@@ -28,7 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/oa/purchase")
+@RequestMapping(path = "/oa/v{version}/purchase", version = "1")
 @RequiredArgsConstructor
 public class PurchaseController {
 

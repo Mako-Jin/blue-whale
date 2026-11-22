@@ -47,14 +47,14 @@ $boardStocks = @($board.data.stocks)
 Write-Host "看板：生产订单 $($boardOrders.Count) 张，库存余额 $($boardStocks.Count) 条"
 
 # 3) ERP 数据
-$erpOrdersPage = Invoke-SmokeApi -Method Get -Path "/erp/mfg/production/page?current=1&size=$Limit"
+$erpOrdersPage = Invoke-SmokeApi -Method Get -Path "/erp/v1/mfg/production/page?current=1&size=$Limit"
 Check '3.erpProductionPage' $erpOrdersPage
 $erpOrders = @{}
 foreach ($row in @($erpOrdersPage.data.records)) {
     $erpOrders["$($row.orderNo)"] = $row
 }
 
-$erpStocksPage = Invoke-SmokeApi -Method Get -Path "/erp/scm/stock/balance/page?current=1&size=$Limit"
+$erpStocksPage = Invoke-SmokeApi -Method Get -Path "/erp/v1/scm/stock/balance/page?current=1&size=$Limit"
 Check '4.erpStockPage' $erpStocksPage
 $erpStocks = @{}
 foreach ($row in @($erpStocksPage.data.records)) {

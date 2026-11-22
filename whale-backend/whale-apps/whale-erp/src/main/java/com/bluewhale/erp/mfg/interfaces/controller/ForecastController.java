@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/erp/mfg/forecast")
+@RequestMapping(path = "/erp/v{version}/mfg/forecast", version = "1")
 @RequiredArgsConstructor
 public class ForecastController {
 

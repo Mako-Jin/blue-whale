@@ -32,7 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/erp/finance/voucher")
+@RequestMapping(path = "/erp/v{version}/finance/voucher", version = "1")
 @RequiredArgsConstructor
 public class VoucherController {
 

@@ -40,7 +40,7 @@ import java.time.LocalDate;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/lms/analytics")
+@RequestMapping(path = "/lms/v{version}/analytics", version = "1")
 @RequiredArgsConstructor
 public class LmsAnalyticsController {
 

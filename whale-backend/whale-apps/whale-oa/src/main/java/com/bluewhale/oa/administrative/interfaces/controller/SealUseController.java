@@ -33,7 +33,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/oa/seal")
+@RequestMapping(path = "/oa/v{version}/seal", version = "1")
 @RequiredArgsConstructor
 public class SealUseController {
 

@@ -25,7 +25,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/oa/document/no-rules")
+@RequestMapping(path = "/oa/v{version}/document/no-rules", version = "1")
 @RequiredArgsConstructor
 public class DocNoRuleController {
 

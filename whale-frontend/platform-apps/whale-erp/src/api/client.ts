@@ -2,7 +2,7 @@
 //
 // 后端统一返回 `Result` 信封：{ code, message, data }，
 //   code === 0 表示成功，其余为业务错误码；解包后直接返回 data。
-// 前端统一使用相对路径请求（如 `/erp/item/list`），
+// 前端统一使用相对路径请求（如 `/erp/v1/item/list`），
 //   由 dev server / 生产 Nginx 经网关 8080 代理到对应后端服务。
 
 import { createHttpClient, type HttpOptions } from '@bluewhale/http';

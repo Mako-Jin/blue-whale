@@ -35,7 +35,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/mes/master-data/{kind}")
+@RequestMapping(path = "/mes/v{version}/master-data/{kind}", version = "1")
 @RequiredArgsConstructor
 public class MesMasterDataController {
 

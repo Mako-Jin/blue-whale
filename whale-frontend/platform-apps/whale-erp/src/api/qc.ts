@@ -419,17 +419,17 @@ function buildQuery(params: QcQueryParams): string {
 
 /** 检验单分页 */
 export function pageInspections(params: QcQueryParams = {}): Promise<PageResult<InspectionView>> {
-  return http.get<PageResult<InspectionView>>(`/erp/qc/inspection/page?${buildQuery(params)}`);
+  return http.get<PageResult<InspectionView>>(`/erp/v1/qc/inspection/page?${buildQuery(params)}`);
 }
 
 /** 检验单详情 */
 export function getInspection(id: number): Promise<InspectionView> {
-  return http.get<InspectionView>(`/erp/qc/inspection/${id}`);
+  return http.get<InspectionView>(`/erp/v1/qc/inspection/${id}`);
 }
 
 /** 新增检验单 */
 export function createInspection(input: InspectionCreateInput): Promise<InspectionView> {
-  return http.post<InspectionView>('/erp/qc/inspection', input);
+  return http.post<InspectionView>('/erp/v1/qc/inspection', input);
 }
 
 /** 录入检验项 */
@@ -437,47 +437,47 @@ export function recordInspection(
   id: number,
   input: InspectionRecordInput,
 ): Promise<InspectionView> {
-  return http.post<InspectionView>(`/erp/qc/inspection/${id}/record`, input);
+  return http.post<InspectionView>(`/erp/v1/qc/inspection/${id}/record`, input);
 }
 
 /** 判定检验单（不合格自动生成 NCR） */
 export function judgeInspection(id: number): Promise<InspectionView> {
-  return http.post<InspectionView>(`/erp/qc/inspection/${id}/judge`);
+  return http.post<InspectionView>(`/erp/v1/qc/inspection/${id}/judge`);
 }
 
 /** 不合格品单分页 */
 export function pageNcr(params: QcQueryParams = {}): Promise<PageResult<NcrView>> {
-  return http.get<PageResult<NcrView>>(`/erp/qc/ncr/page?${buildQuery(params)}`);
+  return http.get<PageResult<NcrView>>(`/erp/v1/qc/ncr/page?${buildQuery(params)}`);
 }
 
 /** 手工登记不合格品单 */
 export function createNcr(input: NcrCreateInput): Promise<NcrView> {
-  return http.post<NcrView>('/erp/qc/ncr', input);
+  return http.post<NcrView>('/erp/v1/qc/ncr', input);
 }
 
 /** 处置不合格品单（登记成本自动生成质量成本） */
 export function disposeNcr(id: number, input: NcrDisposeInput): Promise<NcrView> {
-  return http.post<NcrView>(`/erp/qc/ncr/${id}/dispose`, input);
+  return http.post<NcrView>(`/erp/v1/qc/ncr/${id}/dispose`, input);
 }
 
 /** 关闭不合格品单 */
 export function closeNcr(id: number, input: NcrCloseInput): Promise<NcrView> {
-  return http.post<NcrView>(`/erp/qc/ncr/${id}/close`, input);
+  return http.post<NcrView>(`/erp/v1/qc/ncr/${id}/close`, input);
 }
 
 /** 质量成本分页 */
 export function pageQualityCost(params: QcQueryParams = {}): Promise<PageResult<QualityCostView>> {
-  return http.get<PageResult<QualityCostView>>(`/erp/qc/quality-cost/page?${buildQuery(params)}`);
+  return http.get<PageResult<QualityCostView>>(`/erp/v1/qc/quality-cost/page?${buildQuery(params)}`);
 }
 
 /** 设备分页 */
 export function pageEquipment(params: QcQueryParams = {}): Promise<PageResult<EquipmentView>> {
-  return http.get<PageResult<EquipmentView>>(`/erp/qc/equipment/page?${buildQuery(params)}`);
+  return http.get<PageResult<EquipmentView>>(`/erp/v1/qc/equipment/page?${buildQuery(params)}`);
 }
 
 /** 新增设备档案 */
 export function createEquipment(input: EquipmentInput): Promise<EquipmentView> {
-  return http.post<EquipmentView>('/erp/qc/equipment', input);
+  return http.post<EquipmentView>('/erp/v1/qc/equipment', input);
 }
 
 /** 编辑设备档案 */
@@ -485,7 +485,7 @@ export function updateEquipment(
   equipmentNo: string,
   input: EquipmentInput,
 ): Promise<EquipmentView> {
-  return http.put<EquipmentView>(`/erp/qc/equipment/${equipmentNo}`, input);
+  return http.put<EquipmentView>(`/erp/v1/qc/equipment/${equipmentNo}`, input);
 }
 
 /** 保养计划分页 */
@@ -493,13 +493,13 @@ export function pageMaintenancePlans(
   params: QcQueryParams = {},
 ): Promise<PageResult<MaintenancePlanView>> {
   return http.get<PageResult<MaintenancePlanView>>(
-    `/erp/qc/maintenance/plan/page?${buildQuery(params)}`,
+    `/erp/v1/qc/maintenance/plan/page?${buildQuery(params)}`,
   );
 }
 
 /** 新增保养计划 */
 export function createMaintenancePlan(input: MaintenancePlanInput): Promise<MaintenancePlanView> {
-  return http.post<MaintenancePlanView>('/erp/qc/maintenance/plan', input);
+  return http.post<MaintenancePlanView>('/erp/v1/qc/maintenance/plan', input);
 }
 
 /** 编辑保养计划 */
@@ -507,7 +507,7 @@ export function updateMaintenancePlan(
   id: number,
   input: MaintenancePlanInput,
 ): Promise<MaintenancePlanView> {
-  return http.put<MaintenancePlanView>(`/erp/qc/maintenance/plan/${id}`, input);
+  return http.put<MaintenancePlanView>(`/erp/v1/qc/maintenance/plan/${id}`, input);
 }
 
 /** 保养工单分页 */
@@ -515,7 +515,7 @@ export function pageMaintenanceOrders(
   params: QcQueryParams = {},
 ): Promise<PageResult<MaintenanceOrderView>> {
   return http.get<PageResult<MaintenanceOrderView>>(
-    `/erp/qc/maintenance/order/page?${buildQuery(params)}`,
+    `/erp/v1/qc/maintenance/order/page?${buildQuery(params)}`,
   );
 }
 
@@ -523,7 +523,7 @@ export function pageMaintenanceOrders(
 export function createMaintenanceOrder(
   input: MaintenanceOrderCreateInput,
 ): Promise<MaintenanceOrderView> {
-  return http.post<MaintenanceOrderView>('/erp/qc/maintenance/order', input);
+  return http.post<MaintenanceOrderView>('/erp/v1/qc/maintenance/order', input);
 }
 
 /** 完成保养工单（回写计划下次保养日） */
@@ -531,34 +531,34 @@ export function completeMaintenanceOrder(
   id: number,
   input: MaintenanceCompleteInput,
 ): Promise<MaintenanceOrderView> {
-  return http.post<MaintenanceOrderView>(`/erp/qc/maintenance/order/${id}/complete`, input);
+  return http.post<MaintenanceOrderView>(`/erp/v1/qc/maintenance/order/${id}/complete`, input);
 }
 
 /** OEE 分页 */
 export function pageOee(params: QcQueryParams = {}): Promise<PageResult<OeeRecordView>> {
-  return http.get<PageResult<OeeRecordView>>(`/erp/qc/oee/page?${buildQuery(params)}`);
+  return http.get<PageResult<OeeRecordView>>(`/erp/v1/qc/oee/page?${buildQuery(params)}`);
 }
 
 /** 记录/回传 OEE 数据 */
 export function recordOee(input: OeeRecordInput): Promise<OeeRecordView> {
-  return http.post<OeeRecordView>('/erp/qc/oee/record', input);
+  return http.post<OeeRecordView>('/erp/v1/qc/oee/record', input);
 }
 
 /** 量具分页 */
 export function pageTools(params: QcQueryParams = {}): Promise<PageResult<MeasuringToolView>> {
   return http.get<PageResult<MeasuringToolView>>(
-    `/erp/qc/metrology/tool/page?${buildQuery(params)}`,
+    `/erp/v1/qc/metrology/tool/page?${buildQuery(params)}`,
   );
 }
 
 /** 新增量具 */
 export function createTool(input: MeasuringToolInput): Promise<MeasuringToolView> {
-  return http.post<MeasuringToolView>('/erp/qc/metrology/tool', input);
+  return http.post<MeasuringToolView>('/erp/v1/qc/metrology/tool', input);
 }
 
 /** 编辑量具 */
 export function updateTool(toolNo: string, input: MeasuringToolInput): Promise<MeasuringToolView> {
-  return http.put<MeasuringToolView>(`/erp/qc/metrology/tool/${toolNo}`, input);
+  return http.put<MeasuringToolView>(`/erp/v1/qc/metrology/tool/${toolNo}`, input);
 }
 
 /** 校准计划分页 */
@@ -566,13 +566,13 @@ export function pageCalibrationPlans(
   params: QcQueryParams = {},
 ): Promise<PageResult<CalibrationPlanView>> {
   return http.get<PageResult<CalibrationPlanView>>(
-    `/erp/qc/metrology/plan/page?${buildQuery(params)}`,
+    `/erp/v1/qc/metrology/plan/page?${buildQuery(params)}`,
   );
 }
 
 /** 新增校准计划 */
 export function createCalibrationPlan(input: CalibrationPlanInput): Promise<CalibrationPlanView> {
-  return http.post<CalibrationPlanView>('/erp/qc/metrology/plan', input);
+  return http.post<CalibrationPlanView>('/erp/v1/qc/metrology/plan', input);
 }
 
 /** 编辑校准计划 */
@@ -580,7 +580,7 @@ export function updateCalibrationPlan(
   id: number,
   input: CalibrationPlanInput,
 ): Promise<CalibrationPlanView> {
-  return http.put<CalibrationPlanView>(`/erp/qc/metrology/plan/${id}`, input);
+  return http.put<CalibrationPlanView>(`/erp/v1/qc/metrology/plan/${id}`, input);
 }
 
 /** 校准记录分页 */
@@ -588,11 +588,11 @@ export function pageCalibrationRecords(
   params: QcQueryParams = {},
 ): Promise<PageResult<CalibrationRecordView>> {
   return http.get<PageResult<CalibrationRecordView>>(
-    `/erp/qc/metrology/record/page?${buildQuery(params)}`,
+    `/erp/v1/qc/metrology/record/page?${buildQuery(params)}`,
   );
 }
 
 /** 登记校准记录（合格时顺延计划） */
 export function calibrate(input: CalibrationRecordInput): Promise<CalibrationRecordView> {
-  return http.post<CalibrationRecordView>('/erp/qc/metrology/record', input);
+  return http.post<CalibrationRecordView>('/erp/v1/qc/metrology/record', input);
 }

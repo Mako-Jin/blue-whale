@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/mall/cart")
+@RequestMapping(path = "/mall/v{version}/cart", version = "1")
 @RequiredArgsConstructor
 public class MallCartController {
 

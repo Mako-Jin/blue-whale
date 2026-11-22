@@ -3,7 +3,7 @@
 // 后端统一返回 `Result` 信封：{ code, message, data }，code === 0 表示成功。
 // token 从基座注入的读取器获取（V-03：基座 accessToken 为内存态，经 qiankun
 // props 共享，不再有 token 的 localStorage），请求自动带 Authorization。
-// 前端统一使用相对路径（如 `/oa/leave/page`），由基座 / Nginx 经网关 8080 代理。
+// 前端统一使用相对路径（如 `/oa/v1/leave/page`），由基座 / Nginx 经网关 8080 代理。
 
 import { createHttpClient, type HttpOptions } from '@bluewhale/http';
 

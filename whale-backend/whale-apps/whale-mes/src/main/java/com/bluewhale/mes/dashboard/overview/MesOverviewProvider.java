@@ -49,7 +49,7 @@ public class MesOverviewProvider implements OverviewProvider {
     private static final String WORK_ORDER_PERMISSION = "sys:mes:workorder:list";
 
     /** 生产工单列表接口：屏风页直接取这个路径，不再单发一套只读接口 */
-    private static final String WORK_ORDER_PAGE_PATH = "/mes/work-order/page";
+    private static final String WORK_ORDER_PAGE_PATH = "/mes/v1/work-order/page";
 
     /** 城内节点 key（工部坊），与 city-layout.json 对齐 */
     private static final String NODE_KEY = "gongbu-hall";

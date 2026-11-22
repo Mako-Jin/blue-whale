@@ -30,7 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/mall/channel")
+@RequestMapping(path = "/mall/v{version}/channel", version = "1")
 @RequiredArgsConstructor
 public class MallChannelController {
 

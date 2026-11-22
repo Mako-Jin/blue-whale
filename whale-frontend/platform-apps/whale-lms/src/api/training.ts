@@ -119,32 +119,32 @@ export function pageTrainingClasses(params: {
   current?: number;
   size?: number;
 }) {
-  return http.get<PageData<TrainingClassItem>>('/lms/training/page', { ...params });
+  return http.get<PageData<TrainingClassItem>>('/lms/v1/training/page', { ...params });
 }
 
 /** 培训班详情 */
 export function trainingClassDetail(id: number | string) {
-  return http.get<TrainingClassDetail>(`/lms/training/${id}`);
+  return http.get<TrainingClassDetail>(`/lms/v1/training/${id}`);
 }
 
 /** 新建培训班 */
 export function createTrainingClass(body: TrainingClassPayload) {
-  return http.post<number>('/lms/training', body);
+  return http.post<number>('/lms/v1/training', body);
 }
 
 /** 编辑培训班（仅草稿） */
 export function updateTrainingClass(id: number, body: TrainingClassPayload) {
-  return http.put<void>(`/lms/training/${id}`, body);
+  return http.put<void>(`/lms/v1/training/${id}`, body);
 }
 
 /** 发布 / 结课 */
 export function changeTrainingClassStatus(id: number, action: 'PUBLISH' | 'CLOSE') {
-  return http.put<void>(`/lms/training/${id}/status`, { action });
+  return http.put<void>(`/lms/v1/training/${id}/status`, { action });
 }
 
 /** 删除培训班（仅草稿） */
 export function deleteTrainingClass(id: number) {
-  return http.del<void>(`/lms/training/${id}`);
+  return http.del<void>(`/lms/v1/training/${id}`);
 }
 
 /** 新增场次（仅草稿） */
@@ -160,12 +160,12 @@ export function addSession(
     hours: number;
   },
 ) {
-  return http.post<number>(`/lms/training/${classId}/session`, body);
+  return http.post<number>(`/lms/v1/training/${classId}/session`, body);
 }
 
 /** 删除场次（仅草稿） */
 export function removeSession(sessionId: number) {
-  return http.del<void>(`/lms/training/session/${sessionId}`);
+  return http.del<void>(`/lms/v1/training/session/${sessionId}`);
 }
 
 /** 批量必修分配（幂等） */
@@ -173,17 +173,17 @@ export function assignLearners(
   classId: number,
   body: { scopeType?: string; scopeValue?: string; userIds: number[] },
 ) {
-  return http.post<AssignmentResult>(`/lms/training/${classId}/assign`, body);
+  return http.post<AssignmentResult>(`/lms/v1/training/${classId}/assign`, body);
 }
 
 /** 讲师课时台账 */
 export function lecturerHours(classId: number | string) {
-  return http.get<LecturerHoursItem[]>(`/lms/training/${classId}/hours`);
+  return http.get<LecturerHoursItem[]>(`/lms/v1/training/${classId}/hours`);
 }
 
 /** 自助签到（时间窗内） */
 export function checkin(sessionId: number) {
-  return http.post<CheckinItem>(`/lms/training/session/${sessionId}/checkin`);
+  return http.post<CheckinItem>(`/lms/v1/training/session/${sessionId}/checkin`);
 }
 
 /** 补签（需留原因） */
@@ -191,15 +191,15 @@ export function supplementCheckin(
   sessionId: number,
   body: { userId: number; username?: string; remark: string },
 ) {
-  return http.post<CheckinItem>(`/lms/training/session/${sessionId}/checkin/supplement`, body);
+  return http.post<CheckinItem>(`/lms/v1/training/session/${sessionId}/checkin/supplement`, body);
 }
 
 /** 签到明细 */
 export function listCheckins(classId: number | string, sessionId?: number) {
-  return http.get<CheckinItem[]>(`/lms/training/${classId}/checkin`, { sessionId });
+  return http.get<CheckinItem[]>(`/lms/v1/training/${classId}/checkin`, { sessionId });
 }
 
 /** 完成认定（按签到与课程进度实时计算） */
 export function trainingCompletion(classId: number | string) {
-  return http.get<TrainingCompletion>(`/lms/training/${classId}/completion`);
+  return http.get<TrainingCompletion>(`/lms/v1/training/${classId}/completion`);
 }

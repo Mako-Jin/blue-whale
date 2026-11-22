@@ -90,30 +90,30 @@ function buildQuery(params: OaLeaveQuery): string {
 
 /** 分页查询请假申请 */
 export function pageLeaves(params: OaLeaveQuery = {}): Promise<PageResult<OaLeave>> {
-  return http.get<PageResult<OaLeave>>(`/oa/leave/page${buildQuery(params)}`);
+  return http.get<PageResult<OaLeave>>(`/oa/v1/leave/page${buildQuery(params)}`);
 }
 
 /** 请假申请详情 */
 export function getLeave(id: number): Promise<OaLeave> {
-  return http.get<OaLeave>(`/oa/leave/${id}`);
+  return http.get<OaLeave>(`/oa/v1/leave/${id}`);
 }
 
 /** 新增请假申请 */
 export function createLeave(input: OaLeaveInput): Promise<OaLeave> {
-  return http.post<OaLeave>('/oa/leave', input);
+  return http.post<OaLeave>('/oa/v1/leave', input);
 }
 
 /** 更新请假申请 */
 export function updateLeave(id: number, input: OaLeaveInput): Promise<OaLeave> {
-  return http.put<OaLeave>(`/oa/leave/${id}`, input);
+  return http.put<OaLeave>(`/oa/v1/leave/${id}`, input);
 }
 
 /** 审批 / 撤销请假申请 */
 export function updateLeaveStatus(id: number, status: OaLeaveStatus): Promise<void> {
-  return http.put<void>(`/oa/leave/${id}/status`, { status });
+  return http.put<void>(`/oa/v1/leave/${id}/status`, { status });
 }
 
 /** 删除请假申请（逻辑删除） */
 export function deleteLeave(id: number): Promise<void> {
-  return http.del<void>(`/oa/leave/${id}`);
+  return http.del<void>(`/oa/v1/leave/${id}`);
 }

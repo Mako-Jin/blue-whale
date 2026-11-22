@@ -95,7 +95,7 @@ export function pageMesWorkOrders(
   query: MesWorkOrderQuery = {},
 ): Promise<PageResult<MesWorkOrder>> {
   const queryString = toQueryString({ current: 1, size: 200, ...query });
-  return http.get<PageResult<MesWorkOrder>>(`/mes/work-order/page?${queryString}`);
+  return http.get<PageResult<MesWorkOrder>>(`/mes/v1/work-order/page?${queryString}`);
 }
 
 /** 查询生产工单列表（取首屏全量） */
@@ -108,13 +108,13 @@ export async function listMesWorkOrders(query: MesWorkOrderQuery = {}): Promise<
 export function saveMesWorkOrder(input: MesWorkOrderInput): Promise<MesWorkOrder> {
   const { id, ...body } = input;
   return id
-    ? http.put<MesWorkOrder>(`/mes/work-order/${id}`, body)
-    : http.post<MesWorkOrder>('/mes/work-order', body);
+    ? http.put<MesWorkOrder>(`/mes/v1/work-order/${id}`, body)
+    : http.post<MesWorkOrder>('/mes/v1/work-order', body);
 }
 
 /** 删除生产工单（仅已接收 / 已取消允许删除） */
 export function deleteMesWorkOrder(id: string): Promise<void> {
-  return http.del<void>(`/mes/work-order/${id}`);
+  return http.del<void>(`/mes/v1/work-order/${id}`);
 }
 
 /** MES 车间主数据类型 */
@@ -193,12 +193,12 @@ export function pageMesMasterData(
   query: MesMasterDataQuery = {},
 ): Promise<PageResult<MesMasterData>> {
   const queryString = toQueryString({ current: 1, size: 200, ...query });
-  return http.get<PageResult<MesMasterData>>(`/mes/master-data/${kind}/page?${queryString}`);
+  return http.get<PageResult<MesMasterData>>(`/mes/v1/master-data/${kind}/page?${queryString}`);
 }
 
 /** 查询启用状态的主数据选项 */
 export function listMesMasterDataOptions(kind: MasterDataKind): Promise<MesMasterData[]> {
-  return http.get<MesMasterData[]>(`/mes/master-data/${kind}/options`);
+  return http.get<MesMasterData[]>(`/mes/v1/master-data/${kind}/options`);
 }
 
 /** 保存车间主数据（无 id 走新增，有 id 走编辑） */
@@ -208,13 +208,13 @@ export function saveMesMasterData(
 ): Promise<MesMasterData> {
   const { id, ...body } = input;
   return id
-    ? http.put<MesMasterData>(`/mes/master-data/${kind}/${id}`, body)
-    : http.post<MesMasterData>(`/mes/master-data/${kind}`, body);
+    ? http.put<MesMasterData>(`/mes/v1/master-data/${kind}/${id}`, body)
+    : http.post<MesMasterData>(`/mes/v1/master-data/${kind}`, body);
 }
 
 /** 删除车间主数据 */
 export function deleteMesMasterData(kind: MasterDataKind, id: string): Promise<void> {
-  return http.del<void>(`/mes/master-data/${kind}/${id}`);
+  return http.del<void>(`/mes/v1/master-data/${kind}/${id}`);
 }
 
 /** 工序任务状态 */
@@ -307,22 +307,22 @@ export interface MesBoard {
 /** 分页查询工序任务 */
 export function pageMesTasks(query: MesTaskQuery = {}): Promise<PageResult<MesTask>> {
   const queryString = toQueryString({ current: 1, size: 200, ...query });
-  return http.get<PageResult<MesTask>>(`/mes/dispatch/task/page?${queryString}`);
+  return http.get<PageResult<MesTask>>(`/mes/v1/dispatch/task/page?${queryString}`);
 }
 
 /** 拆分工单为工序任务（不传明细时按工艺路线自动拆分） */
 export function splitMesWorkOrder(id: string): Promise<MesTask[]> {
-  return http.post<MesTask[]>(`/mes/dispatch/work-order/${id}/split`, {});
+  return http.post<MesTask[]>(`/mes/v1/dispatch/work-order/${id}/split`, {});
 }
 
 /** 批量派工 */
 export function dispatchMesTasks(input: MesDispatchInput): Promise<string> {
-  return http.post<string>('/mes/dispatch/dispatch', input);
+  return http.post<string>('/mes/v1/dispatch/dispatch', input);
 }
 
 /** 撤回派工单 */
 export function withdrawMesDispatch(dispatchOrderId: string): Promise<void> {
-  return http.post<void>(`/mes/dispatch/dispatch/${dispatchOrderId}/withdraw`, {});
+  return http.post<void>(`/mes/v1/dispatch/dispatch/${dispatchOrderId}/withdraw`, {});
 }
 
 /** 查询生产看板 */
@@ -330,7 +330,7 @@ export function fetchMesBoard(
   params: { lineId?: string; teamId?: string } = {},
 ): Promise<MesBoard> {
   const queryString = toQueryString(params);
-  return http.get<MesBoard>(`/mes/dispatch/board${queryString ? `?${queryString}` : ''}`);
+  return http.get<MesBoard>(`/mes/v1/dispatch/board${queryString ? `?${queryString}` : ''}`);
 }
 
 /** 排程计划状态 */
@@ -396,7 +396,7 @@ export interface MesScheduleQuery {
 export function generateMesSchedule(
   input: MesScheduleGenerateInput,
 ): Promise<MesScheduleGenerateResult> {
-  return http.post<MesScheduleGenerateResult>('/mes/dispatch/schedule/generate', input);
+  return http.post<MesScheduleGenerateResult>('/mes/v1/dispatch/schedule/generate', input);
 }
 
 /** 分页查询排程计划 */
@@ -404,28 +404,28 @@ export function pageMesSchedulePlans(
   query: MesScheduleQuery = {},
 ): Promise<PageResult<MesSchedulePlan>> {
   const queryString = toQueryString({ current: 1, size: 20, ...query });
-  return http.get<PageResult<MesSchedulePlan>>(`/mes/dispatch/schedule/plan/page?${queryString}`);
+  return http.get<PageResult<MesSchedulePlan>>(`/mes/v1/dispatch/schedule/plan/page?${queryString}`);
 }
 
 /** 查询排程计划详情（含时段） */
 export function getMesSchedulePlan(id: string): Promise<MesSchedulePlan> {
-  return http.get<MesSchedulePlan>(`/mes/dispatch/schedule/plan/${id}`);
+  return http.get<MesSchedulePlan>(`/mes/v1/dispatch/schedule/plan/${id}`);
 }
 
 /** 锁定排程计划 */
 export function lockMesSchedulePlan(id: string, remark?: string): Promise<MesSchedulePlan> {
-  return http.post<MesSchedulePlan>(`/mes/dispatch/schedule/plan/${id}/lock`, { remark });
+  return http.post<MesSchedulePlan>(`/mes/v1/dispatch/schedule/plan/${id}/lock`, { remark });
 }
 
 /** 取消排程计划 */
 export function cancelMesSchedulePlan(id: string, remark?: string): Promise<MesSchedulePlan> {
-  return http.post<MesSchedulePlan>(`/mes/dispatch/schedule/plan/${id}/cancel`, { remark });
+  return http.post<MesSchedulePlan>(`/mes/v1/dispatch/schedule/plan/${id}/cancel`, { remark });
 }
 
 /** 设备维度追溯 */
 export function fetchMesEquipmentTrace(equipmentCode: string, limit = 50): Promise<unknown> {
   return http.get<unknown>(
-    `/mes/trace/trace/equipment/${encodeURIComponent(equipmentCode)}?limit=${limit}`,
+    `/mes/v1/trace/trace/equipment/${encodeURIComponent(equipmentCode)}?limit=${limit}`,
   );
 }
 
@@ -438,7 +438,7 @@ export function runMesTaskAction(
   action: MesTaskAction,
   body: { quantity?: number; remark?: string } = {},
 ): Promise<MesTask> {
-  return http.post<MesTask>(`/mes/execution/task/${id}/${action}`, body);
+  return http.post<MesTask>(`/mes/v1/execution/task/${id}/${action}`, body);
 }
 
 /** 不良明细入参 */
@@ -480,7 +480,7 @@ export interface MesProductionReport {
 
 /** 扫码报工 */
 export function reportMesProduction(input: MesReportInput): Promise<MesProductionReport> {
-  return http.post<MesProductionReport>('/mes/execution/report', input);
+  return http.post<MesProductionReport>('/mes/v1/execution/report', input);
 }
 
 /** 分页查询报工记录 */
@@ -488,7 +488,7 @@ export function pageMesReports(
   query: { taskId?: string; workOrderId?: string; current?: number; size?: number } = {},
 ): Promise<PageResult<MesProductionReport>> {
   const queryString = toQueryString({ current: 1, size: 100, ...query });
-  return http.get<PageResult<MesProductionReport>>(`/mes/execution/report/page?${queryString}`);
+  return http.get<PageResult<MesProductionReport>>(`/mes/v1/execution/report/page?${queryString}`);
 }
 
 /** 在制品快照 */
@@ -507,7 +507,7 @@ export interface MesWip {
 /** 查询在制品 */
 export function fetchMesWip(workOrderId?: string): Promise<MesWip[]> {
   const queryString = toQueryString({ workOrderId });
-  return http.get<MesWip[]>(`/mes/execution/wip${queryString ? `?${queryString}` : ''}`);
+  return http.get<MesWip[]>(`/mes/v1/execution/wip${queryString ? `?${queryString}` : ''}`);
 }
 
 /** 条码规则 */
@@ -732,18 +732,18 @@ export function pageMesBarcodeRules(
   query: { ruleCode?: string; status?: string; current?: number; size?: number } = {},
 ): Promise<PageResult<MesBarcodeRule>> {
   const queryString = toQueryString({ current: 1, size: 100, ...query });
-  return http.get<PageResult<MesBarcodeRule>>(`/mes/trace/barcode/rule/page?${queryString}`);
+  return http.get<PageResult<MesBarcodeRule>>(`/mes/v1/trace/barcode/rule/page?${queryString}`);
 }
 
 /** 保存条码规则 */
 export function saveMesBarcodeRule(input: MesBarcodeRuleInput): Promise<MesBarcodeRule> {
-  return http.post<MesBarcodeRule>('/mes/trace/barcode/rule', input);
+  return http.post<MesBarcodeRule>('/mes/v1/trace/barcode/rule', input);
 }
 
 /** 分页查询条码 */
 export function pageMesBarcodes(query: MesBarcodeQuery = {}): Promise<PageResult<MesBarcode>> {
   const queryString = toQueryString({ current: 1, size: 100, ...query });
-  return http.get<PageResult<MesBarcode>>(`/mes/trace/barcode/page?${queryString}`);
+  return http.get<PageResult<MesBarcode>>(`/mes/v1/trace/barcode/page?${queryString}`);
 }
 
 /** 批量生成条码 */
@@ -753,28 +753,28 @@ export function generateMesBarcodes(input: {
   quantity: number;
   remark?: string;
 }): Promise<MesBarcode[]> {
-  return http.post<MesBarcode[]>('/mes/trace/barcode/generate', input);
+  return http.post<MesBarcode[]>('/mes/v1/trace/barcode/generate', input);
 }
 
 /** 作废条码 */
 export function voidMesBarcode(id: string): Promise<void> {
-  return http.post<void>(`/mes/trace/barcode/${id}/void`, {});
+  return http.post<void>(`/mes/v1/trace/barcode/${id}/void`, {});
 }
 
 /** 分页查询批次 */
 export function pageMesBatches(query: MesBatchQuery = {}): Promise<PageResult<MesBatch>> {
   const queryString = toQueryString({ current: 1, size: 100, ...query });
-  return http.get<PageResult<MesBatch>>(`/mes/trace/batch/page?${queryString}`);
+  return http.get<PageResult<MesBatch>>(`/mes/v1/trace/batch/page?${queryString}`);
 }
 
 /** 批次建档 */
 export function createMesBatch(input: MesBatchInput): Promise<MesBatch> {
-  return http.post<MesBatch>('/mes/trace/batch', input);
+  return http.post<MesBatch>('/mes/v1/trace/batch', input);
 }
 
 /** 封批 */
 export function closeMesBatch(id: string): Promise<MesBatch> {
-  return http.post<MesBatch>(`/mes/trace/batch/${id}/close`, {});
+  return http.post<MesBatch>(`/mes/v1/trace/batch/${id}/close`, {});
 }
 
 /** 建立批次谱系链接 */
@@ -786,7 +786,7 @@ export function linkMesBatches(input: {
   workOrderId?: string;
   remark?: string;
 }): Promise<string> {
-  return http.post<string>('/mes/trace/trace/link', input);
+  return http.post<string>('/mes/v1/trace/trace/link', input);
 }
 
 /** 追溯方向 */
@@ -799,7 +799,7 @@ export function fetchMesTrace(
   depth = 3,
 ): Promise<MesTraceNode[]> {
   const queryString = toQueryString({ batchNo, depth });
-  return http.get<MesTraceNode[]>(`/mes/trace/trace/${direction}?${queryString}`);
+  return http.get<MesTraceNode[]>(`/mes/v1/trace/trace/${direction}?${queryString}`);
 }
 
 /** 扫码校验 */
@@ -810,7 +810,7 @@ export function validateMesScan(input: {
   scanNo?: string;
   taskId?: string;
 }): Promise<MesScanResult> {
-  return http.post<MesScanResult>('/mes/trace/scan/validate', input);
+  return http.post<MesScanResult>('/mes/v1/trace/scan/validate', input);
 }
 
 /** 分页查询扫码规则 */
@@ -824,12 +824,12 @@ export function pageMesScanRules(
   } = {},
 ): Promise<PageResult<MesScanRule>> {
   const queryString = toQueryString({ current: 1, size: 100, ...query });
-  return http.get<PageResult<MesScanRule>>(`/mes/trace/scan/rule/page?${queryString}`);
+  return http.get<PageResult<MesScanRule>>(`/mes/v1/trace/scan/rule/page?${queryString}`);
 }
 
 /** 保存扫码规则 */
 export function saveMesScanRule(input: MesScanRuleInput): Promise<MesScanRule> {
-  return http.post<MesScanRule>('/mes/trace/scan/rule', input);
+  return http.post<MesScanRule>('/mes/v1/trace/scan/rule', input);
 }
 
 /** 分页查询线边库存 */
@@ -844,17 +844,17 @@ export function pageMesLineSideStock(
   } = {},
 ): Promise<PageResult<MesLineSideStock>> {
   const queryString = toQueryString({ current: 1, size: 100, ...query });
-  return http.get<PageResult<MesLineSideStock>>(`/mes/trace/line-side/stock/page?${queryString}`);
+  return http.get<PageResult<MesLineSideStock>>(`/mes/v1/trace/line-side/stock/page?${queryString}`);
 }
 
 /** 线边入库 / 退料退回 */
 export function inboundMesLineSide(input: MesLineSideOperationInput): Promise<string> {
-  return http.post<string>('/mes/trace/line-side/stock/inbound', input);
+  return http.post<string>('/mes/v1/trace/line-side/stock/inbound', input);
 }
 
 /** 线边领用 */
 export function issueMesLineSide(input: MesLineSideOperationInput): Promise<string> {
-  return http.post<string>('/mes/trace/line-side/stock/issue', input);
+  return http.post<string>('/mes/v1/trace/line-side/stock/issue', input);
 }
 
 /** 分页查询线边流水 */
@@ -870,13 +870,13 @@ export function pageMesLineSideMovements(
 ): Promise<PageResult<MesLineSideMovement>> {
   const queryString = toQueryString({ current: 1, size: 100, ...query });
   return http.get<PageResult<MesLineSideMovement>>(
-    `/mes/trace/line-side/movement/page?${queryString}`,
+    `/mes/v1/trace/line-side/movement/page?${queryString}`,
   );
 }
 
 /** 叫料补货请求 */
 export function requestMesReplenishment(input: MesReplenishmentInput): Promise<MesReplenishment> {
-  return http.post<MesReplenishment>('/mes/trace/line-side/replenish', input);
+  return http.post<MesReplenishment>('/mes/v1/trace/line-side/replenish', input);
 }
 
 /** 分页查询补货请求 */
@@ -891,7 +891,7 @@ export function pageMesReplenishments(
 ): Promise<PageResult<MesReplenishment>> {
   const queryString = toQueryString({ current: 1, size: 100, ...query });
   return http.get<PageResult<MesReplenishment>>(
-    `/mes/trace/line-side/replenish/page?${queryString}`,
+    `/mes/v1/trace/line-side/replenish/page?${queryString}`,
   );
 }
 
@@ -1264,23 +1264,23 @@ export function pageMesInspectionPlans(
 ): Promise<PageResult<MesInspectionPlan>> {
   const queryString = toQueryString({ current: 1, size: 100, ...query });
   return http.get<PageResult<MesInspectionPlan>>(
-    `/mes/quality/inspection-plan/page?${queryString}`,
+    `/mes/v1/quality/inspection-plan/page?${queryString}`,
   );
 }
 
 /** 查询检验计划详情（含检验项） */
 export function getMesInspectionPlan(id: string): Promise<MesInspectionPlan> {
-  return http.get<MesInspectionPlan>(`/mes/quality/inspection-plan/${id}`);
+  return http.get<MesInspectionPlan>(`/mes/v1/quality/inspection-plan/${id}`);
 }
 
 /** 保存检验计划（含检验项） */
 export function saveMesInspectionPlan(input: MesInspectionPlanInput): Promise<MesInspectionPlan> {
-  return http.post<MesInspectionPlan>('/mes/quality/inspection-plan', input);
+  return http.post<MesInspectionPlan>('/mes/v1/quality/inspection-plan', input);
 }
 
 /** 创建首件 / IPQC 检验任务 */
 export function createMesInspectionTask(input: MesInspectionTaskInput): Promise<MesInspectionTask> {
-  return http.post<MesInspectionTask>('/mes/quality/inspection/task', input);
+  return http.post<MesInspectionTask>('/mes/v1/quality/inspection/task', input);
 }
 
 /** 分页查询检验任务 */
@@ -1298,13 +1298,13 @@ export function pageMesInspectionTasks(
 ): Promise<PageResult<MesInspectionTask>> {
   const queryString = toQueryString({ current: 1, size: 100, ...query });
   return http.get<PageResult<MesInspectionTask>>(
-    `/mes/quality/inspection/task/page?${queryString}`,
+    `/mes/v1/quality/inspection/task/page?${queryString}`,
   );
 }
 
 /** 查询检验任务详情 */
 export function getMesInspectionTask(id: string): Promise<MesInspectionTaskDetail> {
-  return http.get<MesInspectionTaskDetail>(`/mes/quality/inspection/task/${id}`);
+  return http.get<MesInspectionTaskDetail>(`/mes/v1/quality/inspection/task/${id}`);
 }
 
 /** 录入检验结果 */
@@ -1312,7 +1312,7 @@ export function submitMesInspectionResults(
   id: string,
   input: MesInspectionSubmitInput,
 ): Promise<MesInspectionTaskDetail> {
-  return http.post<MesInspectionTaskDetail>(`/mes/quality/inspection/task/${id}/results`, input);
+  return http.post<MesInspectionTaskDetail>(`/mes/v1/quality/inspection/task/${id}/results`, input);
 }
 
 /** 判定检验任务 */
@@ -1320,7 +1320,7 @@ export function judgeMesInspectionTask(
   id: string,
   input: { judge?: string; conclusion: string },
 ): Promise<MesInspectionTask> {
-  return http.post<MesInspectionTask>(`/mes/quality/inspection/task/${id}/judge`, input);
+  return http.post<MesInspectionTask>(`/mes/v1/quality/inspection/task/${id}/judge`, input);
 }
 
 /** 首件门禁查询 */
@@ -1330,7 +1330,7 @@ export function fetchMesFirstArticleGate(params: {
 }): Promise<MesFirstArticleGate> {
   const queryString = toQueryString(params);
   return http.get<MesFirstArticleGate>(
-    `/mes/quality/inspection/first-article/gate${queryString ? `?${queryString}` : ''}`,
+    `/mes/v1/quality/inspection/first-article/gate${queryString ? `?${queryString}` : ''}`,
   );
 }
 
@@ -1346,12 +1346,12 @@ export function pageMesNcrs(
   } = {},
 ): Promise<PageResult<MesNcr>> {
   const queryString = toQueryString({ current: 1, size: 100, ...query });
-  return http.get<PageResult<MesNcr>>(`/mes/quality/ncr/page?${queryString}`);
+  return http.get<PageResult<MesNcr>>(`/mes/v1/quality/ncr/page?${queryString}`);
 }
 
 /** 手工创建 NCR */
 export function createMesNcr(input: MesNcrInput): Promise<MesNcr> {
-  return http.post<MesNcr>('/mes/quality/ncr', input);
+  return http.post<MesNcr>('/mes/v1/quality/ncr', input);
 }
 
 /** 关闭 NCR */
@@ -1359,7 +1359,7 @@ export function closeMesNcr(
   id: string,
   input: { conclusion: string; closedBy?: string },
 ): Promise<MesNcr> {
-  return http.post<MesNcr>(`/mes/quality/ncr/${id}/close`, input);
+  return http.post<MesNcr>(`/mes/v1/quality/ncr/${id}/close`, input);
 }
 
 /** 分页查询处置 */
@@ -1374,17 +1374,17 @@ export function pageMesDispositions(
   } = {},
 ): Promise<PageResult<MesDisposition>> {
   const queryString = toQueryString({ current: 1, size: 100, ...query });
-  return http.get<PageResult<MesDisposition>>(`/mes/quality/disposition/page?${queryString}`);
+  return http.get<PageResult<MesDisposition>>(`/mes/v1/quality/disposition/page?${queryString}`);
 }
 
 /** 创建处置 */
 export function createMesDisposition(input: MesDispositionInput): Promise<MesDisposition> {
-  return http.post<MesDisposition>('/mes/quality/disposition', input);
+  return http.post<MesDisposition>('/mes/v1/quality/disposition', input);
 }
 
 /** 执行处置 */
 export function executeMesDisposition(id: string): Promise<MesDisposition> {
-  return http.post<MesDisposition>(`/mes/quality/disposition/${id}/execute`, {});
+  return http.post<MesDisposition>(`/mes/v1/quality/disposition/${id}/execute`, {});
 }
 
 /** 分页查询返工单 */
@@ -1399,7 +1399,7 @@ export function pageMesReworks(
   } = {},
 ): Promise<PageResult<MesReworkOrder>> {
   const queryString = toQueryString({ current: 1, size: 100, ...query });
-  return http.get<PageResult<MesReworkOrder>>(`/mes/quality/rework/page?${queryString}`);
+  return http.get<PageResult<MesReworkOrder>>(`/mes/v1/quality/rework/page?${queryString}`);
 }
 
 /** 返工开工 */
@@ -1407,7 +1407,7 @@ export function startMesRework(
   id: string,
   input: { operator?: string; remark?: string } = {},
 ): Promise<MesReworkOrder> {
-  return http.post<MesReworkOrder>(`/mes/quality/rework/${id}/start`, input);
+  return http.post<MesReworkOrder>(`/mes/v1/quality/rework/${id}/start`, input);
 }
 
 /** 返工完工 */
@@ -1415,7 +1415,7 @@ export function completeMesRework(
   id: string,
   input: { operator?: string; remark?: string } = {},
 ): Promise<MesReworkOrder> {
-  return http.post<MesReworkOrder>(`/mes/quality/rework/${id}/complete`, input);
+  return http.post<MesReworkOrder>(`/mes/v1/quality/rework/${id}/complete`, input);
 }
 
 /** 分页查询 SPC 规则 */
@@ -1429,17 +1429,17 @@ export function pageMesSpcRules(
   } = {},
 ): Promise<PageResult<MesSpcRule>> {
   const queryString = toQueryString({ current: 1, size: 100, ...query });
-  return http.get<PageResult<MesSpcRule>>(`/mes/quality/spc/rule/page?${queryString}`);
+  return http.get<PageResult<MesSpcRule>>(`/mes/v1/quality/spc/rule/page?${queryString}`);
 }
 
 /** 保存 SPC 规则 */
 export function saveMesSpcRule(input: MesSpcRuleInput): Promise<MesSpcRule> {
-  return http.post<MesSpcRule>('/mes/quality/spc/rule', input);
+  return http.post<MesSpcRule>('/mes/v1/quality/spc/rule', input);
 }
 
 /** 录入 SPC 样本 */
 export function submitMesSpcSample(input: MesSpcSampleInput): Promise<MesSpcSample> {
-  return http.post<MesSpcSample>('/mes/quality/spc/sample', input);
+  return http.post<MesSpcSample>('/mes/v1/quality/spc/sample', input);
 }
 
 /** 分页查询 SPC 样本 */
@@ -1453,7 +1453,7 @@ export function pageMesSpcSamples(
   } = {},
 ): Promise<PageResult<MesSpcSample>> {
   const queryString = toQueryString({ current: 1, size: 100, ...query });
-  return http.get<PageResult<MesSpcSample>>(`/mes/quality/spc/sample/page?${queryString}`);
+  return http.get<PageResult<MesSpcSample>>(`/mes/v1/quality/spc/sample/page?${queryString}`);
 }
 
 /** 查询 SPC 控制图表点 */
@@ -1463,7 +1463,7 @@ export function fetchMesSpcChart(params: {
   limit?: number;
 }): Promise<MesSpcChartPoint[]> {
   const queryString = toQueryString(params);
-  return http.get<MesSpcChartPoint[]>(`/mes/quality/spc/chart?${queryString}`);
+  return http.get<MesSpcChartPoint[]>(`/mes/v1/quality/spc/chart?${queryString}`);
 }
 
 /** 查询质量看板 */
@@ -1471,7 +1471,7 @@ export function fetchMesQualityBoard(
   params: { boardDate?: string; lineId?: string } = {},
 ): Promise<MesQualityBoard> {
   const queryString = toQueryString(params);
-  return http.get<MesQualityBoard>(`/mes/quality/board${queryString ? `?${queryString}` : ''}`);
+  return http.get<MesQualityBoard>(`/mes/v1/quality/board${queryString ? `?${queryString}` : ''}`);
 }
 
 /** 设备状态 */
@@ -1823,18 +1823,18 @@ export function pageMesEquipments(
   query: MesEquipmentQuery = {},
 ): Promise<PageResult<MesEquipment>> {
   return http.get<PageResult<MesEquipment>>(
-    `/mes/equipment/page?${toQueryString({ current: 1, size: 200, ...query })}`,
+    `/mes/v1/equipment/page?${toQueryString({ current: 1, size: 200, ...query })}`,
   );
 }
 
 /** 保存设备台账 */
 export function saveMesEquipment(input: MesEquipmentInput): Promise<MesEquipment> {
-  return http.post<MesEquipment>('/mes/equipment', input);
+  return http.post<MesEquipment>('/mes/v1/equipment', input);
 }
 
 /** 设备开工门禁 */
 export function fetchMesEquipmentGate(equipmentCode: string): Promise<MesEquipmentGate> {
-  return http.get<MesEquipmentGate>(`/mes/equipment/gate?${toQueryString({ equipmentCode })}`);
+  return http.get<MesEquipmentGate>(`/mes/v1/equipment/gate?${toQueryString({ equipmentCode })}`);
 }
 
 /** 变更设备状态 */
@@ -1842,7 +1842,7 @@ export function changeMesEquipmentStatus(
   id: string,
   input: MesEquipmentStatusChangeInput,
 ): Promise<MesEquipmentStatusEvent> {
-  return http.post<MesEquipmentStatusEvent>(`/mes/equipment/${id}/status`, input);
+  return http.post<MesEquipmentStatusEvent>(`/mes/v1/equipment/${id}/status`, input);
 }
 
 /** 分页查询设备状态事件 */
@@ -1850,7 +1850,7 @@ export function pageMesEquipmentStatusEvents(
   query: { equipmentId?: string; current?: number; size?: number } = {},
 ): Promise<PageResult<MesEquipmentStatusEvent>> {
   return http.get<PageResult<MesEquipmentStatusEvent>>(
-    `/mes/equipment/status-event/page?${toQueryString({ current: 1, size: 200, ...query })}`,
+    `/mes/v1/equipment/status-event/page?${toQueryString({ current: 1, size: 200, ...query })}`,
   );
 }
 
@@ -1859,7 +1859,7 @@ export function pageMesEquipmentDowntimes(
   query: { equipmentId?: string; current?: number; size?: number } = {},
 ): Promise<PageResult<MesEquipmentDowntime>> {
   return http.get<PageResult<MesEquipmentDowntime>>(
-    `/mes/equipment/downtime/page?${toQueryString({ current: 1, size: 200, ...query })}`,
+    `/mes/v1/equipment/downtime/page?${toQueryString({ current: 1, size: 200, ...query })}`,
   );
 }
 
@@ -1867,7 +1867,7 @@ export function pageMesEquipmentDowntimes(
 export function saveMesMaintenancePlan(
   input: MesMaintenancePlanInput,
 ): Promise<MesMaintenancePlan> {
-  return http.post<MesMaintenancePlan>('/mes/equipment/maintenance/plan', input);
+  return http.post<MesMaintenancePlan>('/mes/v1/equipment/maintenance/plan', input);
 }
 
 /** 分页查询保养计划 */
@@ -1875,7 +1875,7 @@ export function pageMesMaintenancePlans(
   query: MesMaintenanceQuery = {},
 ): Promise<PageResult<MesMaintenancePlan>> {
   return http.get<PageResult<MesMaintenancePlan>>(
-    `/mes/equipment/maintenance/plan/page?${toQueryString({ current: 1, size: 200, ...query })}`,
+    `/mes/v1/equipment/maintenance/plan/page?${toQueryString({ current: 1, size: 200, ...query })}`,
   );
 }
 
@@ -1883,7 +1883,7 @@ export function pageMesMaintenancePlans(
 export function createMesMaintenanceOrder(
   input: MesMaintenanceOrderInput,
 ): Promise<MesMaintenanceOrder> {
-  return http.post<MesMaintenanceOrder>('/mes/equipment/maintenance/order', input);
+  return http.post<MesMaintenanceOrder>('/mes/v1/equipment/maintenance/order', input);
 }
 
 /** 分页查询保养工单 */
@@ -1891,7 +1891,7 @@ export function pageMesMaintenanceOrders(
   query: MesMaintenanceQuery = {},
 ): Promise<PageResult<MesMaintenanceOrder>> {
   return http.get<PageResult<MesMaintenanceOrder>>(
-    `/mes/equipment/maintenance/order/page?${toQueryString({ current: 1, size: 200, ...query })}`,
+    `/mes/v1/equipment/maintenance/order/page?${toQueryString({ current: 1, size: 200, ...query })}`,
   );
 }
 
@@ -1900,7 +1900,7 @@ export function startMesMaintenanceOrder(
   id: string,
   assignee?: string,
 ): Promise<MesMaintenanceOrder> {
-  return http.post<MesMaintenanceOrder>(`/mes/equipment/maintenance/order/${id}/start`, {
+  return http.post<MesMaintenanceOrder>(`/mes/v1/equipment/maintenance/order/${id}/start`, {
     assignee,
   });
 }
@@ -1910,7 +1910,7 @@ export function completeMesMaintenanceOrder(
   id: string,
   input: { completedBy?: string; checklistResults: string[]; remark?: string },
 ): Promise<MesMaintenanceOrder> {
-  return http.post<MesMaintenanceOrder>(`/mes/equipment/maintenance/order/${id}/complete`, input);
+  return http.post<MesMaintenanceOrder>(`/mes/v1/equipment/maintenance/order/${id}/complete`, input);
 }
 
 /** 保养验收 */
@@ -1918,44 +1918,44 @@ export function acceptMesMaintenanceOrder(
   id: string,
   input: { acceptedBy?: string; conclusion: string },
 ): Promise<MesMaintenanceOrder> {
-  return http.post<MesMaintenanceOrder>(`/mes/equipment/maintenance/order/${id}/accept`, input);
+  return http.post<MesMaintenanceOrder>(`/mes/v1/equipment/maintenance/order/${id}/accept`, input);
 }
 
 /** 创建维修工单 */
 export function createMesRepair(input: MesRepairInput): Promise<MesRepairOrder> {
-  return http.post<MesRepairOrder>('/mes/equipment/repair', input);
+  return http.post<MesRepairOrder>('/mes/v1/equipment/repair', input);
 }
 
 /** 分页查询维修工单 */
 export function pageMesRepairs(query: MesRepairQuery = {}): Promise<PageResult<MesRepairOrder>> {
   return http.get<PageResult<MesRepairOrder>>(
-    `/mes/equipment/repair/page?${toQueryString({ current: 1, size: 200, ...query })}`,
+    `/mes/v1/equipment/repair/page?${toQueryString({ current: 1, size: 200, ...query })}`,
   );
 }
 
 /** 维修派工 */
 export function assignMesRepair(id: string, input: MesRepairActionInput): Promise<MesRepairOrder> {
-  return http.post<MesRepairOrder>(`/mes/equipment/repair/${id}/assign`, input);
+  return http.post<MesRepairOrder>(`/mes/v1/equipment/repair/${id}/assign`, input);
 }
 
 /** 开始维修 */
 export function startMesRepair(id: string, input: MesRepairActionInput): Promise<MesRepairOrder> {
-  return http.post<MesRepairOrder>(`/mes/equipment/repair/${id}/start`, input);
+  return http.post<MesRepairOrder>(`/mes/v1/equipment/repair/${id}/start`, input);
 }
 
 /** 维修验证 */
 export function verifyMesRepair(id: string, input: MesRepairActionInput): Promise<MesRepairOrder> {
-  return http.post<MesRepairOrder>(`/mes/equipment/repair/${id}/verify`, input);
+  return http.post<MesRepairOrder>(`/mes/v1/equipment/repair/${id}/verify`, input);
 }
 
 /** 关闭维修 */
 export function closeMesRepair(id: string, input: MesRepairActionInput): Promise<MesRepairOrder> {
-  return http.post<MesRepairOrder>(`/mes/equipment/repair/${id}/close`, input);
+  return http.post<MesRepairOrder>(`/mes/v1/equipment/repair/${id}/close`, input);
 }
 
 /** 保存备件主档 */
 export function saveMesSparePart(input: MesSparePartInput): Promise<MesSparePart> {
-  return http.post<MesSparePart>('/mes/equipment/spare-part', input);
+  return http.post<MesSparePart>('/mes/v1/equipment/spare-part', input);
 }
 
 /** 分页查询备件主档 */
@@ -1963,7 +1963,7 @@ export function pageMesSpareParts(
   query: MesSparePartQuery = {},
 ): Promise<PageResult<MesSparePart>> {
   return http.get<PageResult<MesSparePart>>(
-    `/mes/equipment/spare-part/page?${toQueryString({ current: 1, size: 200, ...query })}`,
+    `/mes/v1/equipment/spare-part/page?${toQueryString({ current: 1, size: 200, ...query })}`,
   );
 }
 
@@ -1972,7 +1972,7 @@ export function pageMesSparePartStocks(
   query: MesSparePartQuery = {},
 ): Promise<PageResult<MesSparePartStock>> {
   return http.get<PageResult<MesSparePartStock>>(
-    `/mes/equipment/spare-part/stock/page?${toQueryString({ current: 1, size: 200, ...query })}`,
+    `/mes/v1/equipment/spare-part/stock/page?${toQueryString({ current: 1, size: 200, ...query })}`,
   );
 }
 
@@ -1981,29 +1981,29 @@ export function pageMesSparePartMovements(
   query: MesSparePartQuery = {},
 ): Promise<PageResult<MesSparePartMovement>> {
   return http.get<PageResult<MesSparePartMovement>>(
-    `/mes/equipment/spare-part/movement/page?${toQueryString({ current: 1, size: 200, ...query })}`,
+    `/mes/v1/equipment/spare-part/movement/page?${toQueryString({ current: 1, size: 200, ...query })}`,
   );
 }
 
 /** 备件入库 */
 export function stockInMesSparePart(input: MesSparePartStockInput): Promise<MesSparePartMovement> {
-  return http.post<MesSparePartMovement>('/mes/equipment/spare-part/stock/in', input);
+  return http.post<MesSparePartMovement>('/mes/v1/equipment/spare-part/stock/in', input);
 }
 
 /** 备件领用 */
 export function stockOutMesSparePart(input: MesSparePartStockInput): Promise<MesSparePartMovement> {
-  return http.post<MesSparePartMovement>('/mes/equipment/spare-part/stock/out', input);
+  return http.post<MesSparePartMovement>('/mes/v1/equipment/spare-part/stock/out', input);
 }
 
 /** 计算 OEE 快照 */
 export function computeMesOee(input: MesOeeInput): Promise<MesOeeSnapshot> {
-  return http.post<MesOeeSnapshot>('/mes/equipment/oee/snapshot', input);
+  return http.post<MesOeeSnapshot>('/mes/v1/equipment/oee/snapshot', input);
 }
 
 /** 分页查询 OEE 快照 */
 export function pageMesOee(query: MesOeeQuery = {}): Promise<PageResult<MesOeeSnapshot>> {
   return http.get<PageResult<MesOeeSnapshot>>(
-    `/mes/equipment/oee/page?${toQueryString({ current: 1, size: 200, ...query })}`,
+    `/mes/v1/equipment/oee/page?${toQueryString({ current: 1, size: 200, ...query })}`,
   );
 }
 
@@ -2170,18 +2170,18 @@ export function pageMesCollectDevices(
   query: MesCollectDeviceQuery = {},
 ): Promise<PageResult<MesCollectDevice>> {
   return http.get<PageResult<MesCollectDevice>>(
-    `/mes/collect/device/page?${toQueryString({ current: 1, size: 200, ...query })}`,
+    `/mes/v1/collect/device/page?${toQueryString({ current: 1, size: 200, ...query })}`,
   );
 }
 
 /** 保存采集设备 */
 export function saveMesCollectDevice(input: MesCollectDeviceInput): Promise<MesCollectDevice> {
-  return http.post<MesCollectDevice>('/mes/collect/device', input);
+  return http.post<MesCollectDevice>('/mes/v1/collect/device', input);
 }
 
 /** 采集设备心跳 */
 export function heartbeatMesCollectDevice(deviceCode: string): Promise<MesCollectDevice> {
-  return http.post<MesCollectDevice>(`/mes/collect/device/${deviceCode}/heartbeat`, {});
+  return http.post<MesCollectDevice>(`/mes/v1/collect/device/${deviceCode}/heartbeat`, {});
 }
 
 /** 分页查询采集点 */
@@ -2189,13 +2189,13 @@ export function pageMesCollectPoints(
   query: MesCollectPointQuery = {},
 ): Promise<PageResult<MesCollectPoint>> {
   return http.get<PageResult<MesCollectPoint>>(
-    `/mes/collect/point/page?${toQueryString({ current: 1, size: 200, ...query })}`,
+    `/mes/v1/collect/point/page?${toQueryString({ current: 1, size: 200, ...query })}`,
   );
 }
 
 /** 保存采集点 */
 export function saveMesCollectPoint(input: MesCollectPointInput): Promise<MesCollectPoint> {
-  return http.post<MesCollectPoint>('/mes/collect/point', input);
+  return http.post<MesCollectPoint>('/mes/v1/collect/point', input);
 }
 
 /** 分页查询采集样本 */
@@ -2203,7 +2203,7 @@ export function pageMesMetricSamples(
   query: MesMetricSampleQuery = {},
 ): Promise<PageResult<MesMetricSample>> {
   return http.get<PageResult<MesMetricSample>>(
-    `/mes/collect/sample/page?${toQueryString({ current: 1, size: 200, ...query })}`,
+    `/mes/v1/collect/sample/page?${toQueryString({ current: 1, size: 200, ...query })}`,
   );
 }
 
@@ -2212,18 +2212,18 @@ export function pageMesCollectBoards(
   query: MesCollectBoardQuery = {},
 ): Promise<PageResult<MesCollectBoard>> {
   return http.get<PageResult<MesCollectBoard>>(
-    `/mes/collect/board/page?${toQueryString({ current: 1, size: 200, ...query })}`,
+    `/mes/v1/collect/board/page?${toQueryString({ current: 1, size: 200, ...query })}`,
   );
 }
 
 /** 保存采集看板 */
 export function saveMesCollectBoard(input: MesCollectBoardInput): Promise<MesCollectBoard> {
-  return http.post<MesCollectBoard>('/mes/collect/board', input);
+  return http.post<MesCollectBoard>('/mes/v1/collect/board', input);
 }
 
 /** 查询看板实时数据 */
 export function fetchMesCollectBoardData(boardCode: string): Promise<MesCollectBoardData> {
-  return http.get<MesCollectBoardData>(`/mes/collect/board/${boardCode}/data`);
+  return http.get<MesCollectBoardData>(`/mes/v1/collect/board/${boardCode}/data`);
 }
 
 /** 分页查询归档策略 */
@@ -2231,18 +2231,18 @@ export function pageMesArchivePolicies(
   query: MesArchivePolicyQuery = {},
 ): Promise<PageResult<MesArchivePolicy>> {
   return http.get<PageResult<MesArchivePolicy>>(
-    `/mes/collect/archive/page?${toQueryString({ current: 1, size: 200, ...query })}`,
+    `/mes/v1/collect/archive/page?${toQueryString({ current: 1, size: 200, ...query })}`,
   );
 }
 
 /** 保存归档策略 */
 export function saveMesArchivePolicy(input: MesArchivePolicyInput): Promise<MesArchivePolicy> {
-  return http.post<MesArchivePolicy>('/mes/collect/archive', input);
+  return http.post<MesArchivePolicy>('/mes/v1/collect/archive', input);
 }
 
 /** 执行归档 */
 export function runMesArchivePolicy(id: string): Promise<MesArchivePolicy> {
-  return http.post<MesArchivePolicy>(`/mes/collect/archive/${id}/run`, {});
+  return http.post<MesArchivePolicy>(`/mes/v1/collect/archive/${id}/run`, {});
 }
 
 // =====================================================================
@@ -2313,18 +2313,18 @@ export function pageMesTeamMembers(
   query: MesTeamMemberQuery = {},
 ): Promise<PageResult<MesTeamMember>> {
   return http.get<PageResult<MesTeamMember>>(
-    `/mes/workforce/team-member/page?${toQueryString({ current: 1, size: 10, ...query })}`,
+    `/mes/v1/workforce/team-member/page?${toQueryString({ current: 1, size: 10, ...query })}`,
   );
 }
 
 /** 保存班组成员（无 id 新增，有 id 编辑） */
 export function saveMesTeamMember(input: MesTeamMemberInput): Promise<MesTeamMember> {
-  return http.post<MesTeamMember>('/mes/workforce/team-member', input);
+  return http.post<MesTeamMember>('/mes/v1/workforce/team-member', input);
 }
 
 /** 启停班组成员 */
 export function changeMesTeamMemberStatus(id: number, enabled: boolean): Promise<MesTeamMember> {
-  return http.post<MesTeamMember>(`/mes/workforce/team-member/${id}/status`, { enabled });
+  return http.post<MesTeamMember>(`/mes/v1/workforce/team-member/${id}/status`, { enabled });
 }
 
 /** 排班分配 */
@@ -2397,7 +2397,7 @@ export function pageMesShiftAssignments(
   query: MesShiftAssignmentQuery = {},
 ): Promise<PageResult<MesShiftAssignment>> {
   return http.get<PageResult<MesShiftAssignment>>(
-    `/mes/workforce/shift-assignment/page?${toQueryString({ current: 1, size: 10, ...query })}`,
+    `/mes/v1/workforce/shift-assignment/page?${toQueryString({ current: 1, size: 10, ...query })}`,
   );
 }
 
@@ -2405,12 +2405,12 @@ export function pageMesShiftAssignments(
 export function saveMesShiftAssignment(
   input: MesShiftAssignmentInput,
 ): Promise<MesShiftAssignment> {
-  return http.post<MesShiftAssignment>('/mes/workforce/shift-assignment', input);
+  return http.post<MesShiftAssignment>('/mes/v1/workforce/shift-assignment', input);
 }
 
 /** 取消排班分配 */
 export function cancelMesShiftAssignment(id: number): Promise<MesShiftAssignment> {
-  return http.post<MesShiftAssignment>(`/mes/workforce/shift-assignment/${id}/cancel`, {});
+  return http.post<MesShiftAssignment>(`/mes/v1/workforce/shift-assignment/${id}/cancel`, {});
 }
 
 /** 交接班 */
@@ -2481,18 +2481,18 @@ export interface MesHandoverQuery {
 /** 分页查询交接班 */
 export function pageMesHandovers(query: MesHandoverQuery = {}): Promise<PageResult<MesHandover>> {
   return http.get<PageResult<MesHandover>>(
-    `/mes/workforce/handover/page?${toQueryString({ current: 1, size: 10, ...query })}`,
+    `/mes/v1/workforce/handover/page?${toQueryString({ current: 1, size: 10, ...query })}`,
   );
 }
 
 /** 新建交接班 */
 export function createMesHandover(input: MesHandoverInput): Promise<MesHandover> {
-  return http.post<MesHandover>('/mes/workforce/handover', input);
+  return http.post<MesHandover>('/mes/v1/workforce/handover', input);
 }
 
 /** 确认交接班（DRAFT → CONFIRMED） */
 export function confirmMesHandover(id: number, confirmedBy: string): Promise<MesHandover> {
-  return http.post<MesHandover>(`/mes/workforce/handover/${id}/confirm`, { confirmedBy });
+  return http.post<MesHandover>(`/mes/v1/workforce/handover/${id}/confirm`, { confirmedBy });
 }
 
 /** 工时记录 */
@@ -2557,18 +2557,18 @@ export interface MesWorkHourQuery {
 /** 分页查询工时记录 */
 export function pageMesWorkHours(query: MesWorkHourQuery = {}): Promise<PageResult<MesWorkHour>> {
   return http.get<PageResult<MesWorkHour>>(
-    `/mes/workforce/work-hour/page?${toQueryString({ current: 1, size: 10, ...query })}`,
+    `/mes/v1/workforce/work-hour/page?${toQueryString({ current: 1, size: 10, ...query })}`,
   );
 }
 
 /** 登记工时 */
 export function registerMesWorkHour(input: MesWorkHourInput): Promise<MesWorkHour> {
-  return http.post<MesWorkHour>('/mes/workforce/work-hour', input);
+  return http.post<MesWorkHour>('/mes/v1/workforce/work-hour', input);
 }
 
 /** 作废工时记录 */
 export function voidMesWorkHour(id: number): Promise<MesWorkHour> {
-  return http.post<MesWorkHour>(`/mes/workforce/work-hour/${id}/void`, {});
+  return http.post<MesWorkHour>(`/mes/v1/workforce/work-hour/${id}/void`, {});
 }
 
 /** 绩效统计层级 */
@@ -2654,7 +2654,7 @@ export function pageMesPerformance(
   query: MesPerformanceQuery = {},
 ): Promise<PageResult<MesPerformanceStat>> {
   return http.get<PageResult<MesPerformanceStat>>(
-    `/mes/workforce/performance/page?${toQueryString({ current: 1, size: 10, ...query })}`,
+    `/mes/v1/workforce/performance/page?${toQueryString({ current: 1, size: 10, ...query })}`,
   );
 }
 
@@ -2662,14 +2662,14 @@ export function pageMesPerformance(
 export function aggregateMesPerformance(
   input: MesPerformanceAggregateInput,
 ): Promise<MesPerformanceStat[]> {
-  return http.post<MesPerformanceStat[]>('/mes/workforce/performance/aggregate', input);
+  return http.post<MesPerformanceStat[]>('/mes/v1/workforce/performance/aggregate', input);
 }
 
 /** 锁定月度绩效 */
 export function lockMesPerformance(
   input: MesPerformanceLockInput,
 ): Promise<MesPerformanceLockResult> {
-  return http.post<MesPerformanceLockResult>('/mes/workforce/performance/lock', input);
+  return http.post<MesPerformanceLockResult>('/mes/v1/workforce/performance/lock', input);
 }
 
 /** 技能矩阵记录 */
@@ -2726,13 +2726,13 @@ export function pageMesSkills(
   query: MesSkillMatrixQuery = {},
 ): Promise<PageResult<MesSkillMatrix>> {
   return http.get<PageResult<MesSkillMatrix>>(
-    `/mes/workforce/skill/page?${toQueryString({ current: 1, size: 10, ...query })}`,
+    `/mes/v1/workforce/skill/page?${toQueryString({ current: 1, size: 10, ...query })}`,
   );
 }
 
 /** 保存技能矩阵记录（无 id 新增，有 id 编辑） */
 export function saveMesSkillMatrix(input: MesSkillMatrixInput): Promise<MesSkillMatrix> {
-  return http.post<MesSkillMatrix>('/mes/workforce/skill', input);
+  return http.post<MesSkillMatrix>('/mes/v1/workforce/skill', input);
 }
 
 /** 综合看板 - 设备域聚合 */
@@ -2795,7 +2795,7 @@ export interface MesDashboardQuery {
 
 /** 获取综合看板快照 */
 export function fetchMesDashboard(params: MesDashboardQuery = {}): Promise<MesDashboard> {
-  return http.get<MesDashboard>(`/mes/dashboard?${toQueryString({ ...params })}`);
+  return http.get<MesDashboard>(`/mes/v1/dashboard?${toQueryString({ ...params })}`);
 }
 
 /** 订阅综合看板 SSE 推送：事件名 dashboard，data 为综合看板 JSON 快照 */
@@ -2805,7 +2805,7 @@ export function subscribeMesDashboard(
   signal?: AbortSignal,
 ): Promise<void> {
   return client.streamSse(
-    '/mes/dashboard/stream',
+    '/mes/v1/dashboard/stream',
     params,
     (event, data) => {
       if (event === 'dashboard') {
@@ -2818,7 +2818,7 @@ export function subscribeMesDashboard(
 
 /** 导出综合看板 CSV（受 sys:mes:dashboard:export 权限控制） */
 export function exportMesDashboard(params: MesDashboardQuery = {}): Promise<void> {
-  return client.downloadBlob('/mes/dashboard/export', { ...params }).then(({ blob, filename }) => {
+  return client.downloadBlob('/mes/v1/dashboard/export', { ...params }).then(({ blob, filename }) => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;

@@ -71,12 +71,12 @@ export function pagePapers(params: {
   current?: number;
   size?: number;
 }) {
-  return http.get<PageData<PaperItem>>('/lms/paper/page', { ...params });
+  return http.get<PageData<PaperItem>>('/lms/v1/paper/page', { ...params });
 }
 
 /** 试卷详情 */
 export function paperDetail(id: number | string) {
-  return http.get<PaperDetail>(`/lms/paper/${id}`);
+  return http.get<PaperDetail>(`/lms/v1/paper/${id}`);
 }
 
 /** 新建试卷 */
@@ -88,7 +88,7 @@ export function createPaper(body: {
   passScore?: number;
   remark?: string;
 }) {
-  return http.post<number>('/lms/paper', body);
+  return http.post<number>('/lms/v1/paper', body);
 }
 
 /** 编辑试卷（仅草稿） */
@@ -103,35 +103,35 @@ export function updatePaper(
     remark?: string;
   },
 ) {
-  return http.put<void>(`/lms/paper/${id}`, body);
+  return http.put<void>(`/lms/v1/paper/${id}`, body);
 }
 
 /** 删除试卷（仅草稿） */
 export function deletePaper(id: number) {
-  return http.del<void>(`/lms/paper/${id}`);
+  return http.del<void>(`/lms/v1/paper/${id}`);
 }
 
 /** 手工加题 */
 export function addPaperQuestion(id: number, body: { questionId: number; score?: number }) {
-  return http.post<void>(`/lms/paper/${id}/question`, body);
+  return http.post<void>(`/lms/v1/paper/${id}/question`, body);
 }
 
 /** 移出题目 */
 export function removePaperQuestion(id: number, questionId: number) {
-  return http.del<void>(`/lms/paper/${id}/question/${questionId}`);
+  return http.del<void>(`/lms/v1/paper/${id}/question/${questionId}`);
 }
 
 /** 规则抽题（同 seed 可复现） */
 export function generatePaper(id: number, body: { seed?: string; rules: PaperRule[] }) {
-  return http.post<PaperGenerateResult>(`/lms/paper/${id}/generate`, body);
+  return http.post<PaperGenerateResult>(`/lms/v1/paper/${id}/generate`, body);
 }
 
 /** 发布试卷 */
 export function publishPaper(id: number) {
-  return http.put<void>(`/lms/paper/${id}/publish`);
+  return http.put<void>(`/lms/v1/paper/${id}/publish`);
 }
 
 /** 归档试卷 */
 export function archivePaper(id: number) {
-  return http.put<void>(`/lms/paper/${id}/archive`);
+  return http.put<void>(`/lms/v1/paper/${id}/archive`);
 }

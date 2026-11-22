@@ -225,7 +225,7 @@ class LmsOverviewProviderTest {
         List<OverviewLink> links = provider.build(context()).links();
 
         assertThat(links).singleElement().satisfies(link -> {
-            assertThat(link.path()).isEqualTo("/lms/course/page");
+            assertThat(link.path()).isEqualTo("/lms/v1/course/page");
             assertThat(link.permission()).isEqualTo("sys:lms:course:list");
         });
     }

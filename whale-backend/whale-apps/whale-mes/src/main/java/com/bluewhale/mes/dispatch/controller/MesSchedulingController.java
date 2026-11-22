@@ -29,7 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/mes/dispatch/schedule")
+@RequestMapping(path = "/mes/v{version}/dispatch/schedule", version = "1")
 @RequiredArgsConstructor
 public class MesSchedulingController {
 

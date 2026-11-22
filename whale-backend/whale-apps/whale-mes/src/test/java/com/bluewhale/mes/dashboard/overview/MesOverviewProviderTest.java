@@ -206,7 +206,7 @@ class MesOverviewProviderTest {
 
         OverviewLink link = provider.build(context()).links().get(0);
         assertThat(link.key()).isEqualTo("work-orders");
-        assertThat(link.path()).isEqualTo("/mes/work-order/page");
+        assertThat(link.path()).isEqualTo("/mes/v1/work-order/page");
         assertThat(link.permission()).isEqualTo("sys:mes:workorder:list");
 
         OverviewSnapshot denied = provider.build(OverviewContext.of(1L, 1L, Set.of("sys:mes:dashboard:view")));

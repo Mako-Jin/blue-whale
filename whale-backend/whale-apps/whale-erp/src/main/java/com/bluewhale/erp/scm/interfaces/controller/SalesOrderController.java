@@ -31,7 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/erp/scm/sales-order")
+@RequestMapping(path = "/erp/v{version}/scm/sales-order", version = "1")
 @RequiredArgsConstructor
 public class SalesOrderController {
 

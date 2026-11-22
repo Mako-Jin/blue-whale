@@ -48,7 +48,7 @@ $script:h = @{ Authorization = "Bearer $($script:token)" }
 
 # 2) 环境预检：MES 不可达时显式跳过
 try {
-    $mesCheck = Invoke-SmokeApi -Method Get -Path '/mes/work-order/page?current=1&size=1'
+    $mesCheck = Invoke-SmokeApi -Method Get -Path '/mes/v1/work-order/page?current=1&size=1'
     if ($mesCheck.code -ne 0) {
         Skip-Smoke "whale-mes 不可用（code=$($mesCheck.code) $($mesCheck.message)）"
     }
@@ -63,11 +63,11 @@ $materialCode = "SMOKE-MAT-$stamp"
 $plannedQuantity = 10
 
 # 3) ERP 仓库（优先复用启用仓）
-$warehouses = Invoke-SmokeApi -Method Get -Path '/erp/master-data/warehouse/page?current=1&size=50'
+$warehouses = Invoke-SmokeApi -Method Get -Path '/erp/v1/master-data/warehouse/page?current=1&size=50'
 Check '2.warehousePage' $warehouses
 $warehouse = $warehouses.data.records | Where-Object { $_.status -eq 'ENABLED' } | Select-Object -First 1
 if (-not $warehouse) {
-    $createdWarehouse = Invoke-SmokeApi -Method Post -Path '/erp/master-data/warehouse' -Body @{
+    $createdWarehouse = Invoke-SmokeApi -Method Post -Path '/erp/v1/master-data/warehouse' -Body @{
         code = "SMOKE-WH2-$stamp"
         name = '链路冒烟仓（生产）'
         status = 'ENABLED'
@@ -78,14 +78,14 @@ if (-not $warehouse) {
 }
 
 # 4) 物料主数据：产出品 + 用料
-$product = Invoke-SmokeApi -Method Post -Path '/erp/item' -Body @{
+$product = Invoke-SmokeApi -Method Post -Path '/erp/v1/item' -Body @{
     code = $productCode
     name = '链路冒烟产出品'
     status = 'ENABLED'
     remark = 'M1 链路冒烟自动创建'
 }
 Check '4.createProductItem' $product
-$material = Invoke-SmokeApi -Method Post -Path '/erp/item' -Body @{
+$material = Invoke-SmokeApi -Method Post -Path '/erp/v1/item' -Body @{
     code = $materialCode
     name = '链路冒烟用料'
     status = 'ENABLED'
@@ -94,7 +94,7 @@ $material = Invoke-SmokeApi -Method Post -Path '/erp/item' -Body @{
 Check '5.createMaterialItem' $material
 
 # 5) 领料仓备料（库存调整入库）
-$stock = Invoke-SmokeApi -Method Post -Path '/erp/scm/stock/adjust' -Body @{
+$stock = Invoke-SmokeApi -Method Post -Path '/erp/v1/scm/stock/adjust' -Body @{
     itemCode = $materialCode
     warehouseId = $warehouse.id
     quantity = 100
@@ -104,7 +104,7 @@ Check '6.stockAdjust' $stock
 
 # 6) ERP 生产订单 → 下达
 $today = (Get-Date).ToString('yyyy-MM-dd')
-$production = Invoke-SmokeApi -Method Post -Path '/erp/mfg/production' -Body @{
+$production = Invoke-SmokeApi -Method Post -Path '/erp/v1/mfg/production' -Body @{
     itemCode = $productCode
     plannedQuantity = $plannedQuantity
     issueWarehouseId = $warehouse.id
@@ -126,12 +126,12 @@ $productionId = $production.data.id
 $productionNo = $production.data.orderNo
 Assert '7a.productionDraft' ($production.data.status -eq 'DRAFT') "status=$($production.data.status)"
 
-$released = Invoke-SmokeApi -Method Post -Path "/erp/mfg/production/$productionId/release"
+$released = Invoke-SmokeApi -Method Post -Path "/erp/v1/mfg/production/$productionId/release"
 Check '8.release' $released
 Assert '8a.released' ($released.data.status -eq 'RELEASED') "status=$($released.data.status)"
 
 # 7) 领料（RELEASED → IN_PROGRESS；倒冲料也在此阶段出库）
-$issued = Invoke-SmokeApi -Method Post -Path "/erp/mfg/production/$productionId/issue" -Body @{
+$issued = Invoke-SmokeApi -Method Post -Path "/erp/v1/mfg/production/$productionId/issue" -Body @{
     lines = @(@{ lineNo = 1; quantity = $plannedQuantity })
 }
 Check '9.issue' $issued
@@ -139,7 +139,7 @@ Assert '9a.inProgress' ($issued.data.status -eq 'IN_PROGRESS') "status=$($issued
 
 # 8) 等待 ERP 下发 MES（事务提交后推送）
 $mesOrder = Wait-SmokeUntil -Label "10.mesWorkOrder" -TimeoutSeconds $WaitSeconds -IntervalSeconds 5 -Probe {
-    $page = Invoke-SmokeApi -Method Get -Path "/mes/work-order/page?erpOrderNo=$productionNo&current=1&size=10"
+    $page = Invoke-SmokeApi -Method Get -Path "/mes/v1/work-order/page?erpOrderNo=$productionNo&current=1&size=10"
     if ($page.code -ne 0) { return $null }
     return $page.data.records | Select-Object -First 1
 }
@@ -149,7 +149,7 @@ Assert '10b.mesPlanned' ([decimal]$mesOrder.plannedQuantity -eq [decimal]$planne
     "planned=$($mesOrder.plannedQuantity)"
 
 # 9) MES 拆分（显式单工序，避免依赖工艺路线种子）
-$split = Invoke-SmokeApi -Method Post -Path "/mes/dispatch/work-order/$mesOrderId/split" -Body @{
+$split = Invoke-SmokeApi -Method Post -Path "/mes/v1/dispatch/work-order/$mesOrderId/split" -Body @{
     items = @(
         @{
             seqNo = 1
@@ -164,17 +164,17 @@ $taskId = $split.data[0].id
 Assert '11a.taskId' ($null -ne $taskId) "taskId=$taskId"
 
 # 10) MES 产线（无启用产线时创建车间 + 产线）
-$lines = Invoke-SmokeApi -Method Get -Path '/mes/master-data/line/options'
+$lines = Invoke-SmokeApi -Method Get -Path '/mes/v1/master-data/line/options'
 Check '12.lineOptions' $lines
 $line = @($lines.data) | Select-Object -First 1
 if (-not $line) {
-    $workshop = Invoke-SmokeApi -Method Post -Path '/mes/master-data/workshop' -Body @{
+    $workshop = Invoke-SmokeApi -Method Post -Path '/mes/v1/master-data/workshop' -Body @{
         code = "SMOKE-WS-$stamp"
         name = '链路冒烟车间'
         status = 'ENABLED'
     }
     Check '13.createWorkshop' $workshop
-    $createdLine = Invoke-SmokeApi -Method Post -Path '/mes/master-data/line' -Body @{
+    $createdLine = Invoke-SmokeApi -Method Post -Path '/mes/v1/master-data/line' -Body @{
         code = "SMOKE-LINE-$stamp"
         name = '链路冒烟产线'
         status = 'ENABLED'
@@ -185,7 +185,7 @@ if (-not $line) {
 }
 
 # 11) 派工 → 开工 → 报工 → 完工
-$dispatch = Invoke-SmokeApi -Method Post -Path '/mes/dispatch/dispatch' -Body @{
+$dispatch = Invoke-SmokeApi -Method Post -Path '/mes/v1/dispatch/dispatch' -Body @{
     taskIds = @($taskId)
     lineId = $line.id
     remark = 'M1 链路冒烟派工'
@@ -193,11 +193,11 @@ $dispatch = Invoke-SmokeApi -Method Post -Path '/mes/dispatch/dispatch' -Body @{
 Check '14.dispatch' $dispatch
 Assert '14a.dispatchNo' ($null -ne $dispatch.data) "dispatchNo=$($dispatch.data)"
 
-$started = Invoke-SmokeApi -Method Post -Path "/mes/execution/task/$taskId/start" -Body @{}
+$started = Invoke-SmokeApi -Method Post -Path "/mes/v1/execution/task/$taskId/start" -Body @{}
 Check '15.start' $started
 Assert '15a.inProgress' ($started.data.status -eq 'IN_PROGRESS') "status=$($started.data.status)"
 
-$report = Invoke-SmokeApi -Method Post -Path '/mes/execution/report' -Body @{
+$report = Invoke-SmokeApi -Method Post -Path '/mes/v1/execution/report' -Body @{
     taskId = $taskId
     reportQuantity = $plannedQuantity
     qualifiedQuantity = $plannedQuantity
@@ -208,7 +208,7 @@ $report = Invoke-SmokeApi -Method Post -Path '/mes/execution/report' -Body @{
 Check '16.report' $report
 
 # 11.1) 质检（蓝图五环节之一）：建检验计划 → 建 IPQC 任务 → 录结果 → 判定合格
-$qcPlan = Invoke-SmokeApi -Method Post -Path '/mes/quality/inspection-plan' -Body @{
+$qcPlan = Invoke-SmokeApi -Method Post -Path '/mes/v1/quality/inspection-plan' -Body @{
     planName = "链路冒烟检验计划-$stamp"
     inspectionType = 'IPQC'
     itemCode = $productCode
@@ -231,7 +231,7 @@ $qcPlanId = $qcPlan.data.id
 $qcPlanItemId = @($qcPlan.data.items)[0].id
 Assert '16b.qcPlanItem' ($null -ne $qcPlanItemId) "planId=$qcPlanId"
 
-$qcTask = Invoke-SmokeApi -Method Post -Path '/mes/quality/inspection/task' -Body @{
+$qcTask = Invoke-SmokeApi -Method Post -Path '/mes/v1/quality/inspection/task' -Body @{
     taskType = 'IPQC'
     planId = $qcPlanId
     workOrderId = $mesOrderId
@@ -245,7 +245,7 @@ $qcTask = Invoke-SmokeApi -Method Post -Path '/mes/quality/inspection/task' -Bod
 Check '16c.qcTask' $qcTask
 $qcTaskId = $qcTask.data.id
 
-$qcResults = Invoke-SmokeApi -Method Post -Path "/mes/quality/inspection/task/$qcTaskId/results" -Body @{
+$qcResults = Invoke-SmokeApi -Method Post -Path "/mes/v1/quality/inspection/task/$qcTaskId/results" -Body @{
     inspector = 'M1-chain-smoke'
     remark = 'M1 链路冒烟质检'
     results = @(
@@ -261,19 +261,19 @@ $qcResults = Invoke-SmokeApi -Method Post -Path "/mes/quality/inspection/task/$q
 }
 Check '16d.qcResults' $qcResults
 
-$qcJudged = Invoke-SmokeApi -Method Post -Path "/mes/quality/inspection/task/$qcTaskId/judge" -Body @{
+$qcJudged = Invoke-SmokeApi -Method Post -Path "/mes/v1/quality/inspection/task/$qcTaskId/judge" -Body @{
     judge = 'M1-chain-smoke'
     conclusion = '合格'
 }
 Check '16e.qcJudge' $qcJudged
 Assert '16f.qcPassed' ($qcJudged.data.status -eq 'PASSED') "status=$($qcJudged.data.status)"
 
-$completed = Invoke-SmokeApi -Method Post -Path "/mes/execution/task/$taskId/complete" -Body @{}
+$completed = Invoke-SmokeApi -Method Post -Path "/mes/v1/execution/task/$taskId/complete" -Body @{}
 Check '17.completeTask' $completed
 Assert '17a.taskCompleted' ($completed.data.status -eq 'COMPLETED') "status=$($completed.data.status)"
 
 $mesCompleted = Wait-SmokeUntil -Label "18.mesOrderCompleted" -TimeoutSeconds 60 -IntervalSeconds 3 -Probe {
-    $detail = Invoke-SmokeApi -Method Get -Path "/mes/work-order/$mesOrderId"
+    $detail = Invoke-SmokeApi -Method Get -Path "/mes/v1/work-order/$mesOrderId"
     if ($detail.code -eq 0 -and $detail.data.status -eq 'COMPLETED') { return $detail.data }
     return $null
 }
@@ -281,7 +281,7 @@ Assert '18a.mesCompleted' ($mesCompleted.status -eq 'COMPLETED') "status=$($mesC
 
 # 12) 等待 MES 完工回传 ERP 并入库
 $erpCompleted = Wait-SmokeUntil -Label "19.erpCompleted" -TimeoutSeconds $WaitSeconds -IntervalSeconds 5 -Probe {
-    $detail = Invoke-SmokeApi -Method Get -Path "/erp/mfg/production/$productionId"
+    $detail = Invoke-SmokeApi -Method Get -Path "/erp/v1/mfg/production/$productionId"
     if ($detail.code -ne 0) { return $null }
     if ($detail.data.status -eq 'COMPLETED') { return $detail.data }
     return $null
@@ -291,7 +291,7 @@ Assert '19a.completedQuantity' ([decimal]$erpCompleted.completedQuantity -eq [de
 
 # 13) 入库落账：产成品余额 ≥ 完工数量
 $balance = Wait-SmokeUntil -Label "20.stockBalance" -TimeoutSeconds 60 -IntervalSeconds 3 -Probe {
-    $page = Invoke-SmokeApi -Method Get -Path "/erp/scm/stock/balance/page?itemId=$($erpCompleted.itemId)&warehouseId=$($warehouse.id)&current=1&size=10"
+    $page = Invoke-SmokeApi -Method Get -Path "/erp/v1/scm/stock/balance/page?itemId=$($erpCompleted.itemId)&warehouseId=$($warehouse.id)&current=1&size=10"
     if ($page.code -ne 0) { return $null }
     $row = $page.data.records | Where-Object { "$($_.warehouseId)" -eq "$($warehouse.id)" } | Select-Object -First 1
     if ($row -and [decimal]$row.quantity -ge [decimal]$plannedQuantity) { return $row }

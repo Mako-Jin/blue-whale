@@ -110,8 +110,8 @@ export const PURCHASE_STATUS: Record<string, ScreenStatusStyle> = {
 export const PURCHASE_ORDER_PAGE: ScreenListPageSpec = {
   key: 'purchase-orders',
   title: '采购订单',
-  listPath: '/erp/scm/purchase-order/page',
-  detailPath: (id) => `/erp/scm/purchase-order/${id}`,
+  listPath: '/erp/v1/scm/purchase-order/page',
+  detailPath: (id) => `/erp/v1/scm/purchase-order/${id}`,
   permission: 'sys:erp:purchase:list',
   idKey: 'id',
   keywordParam: 'keyword',
@@ -742,7 +742,7 @@ export const WORK_ORDER_STATUS: Record<string, ScreenStatusStyle> = {
  * 占位语也照实写成"搜索工单编码"。</p>
  *
  * <p><b>不配 detailPath。</b>列表行已经带回详情需要的全部字段（`MesWorkOrderVO` 只有主表、
- * 没有分录），再请求一次 `/mes/work-order/{id}` 只会让"点开有半秒空白"。</p>
+ * 没有分录），再请求一次 `/mes/v1/work-order/{id}` 只会让"点开有半秒空白"。</p>
  *
  * <p>五列只留：哪张单、做什么、做多少、什么状态、什么时候开工。物料编码埋在详情里——
  * 列表是"今天哪几张单在跑"，详情才是"这张单的工艺路线是哪一版"。</p>
@@ -750,7 +750,7 @@ export const WORK_ORDER_STATUS: Record<string, ScreenStatusStyle> = {
 export const WORK_ORDER_PAGE: ScreenListPageSpec = {
   key: 'work-orders',
   title: '生产工单',
-  listPath: '/mes/work-order/page',
+  listPath: '/mes/v1/work-order/page',
   permission: 'sys:mes:workorder:list',
   idKey: 'id',
   keywordParam: 'code',
@@ -815,7 +815,7 @@ export const ATTENDANCE_DAILY_STATUS: Record<string, ScreenStatusStyle> = {
  * 把关键字发成后端不认识的参数名，后端会默默忽略——"按了没反应"是这类问题里最难查的
  * 一种。真要按人查，走状态筛选 + 2D 考勤页的日期区间，比在城门口造假接口强。</p>
  *
- * <p><b>不配 detailPath。</b>`/oa/attendance/daily/page` 返回的 `DailyView` 已经是
+ * <p><b>不配 detailPath。</b>`/oa/v1/attendance/daily/page` 返回的 `DailyView` 已经是
  * 整行明细（含打卡时刻与备注），列表行就是详情；再请求一次只会多一次 404 ——
  * 这个模块根本没有 `/daily/{id}` 详情接口。</p>
  *
@@ -826,7 +826,7 @@ export const ATTENDANCE_DAILY_STATUS: Record<string, ScreenStatusStyle> = {
 export const ATTENDANCE_DAILY_PAGE: ScreenListPageSpec = {
   key: 'attendance-daily',
   title: '考勤日报',
-  listPath: '/oa/attendance/daily/page',
+  listPath: '/oa/v1/attendance/daily/page',
   permission: 'sys:oa:attendance:daily:list',
   idKey: 'id',
   statusParam: 'status',
@@ -1061,7 +1061,7 @@ export const COURSE_STATUS_STYLE: Record<string, ScreenStatusStyle> = {
 export const COURSE_PAGE: ScreenListPageSpec = {
   key: 'courses',
   title: '课程目录',
-  listPath: '/lms/course/page',
+  listPath: '/lms/v1/course/page',
   permission: 'sys:lms:course:list',
   idKey: 'id',
   keywordParam: 'keyword',
@@ -1316,6 +1316,73 @@ export const CONTRACT_PAGE: ScreenListPageSpec = {
   titleKey: 'title',
 };
 
+/** 党员状态：与 {@code MemberStatus} 一一对应，前端只做展示 */
+export const PARTY_MEMBER_STATUS: Record<string, ScreenStatusStyle> = {
+  ACTIVE: { label: '在册', tone: 'good' },
+  TRANSFERRED: { label: '已转出', tone: 'flat' },
+  SUSPENDED: { label: '停籍', tone: 'bad' },
+};
+
+/** 政治面貌：与 {@code PoliticalStatus} 一一对应（预备党员黄灯，转正要有人办） */
+export const PARTY_POLITICAL_STYLE: Record<string, ScreenStatusStyle> = {
+  FULL_MEMBER: { label: '正式党员', tone: 'flat' },
+  PROBATIONARY: { label: '预备党员', tone: 'warn' },
+};
+
+/**
+ * 宣抚坊（PARTY）党员台账页。
+ *
+ * <p><b>有搜索框</b>：党员查询有合并 keyword（编号与姓名一起模糊匹配），
+ * 与项目查询同一待遇。</p>
+ *
+ * <p><b>政治面貌用列级字典</b>：FULL_MEMBER / PROBATIONARY 与状态 ACTIVE/TRANSFERRED/
+ * SUSPENDED 是两个独立码空间，页面级字典会把"预备党员"误译成状态。
+ * 预备党员黄灯——不是事故，是"转正手续得有人办"的提醒。</p>
+ *
+ * <p><b>不配 `detailPath`：列表行已经带回支部、面貌、党龄、状态等全部字段，
+ * 再请求一次只会让点开有半秒空白。</b></p>
+ */
+export const MEMBER_PAGE: ScreenListPageSpec = {
+  key: 'members',
+  title: '党员台账',
+  listPath: '/party/member/page',
+  permission: 'sys:party:member:list',
+  idKey: 'id',
+  keywordParam: 'keyword',
+  searchPlaceholder: '搜索党员编号 / 姓名…',
+  statusParam: 'status',
+  statuses: [
+    { value: '', label: '全部状态' },
+    { value: 'ACTIVE', label: '在册' },
+    { value: 'TRANSFERRED', label: '已转出' },
+    { value: 'SUSPENDED', label: '停籍' },
+  ],
+  statusMap: PARTY_MEMBER_STATUS,
+  /* 6 行/页：大屏 620px 里 KPI + 年龄柱图 + 工具栏之后只剩约 230px */
+  pageSize: 6,
+  columns: [
+    { key: 'memberNo', label: '编号', width: '14%' },
+    { key: 'memberName', label: '姓名', width: '14%' },
+    { key: 'branchName', label: '支部', width: '22%' },
+    { key: 'politicalStatus', label: '政治面貌', width: '16%', format: 'status', statusMap: PARTY_POLITICAL_STYLE },
+    { key: 'partyAgeYears', label: '党龄', width: '12%', format: 'count', align: 'right' },
+    { key: 'status', label: '状态', width: '12%', format: 'status' },
+  ],
+  detailFields: [
+    { key: 'memberNo', label: '编号' },
+    { key: 'memberName', label: '姓名' },
+    { key: 'branchName', label: '支部' },
+    { key: 'politicalStatus', label: '政治面貌', format: 'status' },
+    { key: 'employeeNo', label: '工号' },
+    { key: 'education', label: '学历' },
+    { key: 'joinPartyDate', label: '入党日期', format: 'date' },
+    { key: 'partyAgeYears', label: '党龄（年）', format: 'count', align: 'right' },
+    { key: 'status', label: '状态', format: 'status' },
+    { key: 'phone', label: '联系电话' },
+  ],
+  titleKey: 'memberName',
+};
+
 /**
  * 殿的连通状态：与后端 {@code HubHallState} 一一对应，前端只做展示。
  *
@@ -1404,5 +1471,6 @@ export const SCREEN_PAGES: Record<string, ScreenListPageSpec> = {
   [COURSE_PAGE.key]: COURSE_PAGE,
   [PART_PAGE.key]: PART_PAGE,
   [CONTRACT_PAGE.key]: CONTRACT_PAGE,
+  [MEMBER_PAGE.key]: MEMBER_PAGE,
   [PROJECT_PAGE.key]: PROJECT_PAGE,
 };

@@ -21,7 +21,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/oa/directory")
+@RequestMapping(path = "/oa/v{version}/directory", version = "1")
 @RequiredArgsConstructor
 public class DirectoryController {
 

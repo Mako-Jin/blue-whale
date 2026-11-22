@@ -48,7 +48,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/mes/workforce")
+@RequestMapping(path = "/mes/v{version}/workforce", version = "1")
 @RequiredArgsConstructor
 public class MesWorkforceController {
 

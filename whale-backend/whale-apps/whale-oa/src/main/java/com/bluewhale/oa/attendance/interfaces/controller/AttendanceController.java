@@ -40,7 +40,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/oa/attendance")
+@RequestMapping(path = "/oa/v{version}/attendance", version = "1")
 @RequiredArgsConstructor
 public class AttendanceController {
 

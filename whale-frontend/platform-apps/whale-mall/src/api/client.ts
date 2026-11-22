@@ -1,7 +1,7 @@
 // 商城子应用请求层：基于 @bluewhale/http，token 从基座通过 qiankun props 注入
 //
 // 后端统一返回 `Result` 信封：{ code, message, data }，code === 0 表示成功。
-// 所有请求走相对路径（如 `/mall/product/page`），由基座 / Nginx 经网关 8080 代理；
+// 所有请求走相对路径（如 `/mall/v1/product/page`），由基座 / Nginx 经网关 8080 代理；
 // 网关对 /mall/** 不剥离一级前缀（与 whale-party / whale-crm 一致）。
 
 import { createHttpClient, type DownloadResult, type HttpOptions } from '@bluewhale/http';

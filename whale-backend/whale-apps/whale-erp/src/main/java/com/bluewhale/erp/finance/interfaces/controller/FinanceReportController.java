@@ -23,7 +23,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/erp/finance/report")
+@RequestMapping(path = "/erp/v{version}/finance/report", version = "1")
 @RequiredArgsConstructor
 public class FinanceReportController {
 

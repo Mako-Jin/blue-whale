@@ -22,7 +22,7 @@ export interface MallMeta {
 
 /** 读取商城元信息 */
 export function fetchMeta(): Promise<MallMeta> {
-  return http.get<MallMeta>('/mall/meta');
+  return http.get<MallMeta>('/mall/v1/meta');
 }
 
 // ---------------------------------------------------------------------------
@@ -54,22 +54,22 @@ export function fetchCategoryTree(query?: {
   keyword?: string;
   status?: string;
 }): Promise<CategoryNode[]> {
-  return http.get<CategoryNode[]>('/mall/category/tree', query);
+  return http.get<CategoryNode[]>('/mall/v1/category/tree', query);
 }
 
 /** 新建类目 */
 export function createCategory(body: CategorySavePayload): Promise<CategoryNode> {
-  return http.post<CategoryNode>('/mall/category', body);
+  return http.post<CategoryNode>('/mall/v1/category', body);
 }
 
 /** 编辑类目 */
 export function updateCategory(id: number, body: CategorySavePayload): Promise<CategoryNode> {
-  return http.put<CategoryNode>(`/mall/category/${id}`, body);
+  return http.put<CategoryNode>(`/mall/v1/category/${id}`, body);
 }
 
 /** 删除类目（有子类目或在用商品时后端拒绝） */
 export function removeCategory(id: number): Promise<void> {
-  return http.del<void>(`/mall/category/${id}`);
+  return http.del<void>(`/mall/v1/category/${id}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -154,32 +154,32 @@ export interface ProductQuery {
 
 /** 商品分页 */
 export function pageProducts(query: ProductQuery): Promise<PageResult<SpuView>> {
-  return http.get<PageResult<SpuView>>('/mall/product/page', query);
+  return http.get<PageResult<SpuView>>('/mall/v1/product/page', query);
 }
 
 /** 商品详情（含 SKU 与库存） */
 export function getProduct(id: number): Promise<SpuDetailView> {
-  return http.get<SpuDetailView>(`/mall/product/${id}`);
+  return http.get<SpuDetailView>(`/mall/v1/product/${id}`);
 }
 
 /** 新建商品（返回新商品 ID） */
 export function createProduct(body: SpuSavePayload): Promise<number> {
-  return http.post<number>('/mall/product', body);
+  return http.post<number>('/mall/v1/product', body);
 }
 
 /** 编辑商品 */
 export function updateProduct(id: number, body: SpuSavePayload): Promise<void> {
-  return http.put<void>(`/mall/product/${id}`, body);
+  return http.put<void>(`/mall/v1/product/${id}`, body);
 }
 
 /** 上下架（只接受 ON_SALE / OFF_SALE） */
 export function changeProductStatus(id: number, status: string): Promise<void> {
-  return http.put<void>(`/mall/product/${id}/status`, undefined, { status });
+  return http.put<void>(`/mall/v1/product/${id}/status`, undefined, { status });
 }
 
 /** 删除商品（在售不可删） */
 export function removeProduct(id: number): Promise<void> {
-  return http.del<void>(`/mall/product/${id}`);
+  return http.del<void>(`/mall/v1/product/${id}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -206,12 +206,12 @@ export function pageStocks(query: {
   current?: number;
   size?: number;
 }): Promise<PageResult<StockView>> {
-  return http.get<PageResult<StockView>>('/mall/stock/page', query);
+  return http.get<PageResult<StockView>>('/mall/v1/stock/page', query);
 }
 
 /** 调整库存（delta 为增量，可负；返回调整后的可售数量） */
 export function adjustStock(skuId: number, delta: number, remark?: string): Promise<number> {
-  return http.put<number>(`/mall/stock/${skuId}`, { delta, remark });
+  return http.put<number>(`/mall/v1/stock/${skuId}`, { delta, remark });
 }
 
 // ---------------------------------------------------------------------------
@@ -252,22 +252,22 @@ export function pageChannels(query: {
   current?: number;
   size?: number;
 }): Promise<PageResult<ChannelView>> {
-  return http.get<PageResult<ChannelView>>('/mall/channel/page', query);
+  return http.get<PageResult<ChannelView>>('/mall/v1/channel/page', query);
 }
 
 /** 新建渠道 */
 export function createChannel(body: ChannelSavePayload): Promise<ChannelView> {
-  return http.post<ChannelView>('/mall/channel', body);
+  return http.post<ChannelView>('/mall/v1/channel', body);
 }
 
 /** 编辑渠道 */
 export function updateChannel(id: number, body: ChannelSavePayload): Promise<ChannelView> {
-  return http.put<ChannelView>(`/mall/channel/${id}`, body);
+  return http.put<ChannelView>(`/mall/v1/channel/${id}`, body);
 }
 
 /** 渠道启停 */
 export function changeChannelStatus(id: number, status: string): Promise<void> {
-  return http.put<void>(`/mall/channel/${id}/status`, undefined, { status });
+  return http.put<void>(`/mall/v1/channel/${id}/status`, undefined, { status });
 }
 
 // ---------------------------------------------------------------------------
@@ -306,7 +306,7 @@ export interface CartView {
 
 /** 查看购物车（按渠道隔离：同一 SKU 在两个渠道是两行） */
 export function fetchCart(channelId: number): Promise<CartView> {
-  return http.get<CartView>('/mall/cart', { channelId });
+  return http.get<CartView>('/mall/v1/cart', { channelId });
 }
 
 /** 加入购物车（同 SKU 数量累加） */
@@ -315,17 +315,17 @@ export function addCartItem(body: {
   skuId: number;
   quantity: number;
 }): Promise<CartView> {
-  return http.post<CartView>('/mall/cart/item', body);
+  return http.post<CartView>('/mall/v1/cart/item', body);
 }
 
 /** 修改数量（<= 0 由后端拒绝，前端不要静默拦截） */
 export function updateCartQuantity(itemId: number, quantity: number): Promise<CartView> {
-  return http.put<CartView>(`/mall/cart/item/${itemId}`, undefined, { quantity });
+  return http.put<CartView>(`/mall/v1/cart/item/${itemId}`, undefined, { quantity });
 }
 
 /** 删除购物车行 */
 export function removeCartItem(itemId: number): Promise<CartView> {
-  return http.del<CartView>(`/mall/cart/item/${itemId}`);
+  return http.del<CartView>(`/mall/v1/cart/item/${itemId}`);
 }
 
 /** 批量选中 / 取消选中（itemIds 为空表示整车） */
@@ -334,7 +334,7 @@ export function selectCartItems(body: {
   itemIds?: number[];
   selected?: boolean;
 }): Promise<CartView> {
-  return http.put<CartView>('/mall/cart/select', body);
+  return http.put<CartView>('/mall/v1/cart/select', body);
 }
 
 // ---------------------------------------------------------------------------
@@ -441,7 +441,7 @@ export function previewOrder(body: {
   itemIds: number[];
   couponId?: number;
 }): Promise<OrderPreviewView> {
-  return http.post<OrderPreviewView>('/mall/order/preview', body);
+  return http.post<OrderPreviewView>('/mall/v1/order/preview', body);
 }
 
 /**
@@ -458,7 +458,7 @@ export function createOrder(
   body: { channelId: number; itemIds: number[]; remark?: string; couponId?: number },
   idempotencyKey: string,
 ): Promise<OrderView> {
-  return request<OrderView>('/mall/order', {
+  return request<OrderView>('/mall/v1/order', {
     method: 'POST',
     body,
     headers: { 'Idempotency-Key': idempotencyKey },
@@ -471,7 +471,7 @@ export function pageMyOrders(query: {
   current?: number;
   size?: number;
 }): Promise<PageResult<OrderView>> {
-  return http.get<PageResult<OrderView>>('/mall/order/my', query);
+  return http.get<PageResult<OrderView>>('/mall/v1/order/my', query);
 }
 
 /** 全部订单分页（后台口径，需 ORDER_MANAGE 之外的 ORDER_LIST 即可读） */
@@ -481,32 +481,32 @@ export function pageOrders(query: {
   current?: number;
   size?: number;
 }): Promise<PageResult<OrderView>> {
-  return http.get<PageResult<OrderView>>('/mall/order/page', query);
+  return http.get<PageResult<OrderView>>('/mall/v1/order/page', query);
 }
 
 /** 订单详情 */
 export function getOrder(id: number): Promise<OrderView> {
-  return http.get<OrderView>(`/mall/order/${id}`);
+  return http.get<OrderView>(`/mall/v1/order/${id}`);
 }
 
 /** 取消订单（只对未支付生效） */
 export function cancelOrder(id: number, reason?: string): Promise<void> {
-  return http.post<void>(`/mall/order/${id}/cancel`, undefined, { reason });
+  return http.post<void>(`/mall/v1/order/${id}/cancel`, undefined, { reason });
 }
 
 /** 买家发起支付：创建支付单并调起支付，返回支付单号（成功后 whale-pay 异步回调推进状态） */
 export function payOrder(id: number): Promise<string> {
-  return http.post<string>(`/mall/order/${id}/pay`);
+  return http.post<string>(`/mall/v1/order/${id}/pay`);
 }
 
 /** 整单退款（运营；PAID → REFUNDING，退款成功由 whale-pay 回调终态） */
 export function refundOrder(id: number, reason?: string): Promise<void> {
-  return http.post<void>(`/mall/order/${id}/refund`, undefined, { reason });
+  return http.post<void>(`/mall/v1/order/${id}/refund`, undefined, { reason });
 }
 
 /** 确认收货（SHIPPED → COMPLETED） */
 export function completeOrder(id: number): Promise<void> {
-  return http.post<void>(`/mall/order/${id}/complete`);
+  return http.post<void>(`/mall/v1/order/${id}/complete`);
 }
 
 // ---------------------------------------------------------------------------
@@ -564,7 +564,7 @@ export function applyAfterSale(body: {
   returnLogisticsNo?: string;
   lines: Array<{ orderItemId: number; quantity: number }>;
 }): Promise<number> {
-  return http.post<number>('/mall/after-sale', body);
+  return http.post<number>('/mall/v1/after-sale', body);
 }
 
 /** whale-file 上传结果（与后端 FileUploadVO 字段对齐，售后凭证只需要 id） */
@@ -595,7 +595,7 @@ export function pageMyAfterSale(query: {
   current?: number;
   size?: number;
 }): Promise<PageResult<AfterSaleView>> {
-  return http.get<PageResult<AfterSaleView>>('/mall/after-sale/page', query);
+  return http.get<PageResult<AfterSaleView>>('/mall/v1/after-sale/page', query);
 }
 
 /** 全部售后分页（运营） */
@@ -605,27 +605,27 @@ export function pageAfterSaleAdmin(query: {
   current?: number;
   size?: number;
 }): Promise<PageResult<AfterSaleView>> {
-  return http.get<PageResult<AfterSaleView>>('/mall/after-sale/admin/page', query);
+  return http.get<PageResult<AfterSaleView>>('/mall/v1/after-sale/admin/page', query);
 }
 
 /** 售后详情 */
 export function getAfterSale(id: number): Promise<AfterSaleView> {
-  return http.get<AfterSaleView>(`/mall/after-sale/${id}`);
+  return http.get<AfterSaleView>(`/mall/v1/after-sale/${id}`);
 }
 
 /** 撤销售后（仅待审核，买家本人或运营） */
 export function cancelAfterSale(id: number): Promise<void> {
-  return http.post<void>(`/mall/after-sale/${id}/cancel`);
+  return http.post<void>(`/mall/v1/after-sale/${id}/cancel`);
 }
 
 /** 审核通过并发起退款 */
 export function approveAfterSale(id: number, remark?: string): Promise<void> {
-  return http.post<void>(`/mall/after-sale/${id}/approve`, undefined, { remark });
+  return http.post<void>(`/mall/v1/after-sale/${id}/approve`, undefined, { remark });
 }
 
 /** 驳回售后 */
 export function rejectAfterSale(id: number, remark?: string): Promise<void> {
-  return http.post<void>(`/mall/after-sale/${id}/reject`, undefined, { remark });
+  return http.post<void>(`/mall/v1/after-sale/${id}/reject`, undefined, { remark });
 }
 
 // ---------------------------------------------------------------------------
@@ -666,17 +666,17 @@ export function pageFreightTemplate(query: {
   current?: number;
   size?: number;
 }): Promise<PageResult<FreightTemplateView>> {
-  return http.get<PageResult<FreightTemplateView>>('/mall/freight-template/page', query);
+  return http.get<PageResult<FreightTemplateView>>('/mall/v1/freight-template/page', query);
 }
 
 /** 运费模板详情 */
 export function getFreightTemplate(id: number): Promise<FreightTemplateView> {
-  return http.get<FreightTemplateView>(`/mall/freight-template/${id}`);
+  return http.get<FreightTemplateView>(`/mall/v1/freight-template/${id}`);
 }
 
 /** 新建运费模板 */
 export function createFreightTemplate(body: FreightTemplateSaveBody): Promise<FreightTemplateView> {
-  return http.post<FreightTemplateView>('/mall/freight-template', body);
+  return http.post<FreightTemplateView>('/mall/v1/freight-template', body);
 }
 
 /** 编辑运费模板 */
@@ -684,12 +684,12 @@ export function updateFreightTemplate(
   id: number,
   body: FreightTemplateSaveBody,
 ): Promise<FreightTemplateView> {
-  return http.put<FreightTemplateView>(`/mall/freight-template/${id}`, body);
+  return http.put<FreightTemplateView>(`/mall/v1/freight-template/${id}`, body);
 }
 
 /** 启停运费模板 */
 export function changeFreightTemplateStatus(id: number, status: string): Promise<void> {
-  return http.post<void>(`/mall/freight-template/${id}/status`, undefined, { status });
+  return http.post<void>(`/mall/v1/freight-template/${id}/status`, undefined, { status });
 }
 
 // ---------------------------------------------------------------------------
@@ -771,27 +771,27 @@ export function pageCoupon(query: {
   current?: number;
   size?: number;
 }): Promise<PageResult<CouponView>> {
-  return http.get<PageResult<CouponView>>('/mall/coupon/page', query);
+  return http.get<PageResult<CouponView>>('/mall/v1/coupon/page', query);
 }
 
 /** 新建券模板 */
 export function createCoupon(body: CouponSaveBody): Promise<CouponView> {
-  return http.post<CouponView>('/mall/coupon', body);
+  return http.post<CouponView>('/mall/v1/coupon', body);
 }
 
 /** 编辑券模板（不影响已领出的券） */
 export function updateCoupon(id: number, body: CouponSaveBody): Promise<CouponView> {
-  return http.put<CouponView>(`/mall/coupon/${id}`, body);
+  return http.put<CouponView>(`/mall/v1/coupon/${id}`, body);
 }
 
 /** 启停券模板 */
 export function changeCouponStatus(id: number, status: string): Promise<void> {
-  return http.post<void>(`/mall/coupon/${id}/status`, undefined, { status });
+  return http.post<void>(`/mall/v1/coupon/${id}/status`, undefined, { status });
 }
 
 /** 领取优惠券 */
 export function claimCoupon(id: number): Promise<CouponUserView> {
-  return http.post<CouponUserView>(`/mall/coupon/${id}/claim`);
+  return http.post<CouponUserView>(`/mall/v1/coupon/${id}/claim`);
 }
 
 /** 我的券分页 */
@@ -800,7 +800,7 @@ export function pageMyCoupons(query: {
   current?: number;
   size?: number;
 }): Promise<PageResult<CouponUserView>> {
-  return http.get<PageResult<CouponUserView>>('/mall/coupon/mine', query);
+  return http.get<PageResult<CouponUserView>>('/mall/v1/coupon/mine', query);
 }
 
 /** 当前订单可用的券（含不可用及原因） */
@@ -808,7 +808,7 @@ export function listAvailableCoupons(query: {
   channelId: number;
   amount?: number;
 }): Promise<CouponUserView[]> {
-  return http.get<CouponUserView[]>('/mall/coupon/available', query);
+  return http.get<CouponUserView[]>('/mall/v1/coupon/available', query);
 }
 
 // ---------------------------------------------------------------------
@@ -865,7 +865,7 @@ export function createShipment(body: {
   remark?: string;
   items: { orderItemId: number; quantity: number }[];
 }): Promise<ShipmentView> {
-  return http.post<ShipmentView>('/mall/shipment', body);
+  return http.post<ShipmentView>('/mall/v1/shipment', body);
 }
 
 /** 发货单分页 */
@@ -877,25 +877,25 @@ export function pageShipments(query: {
   current?: number;
   size?: number;
 }): Promise<PageResult<ShipmentView>> {
-  return http.get<PageResult<ShipmentView>>('/mall/shipment/page', query);
+  return http.get<PageResult<ShipmentView>>('/mall/v1/shipment/page', query);
 }
 
 /** 发货单详情 */
 export function getShipment(id: number): Promise<ShipmentView> {
-  return http.get<ShipmentView>(`/mall/shipment/${id}`);
+  return http.get<ShipmentView>(`/mall/v1/shipment/${id}`);
 }
 
 /** 某订单的发货单列表（买家可看自己的） */
 export function listShipmentsByOrder(orderNo: string): Promise<ShipmentView[]> {
-  return http.get<ShipmentView[]>(`/mall/shipment/order/${orderNo}`);
+  return http.get<ShipmentView[]>(`/mall/v1/shipment/order/${orderNo}`);
 }
 
 /** 手工签收（物流平台未接通时的兜底） */
 export function deliverShipment(id: number): Promise<void> {
-  return http.post<void>(`/mall/shipment/${id}/delivered`);
+  return http.post<void>(`/mall/v1/shipment/${id}/delivered`);
 }
 
 /** 作废发货单（释放已发数量与预占库存） */
 export function cancelShipment(id: number, reason?: string): Promise<void> {
-  return http.post<void>(`/mall/shipment/${id}/cancel`, { reason });
+  return http.post<void>(`/mall/v1/shipment/${id}/cancel`, { reason });
 }

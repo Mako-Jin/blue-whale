@@ -30,7 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/oa/leave")
+@RequestMapping(path = "/oa/v{version}/leave", version = "1")
 @RequiredArgsConstructor
 public class LeaveController {
 

@@ -69,12 +69,12 @@ export function pageCourses(params: {
   current?: number;
   size?: number;
 }) {
-  return http.get<PageData<CourseItem>>('/lms/course/page', { ...params });
+  return http.get<PageData<CourseItem>>('/lms/v1/course/page', { ...params });
 }
 
 /** 课程详情 */
 export function courseDetail(id: number | string) {
-  return http.get<CourseDetail>(`/lms/course/${id}`);
+  return http.get<CourseDetail>(`/lms/v1/course/${id}`);
 }
 
 /** 新建课程 */
@@ -85,7 +85,7 @@ export function createCourse(body: {
   description?: string;
   lecturer?: string;
 }) {
-  return http.post<number>('/lms/course', body);
+  return http.post<number>('/lms/v1/course', body);
 }
 
 /** 编辑课程 */
@@ -93,17 +93,17 @@ export function updateCourse(
   id: number,
   body: { title: string; category?: string; description?: string; lecturer?: string },
 ) {
-  return http.put<void>(`/lms/course/${id}`, body);
+  return http.put<void>(`/lms/v1/course/${id}`, body);
 }
 
 /** 课程发布 / 归档 */
 export function changeCourseStatus(id: number, action: 'PUBLISH' | 'ARCHIVE') {
-  return http.put<void>(`/lms/course/${id}/status`, { action });
+  return http.put<void>(`/lms/v1/course/${id}/status`, { action });
 }
 
 /** 删除课程 */
 export function deleteCourse(id: number) {
-  return http.del<void>(`/lms/course/${id}`);
+  return http.del<void>(`/lms/v1/course/${id}`);
 }
 
 /** 新增章节 */
@@ -111,12 +111,12 @@ export function addChapter(
   courseId: number,
   body: { title: string; sortNo?: number; remark?: string },
 ) {
-  return http.post<number>(`/lms/course/${courseId}/chapter`, body);
+  return http.post<number>(`/lms/v1/course/${courseId}/chapter`, body);
 }
 
 /** 删除章节 */
 export function removeChapter(chapterId: number) {
-  return http.del<void>(`/lms/course/chapter/${chapterId}`);
+  return http.del<void>(`/lms/v1/course/chapter/${chapterId}`);
 }
 
 /** 新增课件 */
@@ -124,25 +124,25 @@ export function addWare(
   chapterId: number,
   body: { name: string; wareType: string; fileRefId?: string; linkUrl?: string },
 ) {
-  return http.post<number>(`/lms/course/chapter/${chapterId}/ware`, body);
+  return http.post<number>(`/lms/v1/course/chapter/${chapterId}/ware`, body);
 }
 
 /** 删除课件 */
 export function removeWare(wareId: number) {
-  return http.del<void>(`/lms/course/ware/${wareId}`);
+  return http.del<void>(`/lms/v1/course/ware/${wareId}`);
 }
 
 /** 报名（幂等） */
 export function enroll(courseId: number | string) {
-  return http.post<EnrollmentItem>(`/lms/learning/enroll/${courseId}`);
+  return http.post<EnrollmentItem>(`/lms/v1/learning/enroll/${courseId}`);
 }
 
 /** 我的学习分页 */
 export function myEnrollments(params: { current?: number; size?: number }) {
-  return http.get<PageData<EnrollmentItem>>('/lms/learning/my', { ...params });
+  return http.get<PageData<EnrollmentItem>>('/lms/v1/learning/my', { ...params });
 }
 
 /** 上报学习进度（只增不减） */
 export function reportProgress(courseId: number | string, chapterId: number, percent: number) {
-  return http.post<EnrollmentItem>(`/lms/learning/${courseId}/progress`, { chapterId, percent });
+  return http.post<EnrollmentItem>(`/lms/v1/learning/${courseId}/progress`, { chapterId, percent });
 }

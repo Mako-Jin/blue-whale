@@ -25,7 +25,7 @@ import java.util.Arrays;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/mall/meta")
+@RequestMapping(path = "/mall/v{version}/meta", version = "1")
 public class MallMetaController {
 
     /** 版本标识 */

@@ -30,7 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/oa/overtime")
+@RequestMapping(path = "/oa/v{version}/overtime", version = "1")
 @RequiredArgsConstructor
 public class OvertimeController {
 

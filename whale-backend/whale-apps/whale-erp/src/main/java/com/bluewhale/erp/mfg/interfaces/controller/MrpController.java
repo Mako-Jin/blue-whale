@@ -28,7 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/erp/mfg/mrp")
+@RequestMapping(path = "/erp/v{version}/mfg/mrp", version = "1")
 @RequiredArgsConstructor
 public class MrpController {
 

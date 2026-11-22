@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/erp/bi/cockpit")
+@RequestMapping(path = "/erp/v{version}/bi/cockpit", version = "1")
 @RequiredArgsConstructor
 public class AnalyticsCockpitController {
 

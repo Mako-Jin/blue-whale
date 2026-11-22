@@ -31,7 +31,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/mall/category")
+@RequestMapping(path = "/mall/v{version}/category", version = "1")
 @RequiredArgsConstructor
 public class MallCategoryController {
 

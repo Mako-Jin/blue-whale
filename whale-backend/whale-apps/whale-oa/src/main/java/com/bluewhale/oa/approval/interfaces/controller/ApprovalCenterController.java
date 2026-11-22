@@ -35,7 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/oa/approval/center")
+@RequestMapping(path = "/oa/v{version}/approval/center", version = "1")
 @RequiredArgsConstructor
 public class ApprovalCenterController {
 

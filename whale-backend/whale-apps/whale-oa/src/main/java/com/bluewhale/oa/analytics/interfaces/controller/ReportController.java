@@ -34,7 +34,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/oa/report")
+@RequestMapping(path = "/oa/v{version}/report", version = "1")
 @RequiredArgsConstructor
 public class ReportController {
 

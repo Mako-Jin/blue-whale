@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/mes/quality/board")
+@RequestMapping(path = "/mes/v{version}/quality/board", version = "1")
 @RequiredArgsConstructor
 public class MesQualityBoardController {
 

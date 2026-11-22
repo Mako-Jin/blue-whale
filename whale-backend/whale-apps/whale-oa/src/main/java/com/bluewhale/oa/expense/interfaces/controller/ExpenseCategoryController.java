@@ -28,7 +28,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/oa/expense/category")
+@RequestMapping(path = "/oa/v{version}/expense/category", version = "1")
 @RequiredArgsConstructor
 public class ExpenseCategoryController {
 

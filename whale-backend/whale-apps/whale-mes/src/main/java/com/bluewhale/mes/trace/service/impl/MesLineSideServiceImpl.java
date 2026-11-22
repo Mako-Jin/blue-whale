@@ -66,7 +66,7 @@ public class MesLineSideServiceImpl implements MesLineSideService {
     private static final String REPLENISH_REQUESTED = "REQUESTED";
 
     /** ERP 调拨接口（对接桩，实际调拨由 ERP 承接） */
-    private static final String ERP_TRANSFER_ENDPOINT = "/erp/scm/transfer";
+    private static final String ERP_TRANSFER_ENDPOINT = "/erp/v1/scm/transfer";
 
     private final MesLineSideStockMapper stockMapper;
 

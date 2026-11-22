@@ -33,7 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/lms/credit")
+@RequestMapping(path = "/lms/v{version}/credit", version = "1")
 @RequiredArgsConstructor
 public class CreditController {
 

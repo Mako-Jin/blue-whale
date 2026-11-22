@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/erp/bi/cube")
+@RequestMapping(path = "/erp/v{version}/bi/cube", version = "1")
 @RequiredArgsConstructor
 public class AnalyticsCubeController {
 

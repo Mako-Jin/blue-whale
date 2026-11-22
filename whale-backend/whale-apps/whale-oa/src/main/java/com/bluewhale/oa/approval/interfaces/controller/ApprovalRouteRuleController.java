@@ -29,7 +29,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/oa/approval/route-rule")
+@RequestMapping(path = "/oa/v{version}/approval/route-rule", version = "1")
 @RequiredArgsConstructor
 public class ApprovalRouteRuleController {
 

@@ -29,7 +29,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/oa/document/templates")
+@RequestMapping(path = "/oa/v{version}/document/templates", version = "1")
 @RequiredArgsConstructor
 public class DocTemplateController {
 
