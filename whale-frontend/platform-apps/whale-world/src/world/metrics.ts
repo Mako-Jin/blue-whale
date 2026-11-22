@@ -235,12 +235,18 @@ const PROBES: ProbeSpec[] = [
     ],
   },
   {
-    // 翰林院 = DOC：同样没有统计接口，取「我参与的藏书阁」数量
+    // 翰林院 = DOC：S6/T6.31 起读契约 /doc/overview，与屏风上半部四张牌同一份
+    // 快照（原先取「我参与的藏书阁」数量，口径是"我的"不是全租户，两处会分叉）。
     nodeKey: 'hanlin-academy',
     permission: 'sys:doc:space:list',
-    url: '/doc/space/my',
+    url: '/doc/overview',
     extract: (d) => [
-      { label: '藏书阁', value: formatCount((d as unknown[] | undefined)?.length ?? 0) },
+      { label: '文档空间', value: formatCount(kpiOf(d, 'spaces')) },
+      {
+        label: '待审批',
+        value: formatCount(kpiOf(d, 'pending')),
+        tone: num(kpiOf(d, 'pending')) > 0 ? 'warn' : 'good',
+      },
     ],
   },
   {

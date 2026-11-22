@@ -78,6 +78,7 @@ import {
   PROJECT_PAGE,
   CONTRACT_PAGE,
   MEMBER_PAGE,
+  SPACE_PAGE,
 } from './screenpages';
 import { createSceneEnv, type SceneEnv } from './env';
 import { createPostFx, type PostFx } from './postfx';
@@ -3968,6 +3969,10 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   let xuanfuScreen: ScreenHandle | null = null;
   let xuanfuPage: ScreenPageHandle | null = null;
 
+  /** 翰林院（S6/T6.31）屏风与其业务页句柄（同上） */
+  let hanlinScreen: ScreenHandle | null = null;
+  let hanlinPage: ScreenPageHandle | null = null;
+
   /**
    * 坊的屏风落位：从布局数据现算，不手抄坐标。
    *
@@ -4451,6 +4456,48 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
           return () => {
             xuanfuPage?.dispose();
             xuanfuPage = null;
+          };
+        },
+      });
+    }
+
+    /* 翰林院（S6/T6.31）：空间台账 + 文书四本账 —— 写出来的东西走到了哪一步。
+
+       布局里翰林院在城北侧（z=-73.41，杏坛的对坊）；`districtScreenPose`
+       按它自己的正面法线算落点，不需要手调坐标。
+
+       屏风上半部是四张牌（文档空间 / 文稿页面 / 待发布审批 / 回收站），
+       中部是文稿状态分布柱图，下半部是空间台账。页面树与回收站不单摆页：
+       页面按空间树形组织、没有租户级清单，回收站在 2D 里也按空间进，
+       硬凑一张跨空间大表只会误导。 */
+    const hanlinPose = districtScreenPose('hanlin-academy');
+    if (hanlinPose) {
+      hanlinScreen = screens.add({
+        id: 'hanlin',
+        position: [hanlinPose.x, 1.55, hanlinPose.z],
+        facing: hanlinPose.facing,
+        size: 'large',
+        title: '翰林院 · 空间台账',
+        subtitle: 'DOC / 文档知识',
+        tone: 'idle',
+        mount: (body) => {
+          hanlinPage = mountScreenPage(body, {
+            nodeKey: 'hanlin-academy',
+            overviewPath: '/doc/overview',
+            overviewPermission: 'sys:doc:space:list',
+            pages: [SPACE_PAGE],
+            getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+            getPermissions: opts.getPermissions,
+            // 题头灯跟业务页状态走：概览陈旧/失败（服务未起、无凭据）时不该还亮绿灯
+            onTone: (tone) => hanlinScreen?.setTone(tone),
+            onTitle: (title, subtitle) => {
+              hanlinScreen?.setTitle(title ? `${title} · 空间台账` : '翰林院 · 空间台账',
+                subtitle ?? 'DOC / 文档知识');
+            },
+          });
+          return () => {
+            hanlinPage?.dispose();
+            hanlinPage = null;
           };
         },
       });
@@ -5014,6 +5061,8 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
           return mengfuPage;
         case 'xuanfu':
           return xuanfuPage;
+        case 'hanlin':
+          return hanlinPage;
         default:
           return hubuPage;
       }

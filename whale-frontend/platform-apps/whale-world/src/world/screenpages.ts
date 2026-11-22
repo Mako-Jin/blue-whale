@@ -1383,6 +1383,71 @@ export const MEMBER_PAGE: ScreenListPageSpec = {
   titleKey: 'memberName',
 };
 
+/** 文档空间状态：与 `doc_space.status` 对应（1 正常 / 0 归档） */
+export const DOC_SPACE_STATUS_STYLE: Record<string, ScreenStatusStyle> = {
+  1: { label: '正常', tone: 'good' },
+  0: { label: '已归档', tone: 'flat' },
+};
+
+/** 空间可见性：与 `DocSpaceVisibility` 一一对应，列级字典——可见性不是状态 */
+export const DOC_SPACE_VISIBILITY_STYLE: Record<string, ScreenStatusStyle> = {
+  PUBLIC: { label: '公开', tone: 'flat' },
+  MEMBER: { label: '成员可见', tone: 'flat' },
+};
+
+/**
+ * 翰林坊（DOC）空间台账页（S6 / T6.31）。
+ *
+ * <p><b>这一屏讲什么。</b>翰林院掌文书：空间（文书房）是页面的家——页面按
+ * 空间树形组织，没有租户级的页面清单，所以坊里摆的是空间台账，
+ * 点进空间才是 2D 里看页树的正确姿势。</p>
+ *
+ * <p><b>有搜索框</b>：空间查询有合并 keyword（名称与描述一起模糊匹配）。</p>
+ *
+ * <p><b>可见性用列级字典</b>：PUBLIC / MEMBER 与空间状态 1/0 是两个独立码空间
+ * （一个字符串一个数字），页面级字典会把"成员可见"误译成状态。数字键
+ * 能用是因为取值时统一 {@code String(value)} 后再查表。</p>
+ *
+ * <p><b>不配 `detailPath`：列表行已经带回编码、描述、可见性等全部字段，
+ * 成员数在分页接口不返回（详情才算），摆了也只会是空的。</b></p>
+ */
+export const SPACE_PAGE: ScreenListPageSpec = {
+  key: 'spaces',
+  title: '空间台账',
+  listPath: '/doc/space/page',
+  permission: 'sys:doc:space:list',
+  idKey: 'id',
+  keywordParam: 'keyword',
+  searchPlaceholder: '搜索空间名 / 描述…',
+  statusParam: 'visibility',
+  statuses: [
+    { value: '', label: '全部可见性' },
+    { value: 'PUBLIC', label: '公开' },
+    { value: 'MEMBER', label: '成员可见' },
+  ],
+  statusMap: DOC_SPACE_STATUS_STYLE,
+  /* 6 行/页：大屏 620px 里 KPI + 状态柱图 + 工具栏之后只剩约 230px */
+  pageSize: 6,
+  columns: [
+    { key: 'name', label: '空间名', width: '22%' },
+    { key: 'spaceKey', label: '编码', width: '14%' },
+    { key: 'visibility', label: '可见性', width: '14%', format: 'status', statusMap: DOC_SPACE_VISIBILITY_STYLE },
+    { key: 'status', label: '状态', width: '12%', format: 'status' },
+    { key: 'description', label: '描述', width: '22%' },
+    { key: 'createTime', label: '创建时间', width: '16%', format: 'date' },
+  ],
+  detailFields: [
+    { key: 'name', label: '空间名' },
+    { key: 'spaceKey', label: '编码' },
+    { key: 'visibility', label: '可见性', format: 'status' },
+    { key: 'status', label: '状态', format: 'status' },
+    { key: 'description', label: '描述' },
+    { key: 'createTime', label: '创建时间', format: 'datetime' },
+    { key: 'updateTime', label: '更新时间', format: 'datetime' },
+  ],
+  titleKey: 'name',
+};
+
 /**
  * 殿的连通状态：与后端 {@code HubHallState} 一一对应，前端只做展示。
  *
@@ -1473,4 +1538,5 @@ export const SCREEN_PAGES: Record<string, ScreenListPageSpec> = {
   [CONTRACT_PAGE.key]: CONTRACT_PAGE,
   [MEMBER_PAGE.key]: MEMBER_PAGE,
   [PROJECT_PAGE.key]: PROJECT_PAGE,
+  [SPACE_PAGE.key]: SPACE_PAGE,
 };

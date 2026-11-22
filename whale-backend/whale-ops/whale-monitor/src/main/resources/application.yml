@@ -142,3 +142,7 @@ whale:
           name: 宣抚坊
           url: http://bw-party:9009/party/overview
           permission: sys:party:metric:list
+        - nodeKey: hanlin-academy
+          name: 翰林院
+          url: http://bw-doc:8095/doc/overview
+          permission: sys:doc:space:list

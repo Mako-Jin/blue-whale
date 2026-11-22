@@ -78,6 +78,12 @@
             <artifactId>whale-spring-boot-starter</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- 概览契约（三维王城数据厅 - 翰林坊）：SDK 注册 GET /doc/overview，本服务只提供 provider -->
+        <dependency>
+            <groupId>com.bluewhale</groupId>
+            <artifactId>whale-overview-sdk</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <!-- 国际化 SDK：按请求 Locale 解析 BizException 文案键，本服务自带 i18n/doc 文案 -->
         <dependency>
             <groupId>com.bluewhale</groupId>

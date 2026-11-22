@@ -361,6 +361,24 @@ public interface DocPageMapper extends BaseMapper<DocPage> {
     long countTrashRoots(@Param("tenantId") Long tenantId, @Param("spaceId") Long spaceId);
 
     /**
+     * 统计租户内回收站根节点数量（跨空间，概览用）。
+     *
+     * <p>回收站页面 {@code deleted = 1}，会被逻辑删除插件挡在普通查询之外；
+     * 与 {@link #countTrashRoots} 同款手工 SQL，显式带 {@code tenant_id} 条件，
+     * 并用 {@code InterceptorIgnore} 关掉租户插件改写——插件对文本 SQL 的
+     * 改写行为不可依赖，租户隔离靠这一行显式条件保证。</p>
+     *
+     * @param tenantId 租户ID
+     * @return 根节点数量
+     */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("""
+            SELECT COUNT(*) FROM doc_page
+            WHERE tenant_id = #{tenantId} AND deleted = 1 AND trash_root_id = id
+            """)
+    long countTrashRootsByTenant(@Param("tenantId") Long tenantId);
+
+    /**
      * 将单个页面移入回收站并改写 slug。
      *
      * @param tenantId    租户ID
