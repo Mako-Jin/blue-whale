@@ -1201,12 +1201,55 @@
   （HEAD 上既有，本批不碰）；其余七项门禁 PASS。改了 whale-music 与 whale-monitor
   的 yml，**部署时两座容器都要重建镜像**。
 
+**S7 第二批交付说明（2026-11-22，T7.2 影戏院 / video，视频纹理）**
+
+- **选址**：外城 x/z = 81.41/47.0、rotationDeg=-120（落在内城 gongbu 45° 与 libu 75°
+  两坊之间的巷道中线上），portal = 殿心 + 14×正面法线。碰撞盒 halfZ=5.0——
+  原 6.0 会把屏风前 5.38m 的落点吞掉，寻路判定"不可站"，自动走位直接失败。
+- **接口**：`GET /video/overview`（`whale.overview.base-path=/video/overview`，
+  TTL 30s、超时 2s）：四张 KPI（已发布内容 / 待审内容 / 待审评论 / 授权将到期，
+  后三张有账就黄）+ 一张内容发布四态柱图（草稿/待审/已发布/已下线）
+  + 四告警（待审内容 / 待审评论 / 授权到期 WARNING；版权下架存量 INFO）
+  + 内容台账 / 电影台账两入口。新建 `VideoOverviewStats/StatsService/Provider`
+  （whale-services/whale-video，:8098，容器 bw-video），权限复用 `sys:video:content:list`。
+- **口径**：发布四态取 `PublishState`、版权取 `CopyrightState`、评论只数 `PENDING`、
+  授权到期窗口 7 天（与 2D 运营统计同一默认值）；按状态各 count 一次，不写 GROUP BY。
+- **屏风页**：`CONTENT_PAGE`（`/video/v1/admin/content/page`，七列）。关键词模糊片名、
+  `statusParam=publishState`；**三个字典各归各位**——发布态占页面级字典，
+  类型（短视频/视频/电影）与版权（有效/已下架）打到列上；不配 `detailPath`
+  （ContentView 平铺，详情 13 字段）。
+- **视频纹理（本坊特殊项）**：新增 `stagescreen.ts`，幕布是 `THREE.VideoTexture`——
+  canvas 实时画皮影戏（灯箱底 / 提线人偶 / 水牌字幕 / 胶片颗粒），经 `captureStream`
+  灌进**不进 DOM** 的 `<video>` 再当纹理。**不用 mp4**：首屏不多一次下载、
+  不依赖编解码器与跨域，帧内容完全可控（e2e 靠帧计数验"在动"）。
+  `captureStream` 不可用时回落 `CanvasTexture`，探针 `mode` 写明走哪条路。
+  走远（>46m）暂停并停重绘；`__bwwStageScreen()` 暴露 mode/frames/playing/near/videoError。
+- **★ 新坑（已写进门禁记忆）**：`play()` 返回的 Promise 在 resolve 前被 `pause()`
+  打断会以 **AbortError** 拒绝，把它当硬失败会让幕布永远停在 canvas 纹理上；
+  正确做法是"只在确认在播时才 pause"，AbortError 留给下次 update 重试。
+- **★ 外城坊墙（S7 共性，已修）**：`DISTRICTS` 从 `PALACES` 全量派生，外城诸司也各围
+  一圈 13×11 坊墙；外城带本就窄（内城十二坊 r=76 覆盖 65~87），叠上外城坊墙后
+  通行带被切成互不连通的小块——实测自动寻路从城内到影戏院屏风前一律报
+  "过不去那道墙"（A* 返回 null），而 `dispatchEvent` 强制点击照样能进屏风，
+  走位失败被完全盖住，直到幕布按真实距离判断才暴露。**坊墙只为 `parentKey ===
+  'inner-city'` 生成**，外城只留台基与建筑碰撞。
+- **数枢殿总控在册**：`http://bw-video:8098/video/overview`，接入 **22 处**。
+- **验证**：video 单测 165 例（新增 11）；monitor 53 例；e2e `world-yingxiyuan-smoke`
+  **58 项全绿**（幕布负向：出生点 82m 外 near=false 且帧不涨；正向：走近后
+  mode=video / playing / 帧增长，玩家到幕布实测 10m）；city-smoke 传送门 13→15；
+  乐坊 59 项、市舶司 55 项回归全绿；tsc / check:overview 通过；八项门禁 8/8 rc=0；
+  覆盖率门禁通过（聚合 53.55%/47.67%）。
+- **附带修复**：概览 provider 线程的租户上下文（见 fix(overview) 提交，
+  21 处在册概览原先查的是全平台数）；`check:overview` 因生成器双引号常年假红
+  （生成器改单引号）。
+- 改了 whale-video 与 whale-monitor 的 yml，**部署时两座容器都要重建镜像**。
+
 ### S7 外城 9 处
 
 | 编号 | 任务 | 服务 | 特殊 |
 |---|---|---|---|
 | T7.1 | [x] 乐坊 | music | 空间音频 |
-| T7.2 | [ ] 影戏院 | video | 视频纹理 |
+| T7.2 | [x] 影戏院 | video | 视频纹理 |
 | T7.3 | [ ] 清议堂 | forum | 帖子列表 |
 | T7.4 | [ ] 邮驿 | mail | 邮件列表 |
 | T7.5 | [ ] 传信司 | im | 会话列表（贴脸模式） |
