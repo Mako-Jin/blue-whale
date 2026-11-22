@@ -2,6 +2,7 @@ package com.bluewhale.overview;
 
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.overview.model.OverviewSnapshot;
 import com.bluewhale.overview.model.OverviewState;
 import org.slf4j.Logger;
@@ -36,11 +37,16 @@ import java.util.stream.Collectors;
  * 直接在请求线程里跑 provider，一旦 provider 里有个没设超时的下游调用，
  * 会把 Tomcat 的工作线程也一起拖住 —— 概览是"看一眼"的接口，不该有这个权力。</p>
  *
- * <p><b>3. 降级。</b>失败时若存在上次成功的快照，返回它并置 {@code stale}；
+ * <p><b>3. 租户上下文跟着进线程池。</b>provider 里全是 MyBatis-Plus 查询，租户插件在
+ * {@code TenantContext} 为空时<b>整表跳过租户条件</b>——查全平台、不报错。所以每次执行
+ * provider 前绑定 {@code context.tenantId()}，结束后恢复原值；{@code tenantId} 为空也要
+ * 显式清空，避免线程池复用把上一个租户带过去。</p>
+ *
+ * <p><b>4. 降级。</b>失败时若存在上次成功的快照，返回它并置 {@code stale}；
  * 否则返回 {@code degraded} 空态。<b>失败结果不写缓存</b>：这样下一次轮询会自动重试，
  * 下游恢复后最多晚一个轮询周期。</p>
  *
- * <p><b>4. 指标。</b>每次装载都回调 {@link OverviewOutcomeListener}，
+ * <p><b>5. 指标。</b>每次装载都回调 {@link OverviewOutcomeListener}，
  * 让"降级了三周没人发现"变成可告警的时序。</p>
  *
  * @author BlueWhale
@@ -198,7 +204,20 @@ public class OverviewService implements DisposableBean {
      */
     private OverviewSnapshot invoke(OverviewProvider provider, OverviewContext context)
             throws TimeoutException, InterruptedException, ExecutionException {
-        Future<OverviewSnapshot> future = executor.submit(() -> provider.build(context));
+        Long tenantId = context == null ? null : context.tenantId();
+        Future<OverviewSnapshot> future = executor.submit(() -> {
+            /* 租户上下文必须带到执行线程：provider 里全是 MyBatis-Plus 查询，
+               租户插件在 TenantContext 为空时**整表忽略租户条件**（不报错、不告警），
+               于是每个租户看到的都是全平台数——这类越权只会让人"觉得数有点怪"。
+               传 null 也要显式清空：线程池复用会把上一个租户残留下来。 */
+            Long previous = TenantContext.get();
+            TenantContext.set(tenantId);
+            try {
+                return provider.build(context);
+            } finally {
+                TenantContext.set(previous);
+            }
+        });
         try {
             return future.get(properties.getTimeout().toMillis(), TimeUnit.MILLISECONDS);
         } catch (TimeoutException e) {

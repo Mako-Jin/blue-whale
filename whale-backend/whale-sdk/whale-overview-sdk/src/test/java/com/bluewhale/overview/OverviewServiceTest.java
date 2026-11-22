@@ -1,6 +1,7 @@
 package com.bluewhale.overview;
 
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.overview.model.OverviewAlert;
 import com.bluewhale.overview.model.OverviewAlertLevel;
 import com.bluewhale.overview.model.OverviewChart;
@@ -18,6 +19,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -278,6 +280,40 @@ class OverviewServiceTest {
         OverviewSnapshot snapshot = service.load(ctx(1L), provider);
 
         assertThat(snapshot.state()).isEqualTo(OverviewState.LIVE);
+    }
+
+    @Test
+    @DisplayName("provider 在独立线程执行时也拿得到租户上下文（租户插件靠它加条件）")
+    void shouldPropagateTenantContextToProviderThread() {
+        AtomicReference<Long> seen = new AtomicReference<>();
+        StubProvider provider = new StubProvider(context -> {
+            seen.set(TenantContext.get());
+            return Overviews.builder("erp", "hubu-hall", "户部").build();
+        });
+        OverviewService subject = serviceOf(provider);
+
+        subject.load(ctx(9001L), provider);
+
+        /* 不传过去的话 MyBatis-Plus 租户插件会整表跳过租户条件（查全平台），
+           而且不报错——所以这条必须钉死，不能只靠"统计服务校验 tenantId 非空"。 */
+        assertThat(seen.get()).isEqualTo(9001L);
+    }
+
+    @Test
+    @DisplayName("无租户的请求清空上下文：线程池复用不把上一个租户带过去")
+    void shouldClearTenantContextForAnonymizedLoad() {
+        AtomicReference<Long> seen = new AtomicReference<>(1L);
+        StubProvider provider = new StubProvider(context -> {
+            seen.set(TenantContext.get());
+            return Overviews.builder("erp", "hubu-hall", "户部").build();
+        });
+        OverviewService subject = serviceOf(provider);
+
+        subject.load(ctx(9001L), provider);
+        subject.load(ctx(null), provider);
+
+        assertThat(seen.get()).isNull();
+        assertThat(TenantContext.get()).isNull();
     }
 
     /**
