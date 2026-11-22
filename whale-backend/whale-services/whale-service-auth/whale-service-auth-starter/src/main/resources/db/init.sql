@@ -649,7 +649,7 @@ VALUES
     (244, 0, 'sys:pay:refund', '支付单退款', 'API', '/pay/v1/order/{id}/refund', 'POST', 244, 1),
     (245, 0, 'sys:pay:reconcile', '支付单对账', 'API', '/pay/v1/order/{id}/reconcile', 'GET', 245, 1),
     -- 通知任务重试与「发起退款」职责分离（存量库由 V40__pay_notify_retry_permission.sql 补齐）
-    (246, 0, 'sys:pay:notify:retry', '支付通知重试', 'API', '/pay/v1/notify/{id}/retry', 'POST', 246, 1);
+    (2423, 0, 'sys:pay:notify:retry', '支付通知重试', 'API', '/pay/v1/notify/{id}/retry', 'POST', 2423, 1);
 
 -- Wave 5.35 权限点：工作流转办/委派/回退 + 表单数据修改
 -- Wave 5.36 权限点：工作流加签

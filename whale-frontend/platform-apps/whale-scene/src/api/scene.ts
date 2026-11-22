@@ -210,7 +210,7 @@ export function fetchSceneDetail(id: number): Promise<SceneDetailView> {
 
 /** 新建场景（草稿） */
 export function createScene(command: SceneSaveCommand): Promise<SceneView> {
-  return http.post<SceneView>('/scene', command);
+  return http.post<SceneView>('/scene/v1', command);
 }
 
 /** 编辑场景 */

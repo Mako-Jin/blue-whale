@@ -14,41 +14,56 @@ import { mkdirSync } from 'node:fs';
 const OUT = 'D:/BlueWhale/BlueWhale/.toolchains/tmp/s2-shots';
 mkdirSync(OUT, { recursive: true });
 
-const browser = await chromium.launch({ channel: 'msedge', args: ['--use-angle=d3d11','--ignore-gpu-blocklist'] });
+const browser = await chromium.launch({
+  channel: 'msedge',
+  args: ['--use-angle=d3d11', '--ignore-gpu-blocklist'],
+});
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 const errs = [];
 page.on('pageerror', (e) => errs.push(String(e).slice(0, 200)));
-await page.addInitScript(() => { try { localStorage.setItem('bww.avatar.v1', JSON.stringify({name:'舰长'})); } catch {} });
+await page.addInitScript(() => {
+  try {
+    localStorage.setItem('bww.avatar.v1', JSON.stringify({ name: '舰长' }));
+  } catch {
+    /* 隐私模式下 localStorage 可能抛错，忽略即可 */
+  }
+});
 await page.goto('http://127.0.0.1:8124/world/?debug=1', { waitUntil: 'load', timeout: 60000 });
 await page.waitForTimeout(8000);
 
-const inspect = () => page.evaluate(() => {
-  const input = document.querySelector('[data-screen-id="shushu"] .bwsp-search');
-  const screenEl = document.querySelector('[data-screen-id="shushu"]');
-  if (!input || !screenEl) return null;
-  // 走到根的祖先链，找出带 3D 变换的
-  const chain = [];
-  let el = input.parentElement;
-  let has3d = false;
-  while (el && el !== document.documentElement) {
-    const t = getComputedStyle(el).transform;
-    const in3d = t && t.startsWith('matrix3d');
-    chain.push({ tag: el.tagName, cls: String(el.className).slice(0, 26), transform: t.slice(0, 24), in3d });
-    if (in3d) has3d = true;
-    el = el.parentElement;
-  }
-  const r = input.getBoundingClientRect();
-  const sr = screenEl.getBoundingClientRect();
-  return {
-    has3dAncestor: has3d,
-    ancestorCount: chain.length,
-    // 输入框是否落在屏风矩形内（平面化定位是否贴对）
-    inputInsideScreen: r.left >= sr.left - 2 && r.right <= sr.right + 2,
-    inputRect: [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height)],
-    screenRect: [Math.round(sr.x), Math.round(sr.y), Math.round(sr.width), Math.round(sr.height)],
-    parentOfScreen: screenEl.parentElement?.id || '(none)',
-  };
-});
+const inspect = () =>
+  page.evaluate(() => {
+    const input = document.querySelector('[data-screen-id="shushu"] .bwsp-search');
+    const screenEl = document.querySelector('[data-screen-id="shushu"]');
+    if (!input || !screenEl) return null;
+    // 走到根的祖先链，找出带 3D 变换的
+    const chain = [];
+    let el = input.parentElement;
+    let has3d = false;
+    while (el && el !== document.documentElement) {
+      const t = getComputedStyle(el).transform;
+      const in3d = t && t.startsWith('matrix3d');
+      chain.push({
+        tag: el.tagName,
+        cls: String(el.className).slice(0, 26),
+        transform: t.slice(0, 24),
+        in3d,
+      });
+      if (in3d) has3d = true;
+      el = el.parentElement;
+    }
+    const r = input.getBoundingClientRect();
+    const sr = screenEl.getBoundingClientRect();
+    return {
+      has3dAncestor: has3d,
+      ancestorCount: chain.length,
+      // 输入框是否落在屏风矩形内（平面化定位是否贴对）
+      inputInsideScreen: r.left >= sr.left - 2 && r.right <= sr.right + 2,
+      inputRect: [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height)],
+      screenRect: [Math.round(sr.x), Math.round(sr.y), Math.round(sr.width), Math.round(sr.height)],
+      parentOfScreen: screenEl.parentElement?.id || '(none)',
+    };
+  });
 
 console.log('OUTSIDE ' + JSON.stringify(await inspect()));
 
@@ -64,7 +79,11 @@ await input.click();
 await page.waitForTimeout(300);
 const focusedInfo = await page.evaluate(() => {
   const el = document.activeElement;
-  return { tag: el?.tagName, cls: String(el?.className).slice(0, 30), isInput: el?.tagName === 'INPUT' };
+  return {
+    tag: el?.tagName,
+    cls: String(el?.className).slice(0, 30),
+    isInput: el?.tagName === 'INPUT',
+  };
 });
 console.log('FOCUS ' + JSON.stringify(focusedInfo));
 

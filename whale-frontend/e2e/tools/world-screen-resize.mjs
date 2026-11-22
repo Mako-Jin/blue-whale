@@ -5,11 +5,20 @@
 
 import { chromium } from '@playwright/test';
 
-const browser = await chromium.launch({ channel: 'msedge', args: ['--use-angle=d3d11','--ignore-gpu-blocklist'] });
+const browser = await chromium.launch({
+  channel: 'msedge',
+  args: ['--use-angle=d3d11', '--ignore-gpu-blocklist'],
+});
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 const errs = [];
 page.on('pageerror', (e) => errs.push(String(e).slice(0, 160)));
-await page.addInitScript(() => { try { localStorage.setItem('bww.avatar.v1', JSON.stringify({name:'舰长'})); } catch {} });
+await page.addInitScript(() => {
+  try {
+    localStorage.setItem('bww.avatar.v1', JSON.stringify({ name: '舰长' }));
+  } catch {
+    /* 隐私模式下 localStorage 可能抛错，忽略即可 */
+  }
+});
 await page.goto('http://127.0.0.1:8124/world/?debug=1', { waitUntil: 'load', timeout: 60000 });
 await page.waitForTimeout(8000);
 

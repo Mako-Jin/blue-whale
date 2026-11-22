@@ -113,7 +113,7 @@ export interface ContractSaveInput {
 export const contractApi = {
   page: (query: ContractQuery) => http.get<PageResult<Contract>>('/contract/v1/page', { ...query }),
   detail: (id: string) => http.get<Contract>(`/contract/v1/${id}`),
-  create: (input: ContractSaveInput) => http.post<Contract>('/contract', input),
+  create: (input: ContractSaveInput) => http.post<Contract>('/contract/v1', input),
   update: (id: string, input: ContractSaveInput) => http.put<Contract>(`/contract/v1/${id}`, input),
   remove: (id: string) => http.del<void>(`/contract/v1/${id}`),
   submit: (id: string) => http.post<Contract>(`/contract/v1/${id}/submit`),

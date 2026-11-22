@@ -62,7 +62,9 @@ const lateral = await walk('a', 4000, 'LATERAL');
 
 /* 断言：向北必须真的往北走（z 减小），且没有被卡在原地 */
 const movedNorth = Math.abs(north[north.length - 1].z - start.z);
+const movedSouth = Math.abs(south[south.length - 1].z - start.z);
 console.log(`北向位移 ${movedNorth.toFixed(2)}m，终局 z=${north[north.length - 1].z}`);
+console.log(`南向位移 ${movedSouth.toFixed(2)}m，终局 z=${south[south.length - 1].z}`);
 
 const maxJump = (samples) => {
   let m = 0;
@@ -76,9 +78,7 @@ console.log(`位移跳变上限（应远小于单步位移）：${maxJump(latera
 const end = await pos();
 console.log('END ' + JSON.stringify(end));
 console.log(
-  movedNorth > 5
-    ? 'PASS 北向可通行（未被坊墙拦住）'
-    : 'FAIL 北向被卡住，检查坊墙是否封了御道',
+  movedNorth > 5 ? 'PASS 北向可通行（未被坊墙拦住）' : 'FAIL 北向被卡住，检查坊墙是否封了御道',
 );
 
 await browser.close();
