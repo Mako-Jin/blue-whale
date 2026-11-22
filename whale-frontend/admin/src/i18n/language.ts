@@ -1,4 +1,9 @@
-// 语言状态：本地持久化 + 浏览器偏好探测（不依赖 React，供 HTTP 客户端读取）
+// 语言状态：本地持久化（不依赖 React，供 HTTP 客户端读取）
+//
+// 语言只认用户显式选择：localStorage 没有记录时固定中文，绝不根据
+// navigator.language 猜测。浏览器语言与产品默认语言无关（en-US 浏览器用户
+// 未主动切换却被显示英文是缺陷，bbec96db 曾因此在 CI 上集体超时），
+// 且与后端 LocaleSupport.DEFAULT_LANGUAGE = zh-CN、网关注入的 X-Lang 保持一致。
 
 /** 受支持的语言 */
 export type Language = 'zh-CN' | 'en-US';
@@ -30,7 +35,10 @@ export function normalizeLanguage(value?: string | null): Language | null {
 }
 
 /**
- * 探测语言：本地存储优先，其次浏览器语言，最后默认中文。
+ * 读取当前语言：本地存储中的用户显式选择优先，未选择时固定默认中文。
+ *
+ * 不再读取 navigator.language——浏览器语言不代表产品语言偏好，
+ * 自动跟随会让 en-US 环境的用户/CI 在未主动切换的情况下看到英文。
  *
  * @returns 当前生效语言
  */
@@ -41,9 +49,9 @@ export function detectLanguage(): Language {
       return stored;
     }
   } catch {
-    // 隐私模式等禁用 localStorage 的场景忽略，继续用浏览器语言
+    // 隐私模式等禁用 localStorage 的场景忽略，用默认中文
   }
-  return normalizeLanguage(window.navigator.language) ?? DEFAULT_LANGUAGE;
+  return DEFAULT_LANGUAGE;
 }
 
 /**

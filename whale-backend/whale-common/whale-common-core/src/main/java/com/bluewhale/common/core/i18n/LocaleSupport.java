@@ -1,5 +1,9 @@
 package com.bluewhale.common.core.i18n;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+
 /**
  * 语言标签归一化与协商工具（纯 Java，无框架依赖）。
  *
@@ -14,6 +18,15 @@ public final class LocaleSupport {
 
     /** 默认语言：简体中文 */
     public static final String DEFAULT_LANGUAGE = "zh-CN";
+
+    /**
+     * 默认 Locale：显式构造，绝不取 JVM 默认。
+     *
+     * <p>与 {@link #DEFAULT_LANGUAGE} 同源。非 Web 线程 / 未过 LocaleContextFilter
+     * 的路径（定时任务、消息消费者、单测）统一用此常量，避免 JVM 语言为 en 时
+     * 隐式漂移到英文，与前端/网关默认口径不一致。</p>
+     */
+    public static final Locale DEFAULT_LOCALE = Locale.forLanguageTag(DEFAULT_LANGUAGE);
 
     /** 简体中文 */
     public static final String CHINESE = "zh-CN";
@@ -51,7 +64,21 @@ public final class LocaleSupport {
     }
 
     /**
-     * 从 {@code Accept-Language} 头按顺序取首个受支持的语言。
+     * 带权语言候选：归一化后的语言 + q 权重 + 原始出现顺序。
+     *
+     * @param language 受支持语言
+     * @param quality  q 权重（0.0 ~ 1.0）
+     * @param order    在请求头中的出现序号，用于同权重时保持稳定
+     */
+    private record Candidate(String language, double quality, int order) {
+    }
+
+    /**
+     * 从 {@code Accept-Language} 头按 HTTP 协商语义取最优受支持语言。
+     *
+     * <p>解析每项的 {@code ;q=} 权重：缺省为 1.0，{@code q=0} 表示明确拒绝，
+     * 按权重降序选取（同权重按出现顺序）。修复前只按出现顺序取首个，
+     * 会把 {@code zh-CN;q=0, en-US;q=0.9} 误判为中文——与 RFC 9110 协商语义相悖。</p>
      *
      * @param header 请求头原文，可为 {@code null}
      * @return 受支持语言；无有效项时返回默认语言
@@ -60,18 +87,53 @@ public final class LocaleSupport {
         if (header == null || header.isBlank()) {
             return DEFAULT_LANGUAGE;
         }
+        List<Candidate> candidates = new ArrayList<>();
+        int order = 0;
         for (String part : header.split(",")) {
-            String tag = part.trim();
-            int qualityIndex = tag.indexOf(';');
-            if (qualityIndex >= 0) {
-                tag = tag.substring(0, qualityIndex).trim();
+            String entry = part.trim();
+            if (entry.isEmpty()) {
+                continue;
+            }
+            String[] segments = entry.split(";");
+            String tag = segments[0].trim();
+            double quality = 1.0;
+            for (int i = 1; i < segments.length; i++) {
+                String parameter = segments[i].trim();
+                if (parameter.regionMatches(true, 0, "q=", 0, 2)) {
+                    quality = parseQuality(parameter.substring(2));
+                    break;
+                }
             }
             String normalized = normalize(tag);
-            if (normalized != null) {
-                return normalized;
+            if (normalized != null && quality > 0.0) {
+                candidates.add(new Candidate(normalized, quality, order));
             }
+            order++;
         }
-        return DEFAULT_LANGUAGE;
+        if (candidates.isEmpty()) {
+            return DEFAULT_LANGUAGE;
+        }
+        // 稳定排序：权重降序；同权重按出现顺序（order 升序）
+        candidates.sort((a, b) -> {
+            int byQuality = Double.compare(b.quality(), a.quality());
+            return byQuality != 0 ? byQuality : Integer.compare(a.order(), b.order());
+        });
+        return candidates.get(0).language();
+    }
+
+    /**
+     * 解析 q 权重，非法值按 0 处理（视为不可接受）。
+     *
+     * @param raw q= 之后的文本
+     * @return 0.0 ~ 1.0 的权重
+     */
+    private static double parseQuality(String raw) {
+        try {
+            double value = Double.parseDouble(raw.trim());
+            return value >= 0.0 && value <= 1.0 ? value : 0.0;
+        } catch (NumberFormatException ex) {
+            return 0.0;
+        }
     }
 
     /**

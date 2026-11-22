@@ -1,5 +1,6 @@
 package com.bluewhale.common.i18n;
 
+import com.bluewhale.common.core.i18n.LocaleSupport;
 import org.springframework.context.NoSuchMessageException;
 import org.springframework.context.support.ResourceBundleMessageSource;
 
@@ -53,7 +54,7 @@ public class CommonMessageResolver {
             return defaultText;
         }
         try {
-            return delegate.getMessage(key, args, locale == null ? Locale.getDefault() : locale);
+            return delegate.getMessage(key, args, locale == null ? LocaleSupport.DEFAULT_LOCALE : locale);
         } catch (NoSuchMessageException ex) {
             return defaultText;
         }

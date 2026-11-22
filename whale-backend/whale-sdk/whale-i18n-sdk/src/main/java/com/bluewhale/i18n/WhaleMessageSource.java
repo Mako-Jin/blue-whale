@@ -36,6 +36,14 @@ public class WhaleMessageSource extends MessageSourceSupport implements MessageS
     private static final long NEGATIVE_TTL_SECONDS = 60;
 
     /**
+     * 请求上下文缺失时的默认 Locale：显式 zh-CN，绝不取 JVM 默认。
+     *
+     * <p>与网关 / 前端默认口径（LocaleSupport.DEFAULT_LANGUAGE）一致；SDK 不依赖
+     * common-core，故在此以语言标签字面量显式构造，避免 JVM 语言为 en 时漂移。</p>
+     */
+    private static final Locale DEFAULT_LOCALE = Locale.forLanguageTag("zh-CN");
+
+    /**
      * Redis 异常告警限流间隔（毫秒）
      */
     private static final long REDIS_WARN_INTERVAL_MS = 60_000L;
@@ -77,7 +85,7 @@ public class WhaleMessageSource extends MessageSourceSupport implements MessageS
 
     @Override
     public String getMessage(String code, Object[] args, String defaultMessage, Locale locale) {
-        Locale localeToUse = locale != null ? locale : Locale.getDefault();
+        Locale localeToUse = locale != null ? locale : DEFAULT_LOCALE;
         String resolved = resolveCode(code, args, localeToUse);
         if (resolved != null) {
             return resolved;
@@ -94,7 +102,7 @@ public class WhaleMessageSource extends MessageSourceSupport implements MessageS
 
     @Override
     public String getMessage(MessageSourceResolvable resolvable, Locale locale) throws NoSuchMessageException {
-        Locale localeToUse = locale != null ? locale : Locale.getDefault();
+        Locale localeToUse = locale != null ? locale : DEFAULT_LOCALE;
         String[] codes = resolvable.getCodes();
         if (codes != null) {
             for (String code : codes) {

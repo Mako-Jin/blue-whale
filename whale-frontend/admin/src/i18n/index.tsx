@@ -52,13 +52,18 @@ export function getAntdLocale(language: Language) {
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>(() => detectLanguage());
 
+  // 只同步展示层，不写 localStorage：首次挂载时用户并未主动选语言，
+  // 若此时持久化会把默认值固化，之后即便改了默认语言也再也回不来。
   useEffect(() => {
-    saveLanguage(language);
     document.documentElement.lang = language;
     dayjs.locale(language === 'en-US' ? 'en' : 'zh-cn');
   }, [language]);
 
-  const setLanguage = useCallback((next: Language) => setLanguageState(next), []);
+  // 仅在用户主动切换时持久化（LanguageSwitcher 走这里）
+  const setLanguage = useCallback((next: Language) => {
+    setLanguageState(next);
+    saveLanguage(next);
+  }, []);
   const t = useCallback(
     (key: MessageKey, vars?: MessageVars) => translate(language, key, vars),
     [language],

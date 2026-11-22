@@ -8,6 +8,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpMethod;
+import org.springframework.validation.BeanPropertyBindingResult;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.Locale;
@@ -56,5 +59,61 @@ class GlobalExceptionHandlerTest {
 
         assertEquals(ErrorCode.NOT_FOUND.getCode(), result.getCode());
         assertEquals("Resource not found", result.getMessage());
+    }
+
+    /**
+     * 构造带单个字段错误的参数校验异常。
+     */
+    private static MethodArgumentNotValidException validationException(String defaultMessage)
+            throws NoSuchMethodException {
+        BeanPropertyBindingResult bindingResult = new BeanPropertyBindingResult(new Object(), "request");
+        bindingResult.addError(new FieldError("request", "name", defaultMessage));
+        return new MethodArgumentNotValidException(
+                new org.springframework.core.MethodParameter(
+                        GlobalExceptionHandlerTest.class.getDeclaredMethod("dummy", String.class), 0),
+                bindingResult);
+    }
+
+    /** 供反射取 MethodParameter 的占位方法 */
+    private static void dummy(String value) {
+    }
+
+    @Test
+    @DisplayName("校验消息 {key} 形式按 Locale 从消息源解析")
+    void validationMessageKeyShouldBeLocalized() throws NoSuchMethodException {
+        GlobalExceptionHandler handler = new GlobalExceptionHandler();
+        handler.setCommonMessageResolver(new CommonMessageResolver());
+
+        LocaleContextHolder.setLocale(Locale.US);
+        assertEquals("This field is required",
+                handler.handleMethodArgumentNotValidException(validationException("{common.validation.required}"))
+                        .getMessage());
+
+        LocaleContextHolder.setLocale(Locale.SIMPLIFIED_CHINESE);
+        assertEquals("此项为必填",
+                handler.handleMethodArgumentNotValidException(validationException("{common.validation.required}"))
+                        .getMessage());
+    }
+
+    @Test
+    @DisplayName("校验消息为纯文本时原样返回（兼容 DTO 硬编码文案）")
+    void validationPlainTextShouldPassThrough() throws NoSuchMethodException {
+        GlobalExceptionHandler handler = new GlobalExceptionHandler();
+        handler.setCommonMessageResolver(new CommonMessageResolver());
+        LocaleContextHolder.setLocale(Locale.US);
+
+        assertEquals("名称不能为空",
+                handler.handleMethodArgumentNotValidException(validationException("名称不能为空")).getMessage());
+    }
+
+    @Test
+    @DisplayName("未绑定 LocaleContext 时回落中文，不取 JVM 默认语言")
+    void missingLocaleContextShouldFallbackToChinese() {
+        GlobalExceptionHandler handler = new GlobalExceptionHandler();
+        handler.setCommonMessageResolver(new CommonMessageResolver());
+        LocaleContextHolder.resetLocaleContext();
+
+        assertEquals("资源不存在", handler.handleNoResourceFoundException(
+                new NoResourceFoundException(HttpMethod.GET, "not/exist/path", "Not Found")).getMessage());
     }
 }

@@ -2,12 +2,14 @@ package com.bluewhale.common.core.handler;
 
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.common.core.i18n.LocaleSupport;
 import com.bluewhale.common.core.result.Result;
 import com.bluewhale.common.i18n.CommonMessageResolver;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContext;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
@@ -90,7 +92,7 @@ public class GlobalExceptionHandler {
         FieldError fieldError = e.getBindingResult().getFieldError();
         String message = fieldError == null
                 ? resolve(ErrorCode.PARAM_ERROR.getMessageKey(), null, ErrorCode.PARAM_ERROR.getMessage())
-                : fieldError.getDefaultMessage();
+                : resolveValidationMessage(fieldError.getDefaultMessage());
         return Result.fail(ErrorCode.PARAM_ERROR.getCode(), message);
     }
 
@@ -104,7 +106,7 @@ public class GlobalExceptionHandler {
     public Result<Void> handleConstraintViolationException(ConstraintViolationException e) {
         String message = e.getConstraintViolations().stream()
                 .findFirst()
-                .map(violation -> violation.getMessage())
+                .map(violation -> resolveValidationMessage(violation.getMessage()))
                 .orElseGet(() -> resolve(ErrorCode.PARAM_ERROR.getMessageKey(), null,
                         ErrorCode.PARAM_ERROR.getMessage()));
         return Result.fail(ErrorCode.PARAM_ERROR.getCode(), message);
@@ -201,7 +203,33 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * 解析 Bean Validation 的字段错误消息。
+     *
+     * <p>约定：形如 {@code {validation.xxx}} 的消息视为 i18n 键，交给消息源按请求
+     * Locale 解析；其余视为 DTO 里已写死的最终文案，原样返回（保持向后兼容，
+     * 这类硬编码中文的迁移属于独立批次，不在本次止血范围）。这样 DTO 一旦改用
+     * message key，无需改本处理器即可随语言切换。</p>
+     *
+     * @param rawMessage 校验注解上的原始消息
+     * @return 本地化后的消息
+     */
+    private String resolveValidationMessage(String rawMessage) {
+        if (rawMessage == null || rawMessage.isBlank()) {
+            return resolve(ErrorCode.PARAM_ERROR.getMessageKey(), null, ErrorCode.PARAM_ERROR.getMessage());
+        }
+        String trimmed = rawMessage.trim();
+        if (trimmed.length() > 2 && trimmed.startsWith("{") && trimmed.endsWith("}")) {
+            return resolve(trimmed.substring(1, trimmed.length() - 1), null, rawMessage);
+        }
+        return rawMessage;
+    }
+
+    /**
      * 按当前请求 Locale 解析文案：主消息源 → 公共资源包 → 调用方兜底。
+     *
+     * <p>Locale 取不到时显式回落中文而非 JVM 默认：非 Web 线程或未过
+     * LocaleContextFilter 的路径上 getLocale() 会返回 JVM 默认语言，若环境为 en
+     * 则与前端 / 网关默认口径漂移（与 bbec96db 同类问题）。</p>
      *
      * @param key         文案键
      * @param args        占位参数
@@ -209,7 +237,10 @@ public class GlobalExceptionHandler {
      * @return 解析结果
      */
     private String resolve(String key, Object[] args, String fallbackText) {
-        Locale locale = LocaleContextHolder.getLocale();
+        LocaleContext localeContext = LocaleContextHolder.getLocaleContext();
+        Locale locale = localeContext != null && localeContext.getLocale() != null
+                ? localeContext.getLocale()
+                : LocaleSupport.DEFAULT_LOCALE;
         if (messageSource != null) {
             String text = messageSource.getMessage(key, args, MISSING, locale);
             if (text != null && !MISSING.equals(text)) {

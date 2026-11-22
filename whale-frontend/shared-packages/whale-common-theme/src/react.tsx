@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Button, ConfigProvider, Select, Space, Tooltip } from 'antd';
+import zhCN from 'antd/locale/zh_CN';
+import type { Locale as AntdLocale } from 'antd/es/locale';
 import { themeCore } from './core';
 import { getAntdTheme } from './antd-config';
 import { AVAILABLE_THEMES, getThemeName } from './palettes';
@@ -10,6 +12,12 @@ import type { ThemeId, ThemeMode } from './types';
 /** ThemeProvider 属性 */
 export interface ThemeProviderProps {
   children: ReactNode;
+  /**
+   * antd 组件内置文案语言（分页 / 弹窗按钮 / 日期选择等）。
+   * 默认 zhCN：产品面向中文用户，未接入 i18n 的应用也应显示中文内置文案，
+   * 而非 antd 默认的英文 "OK" / "Items"。已接入 i18n 的应用可传入对应 locale 覆盖。
+   */
+  locale?: AntdLocale;
 }
 
 /**
@@ -18,7 +26,7 @@ export interface ThemeProviderProps {
  * @param props 组件属性
  * @returns 主题上下文包裹后的子树
  */
-export function ThemeProvider({ children }: ThemeProviderProps) {
+export function ThemeProvider({ children, locale = zhCN }: ThemeProviderProps) {
   const [state, setState] = useState(() => {
     themeCore.init();
     return themeCore.getState();
@@ -38,7 +46,11 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     [state.mode, state.themeId],
   );
 
-  return <ConfigProvider theme={theme}>{children}</ConfigProvider>;
+  return (
+    <ConfigProvider theme={theme} locale={locale}>
+      {children}
+    </ConfigProvider>
+  );
 }
 
 /**

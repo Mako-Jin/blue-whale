@@ -30,6 +30,11 @@ public class I18nCacheEvictHelper {
     private volatile long lastRedisWarnAt = 0L;
 
     /**
+     * Locale 缺失时的默认语言标签：显式 zh-CN，与网关/前端默认口径一致。
+     */
+    private static final String DEFAULT_LOCALE_TAG = "zh-CN";
+
+    /**
      * 构造缓存清理助手
      *
      * @param properties    i18n 配置属性
@@ -54,7 +59,7 @@ public class I18nCacheEvictHelper {
      * 清理指定 code + locale 的缓存 key
      */
     public void evict(String code, Locale locale) {
-        evictInternal(code, locale != null ? locale.toString() : Locale.getDefault().toString());
+        evictInternal(code, locale != null ? locale.toString() : DEFAULT_LOCALE_TAG);
     }
 
     /**
