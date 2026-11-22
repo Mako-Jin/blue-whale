@@ -10,6 +10,7 @@ import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.pay.channel.MockPayChannelAdapter;
 import com.bluewhale.pay.channel.PayChannelGateway;
+import com.bluewhale.pay.channel.PayChannelResult;
 import com.bluewhale.pay.config.PayChannelProperties;
 import com.bluewhale.pay.config.PayReconcileProperties;
 import com.bluewhale.pay.dto.PayOrderCreateRequest;
@@ -17,10 +18,12 @@ import com.bluewhale.pay.dto.PayOrderQueryRequest;
 import com.bluewhale.pay.po.PayOrderPo;
 import com.bluewhale.pay.po.PayTransactionPo;
 import com.bluewhale.pay.mapper.PayOrderMapper;
+import com.bluewhale.pay.mapper.PayRefundMapper;
 import com.bluewhale.pay.mapper.PayTransactionMapper;
 import com.bluewhale.pay.mapper.stat.PayStaleOrderPo;
 import com.bluewhale.pay.service.PayNotifyService;
 import com.bluewhale.pay.service.PayRefundService;
+import com.bluewhale.pay.service.PaySettlementService;
 import com.bluewhale.pay.vo.PayOrderVO;
 import com.bluewhale.pay.vo.PayReconcileVO;
 import com.bluewhale.pay.vo.PayTransactionVO;
@@ -76,6 +79,8 @@ class PayOrderServiceImplTest {
 
     private final PayTransactionMapper payTransactionMapper = mock(PayTransactionMapper.class);
 
+    private final PayRefundMapper payRefundMapper = mock(PayRefundMapper.class);
+
     private final PayChannelGateway payChannelGateway = new PayChannelGateway(
             new PayChannelProperties(), List.of(new MockPayChannelAdapter(new PayChannelProperties())));
 
@@ -85,11 +90,14 @@ class PayOrderServiceImplTest {
 
     private final TransactionTemplate transactionTemplate = transactionTemplate();
 
+    private final PaySettlementService paySettlementService = new PaySettlementServiceImpl(
+            payOrderMapper, payRefundMapper, payTransactionMapper, payNotifyService, transactionTemplate);
+
     private final PayReconcileProperties reconcileProperties = new PayReconcileProperties();
 
     private final PayOrderServiceImpl payOrderService = new PayOrderServiceImpl(
-            payOrderMapper, payTransactionMapper, payChannelGateway, payNotifyService, payRefundService,
-            transactionTemplate, reconcileProperties);
+            payOrderMapper, payTransactionMapper, payChannelGateway, payRefundService,
+            paySettlementService, transactionTemplate, reconcileProperties);
 
     /**
      * 构造不落真实事务的模板：数据库操作全部为 mock，只需走通 getTransaction/commit 流程。
@@ -243,21 +251,34 @@ class PayOrderServiceImplTest {
         paid.setChannelTradeNo("MOCK-1");
         when(payOrderMapper.selectById(1L)).thenReturn(existing, paid);
         when(payOrderMapper.update(isNull(), ArgumentMatchers.<Wrapper<PayOrderPo>>any())).thenReturn(1);
-        when(payOrderMapper.updateById(any(PayOrderPo.class))).thenReturn(1);
         when(payTransactionMapper.insert(any(PayTransactionPo.class))).thenReturn(1);
 
         PayOrderVO vo = payOrderService.pay(1L);
 
         assertEquals("PAID", vo.getStatus());
-        ArgumentCaptor<PayOrderPo> orderCaptor = ArgumentCaptor.forClass(PayOrderPo.class);
-        verify(payOrderMapper).updateById(orderCaptor.capture());
-        assertEquals("PAID", orderCaptor.getValue().getStatus());
-        assertNotNull(orderCaptor.getValue().getPayTime());
-        assertNotNull(orderCaptor.getValue().getChannelTradeNo());
+        // 一次抢占 CREATED→PAYING、一次落账 PAYING→PAID，均为条件更新
+        verify(payOrderMapper, times(2)).update(isNull(), ArgumentMatchers.<Wrapper<PayOrderPo>>any());
         ArgumentCaptor<PayTransactionPo> txCaptor = ArgumentCaptor.forClass(PayTransactionPo.class);
         verify(payTransactionMapper).insert(txCaptor.capture());
         assertEquals("PAY", txCaptor.getValue().getType());
         assertEquals("SUCCESS", txCaptor.getValue().getStatus());
+        assertNotNull(txCaptor.getValue().getProviderTradeNo());
+    }
+
+    @Test
+    @DisplayName("pay：渠道受理中保持 PAYING，不落账不投递，等回调确认")
+    void shouldKeepPayingWhenChannelAccepted() {
+        when(payOrderMapper.selectById(1L)).thenReturn(order(1L, "PAY20261020019", "CREATED"),
+                order(1L, "PAY20261020019", "PAYING"));
+        when(payOrderMapper.update(isNull(), ArgumentMatchers.<Wrapper<PayOrderPo>>any())).thenReturn(1);
+        PayChannelGateway accepting = mock(PayChannelGateway.class);
+        when(accepting.pay(any())).thenReturn(PayChannelResult.accepted("CH-ACCEPTED-1"));
+
+        PayOrderVO vo = serviceWith(accepting).pay(1L);
+
+        assertEquals("PAYING", vo.getStatus());
+        verify(payTransactionMapper, never()).insert(any(PayTransactionPo.class));
+        verify(payNotifyService, never()).enqueue(any(), any(), any(), any());
     }
 
     @Test
@@ -294,7 +315,7 @@ class PayOrderServiceImplTest {
         PayOrderServiceImpl service = new PayOrderServiceImpl(
                 payOrderMapper, payTransactionMapper,
                 new PayChannelGateway(properties, List.of(new MockPayChannelAdapter(properties))),
-                payNotifyService, payRefundService, transactionTemplate, reconcileProperties);
+                payRefundService, paySettlementService, transactionTemplate, reconcileProperties);
         when(payOrderMapper.selectById(1L)).thenReturn(order(1L, "PAY20261020001", "CREATED"));
         when(payOrderMapper.update(isNull(), ArgumentMatchers.<Wrapper<PayOrderPo>>any())).thenReturn(1);
 
@@ -315,7 +336,7 @@ class PayOrderServiceImplTest {
         when(failing.pay(any())).thenThrow(new BizException(ErrorCode.PARAM_ERROR, "渠道超时"));
         PayOrderServiceImpl service = new PayOrderServiceImpl(
                 payOrderMapper, payTransactionMapper, failing,
-                payNotifyService, payRefundService, transactionTemplate, reconcileProperties);
+                payRefundService, paySettlementService, transactionTemplate, reconcileProperties);
 
         BizException ex = assertThrows(BizException.class, () -> service.pay(1L));
 
@@ -551,6 +572,6 @@ class PayOrderServiceImplTest {
      */
     private PayOrderServiceImpl serviceWith(PayChannelGateway gateway) {
         return new PayOrderServiceImpl(payOrderMapper, payTransactionMapper, gateway,
-                payNotifyService, payRefundService, transactionTemplate, reconcileProperties);
+                payRefundService, paySettlementService, transactionTemplate, reconcileProperties);
     }
 }

@@ -16,6 +16,7 @@ import com.bluewhale.pay.mapper.PayOrderMapper;
 import com.bluewhale.pay.mapper.PayRefundMapper;
 import com.bluewhale.pay.mapper.PayTransactionMapper;
 import com.bluewhale.pay.service.PayNotifyService;
+import com.bluewhale.pay.service.PaySettlementService;
 import com.bluewhale.pay.vo.PayRefundVO;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
@@ -75,9 +76,11 @@ class PayRefundServiceImplTest {
 
     private final TransactionTemplate transactionTemplate = transactionTemplate();
 
+    private final PaySettlementService paySettlementService = new PaySettlementServiceImpl(
+            payOrderMapper, payRefundMapper, payTransactionMapper, payNotifyService, transactionTemplate);
+
     private final PayRefundServiceImpl service = new PayRefundServiceImpl(
-            payOrderMapper, payRefundMapper, payTransactionMapper,
-            payChannelGateway, payNotifyService, transactionTemplate);
+            payOrderMapper, payRefundMapper, payChannelGateway, paySettlementService, transactionTemplate);
 
     /**
      * 构造不落真实事务的模板：数据库操作全部为 mock，只需走通 getTransaction/commit 流程。

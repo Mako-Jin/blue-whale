@@ -8,17 +8,13 @@ import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.pay.channel.PayChannelGateway;
 import com.bluewhale.pay.channel.PayChannelResult;
 import com.bluewhale.pay.converter.PayOrderConverter;
-import com.bluewhale.pay.po.PayNotifyTaskPo;
 import com.bluewhale.pay.po.PayOrderPo;
 import com.bluewhale.pay.po.PayRefundPo;
-import com.bluewhale.pay.po.PayTransactionPo;
-import com.bluewhale.pay.enums.PayNotifyEvent;
 import com.bluewhale.pay.enums.PayRefundStatus;
 import com.bluewhale.pay.mapper.PayOrderMapper;
 import com.bluewhale.pay.mapper.PayRefundMapper;
-import com.bluewhale.pay.mapper.PayTransactionMapper;
-import com.bluewhale.pay.service.PayNotifyService;
 import com.bluewhale.pay.service.PayRefundService;
+import com.bluewhale.pay.service.PaySettlementService;
 import com.bluewhale.pay.vo.PayRefundVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -54,12 +50,6 @@ public class PayRefundServiceImpl implements PayRefundService {
     /** 退款单号前缀 */
     private static final String REFUND_NO_PREFIX = "RF";
 
-    /** 流水类型：退款 */
-    private static final String TYPE_REFUND = "REFUND";
-
-    /** 流水状态：成功 */
-    private static final String TX_SUCCESS = "SUCCESS";
-
     /** 金额最大小数位 */
     private static final int MAX_AMOUNT_SCALE = 2;
 
@@ -74,11 +64,9 @@ public class PayRefundServiceImpl implements PayRefundService {
 
     private final PayRefundMapper payRefundMapper;
 
-    private final PayTransactionMapper payTransactionMapper;
-
     private final PayChannelGateway payChannelGateway;
 
-    private final PayNotifyService payNotifyService;
+    private final PaySettlementService paySettlementService;
 
     private final TransactionTemplate transactionTemplate;
 
@@ -127,8 +115,8 @@ public class PayRefundServiceImpl implements PayRefundService {
             throw ex;
         }
         try {
-            transactionTemplate.executeWithoutResult(status ->
-                    settleRefund(order, refund, amount, result));
+            // 与支付成功共用同一落账入口：原子累计 → 退款单成功 → 流水 → 通知
+            paySettlementService.markRefunded(order, refund, amount, result);
         } catch (RuntimeException ex) {
             // 渠道可能已退款成功，保留 FAILED 单供对账核实
             markRefundFailed(refund.getId());
@@ -165,34 +153,6 @@ public class PayRefundServiceImpl implements PayRefundService {
             }
             throw ex;
         }
-    }
-
-    /**
-     * 退款记账事务：原子累计退款额 → 退款单 SUCCESS → 流水 → 业务通知。
-     *
-     * <p>先做原子累计（0 行即状态不允许或超额），避免先行改退款单后又回滚。</p>
-     *
-     * @param order  支付单
-     * @param refund 退款单
-     * @param amount 退款金额
-     * @param result 渠道结果
-     */
-    private void settleRefund(PayOrderPo order, PayRefundPo refund,
-                              BigDecimal amount, PayChannelResult result) {
-        // 原子累计：0 行 = 状态不允许或累计超额，整段记账回滚
-        if (payOrderMapper.applyRefund(order.getId(), amount) == 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "pay.refund.not-refundable",
-                    "退款失败：支付单不可退款或累计退款超出支付金额");
-        }
-        refund.setStatus(PayRefundStatus.SUCCESS.code());
-        refund.setChannelRefundNo(result.providerTradeNo());
-        refund.setRefundTime(LocalDateTime.now());
-        payRefundMapper.updateById(refund);
-        recordTransaction(order, amount, result);
-        PayOrderPo fresh = payOrderMapper.selectById(order.getId());
-        PayNotifyTaskPo task = payNotifyService.enqueue(PayNotifyEvent.REFUNDED, fresh,
-                refund.getRefundNo(), fresh.getRefundAmount());
-        payNotifyService.dispatchAfterCommit(task == null ? null : task.getId());
     }
 
     /**
@@ -301,26 +261,6 @@ public class PayRefundServiceImpl implements PayRefundService {
         refund.setStatus(PayRefundStatus.CREATED.code());
         payRefundMapper.insert(refund);
         return refund;
-    }
-
-    /**
-     * 记录退款流水。
-     *
-     * @param order  支付单
-     * @param amount 金额
-     * @param result 渠道结果
-     */
-    private void recordTransaction(PayOrderPo order, BigDecimal amount, PayChannelResult result) {
-        PayTransactionPo transaction = new PayTransactionPo();
-        transaction.setOrderId(order.getId());
-        transaction.setOrderNo(order.getOrderNo());
-        transaction.setType(TYPE_REFUND);
-        transaction.setChannel(order.getChannel());
-        transaction.setAmount(amount);
-        transaction.setCurrency(order.getCurrency());
-        transaction.setProviderTradeNo(result.providerTradeNo());
-        transaction.setStatus(TX_SUCCESS);
-        payTransactionMapper.insert(transaction);
     }
 
     /**

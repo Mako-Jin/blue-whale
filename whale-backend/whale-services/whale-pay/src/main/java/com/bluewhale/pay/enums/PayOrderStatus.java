@@ -1,5 +1,11 @@
 package com.bluewhale.pay.enums;
 
+import java.util.Collections;
+import java.util.EnumMap;
+import java.util.EnumSet;
+import java.util.Map;
+import java.util.Set;
+
 /**
  * 支付单状态（{@code pay_order.status} 的唯一取值来源）。
  *
@@ -33,6 +39,21 @@ public enum PayOrderStatus {
 
     private final String code;
 
+    /** 合法流转目标：新增状态时只改这里，调用方无需逐处补分支 */
+    private static final Map<PayOrderStatus, Set<PayOrderStatus>> TRANSITIONS;
+
+    static {
+        Map<PayOrderStatus, Set<PayOrderStatus>> transitions = new EnumMap<>(PayOrderStatus.class);
+        // CREATED → PAID 供渠道回调直达（回调可能早于同步记账）；PAYING 是渠道调用中的抢占态
+        transitions.put(CREATED, EnumSet.of(PAYING, PAID, CANCELLED));
+        // PAYING → CREATED 是渠道明确失败后的回退，允许业务方重试
+        transitions.put(PAYING, EnumSet.of(PAID, CREATED));
+        transitions.put(PAID, EnumSet.of(REFUNDED));
+        transitions.put(CANCELLED, EnumSet.noneOf(PayOrderStatus.class));
+        transitions.put(REFUNDED, EnumSet.noneOf(PayOrderStatus.class));
+        TRANSITIONS = Collections.unmodifiableMap(transitions);
+    }
+
     /**
      * 状态码构造
      *
@@ -64,5 +85,24 @@ public enum PayOrderStatus {
             }
         }
         return null;
+    }
+
+    /**
+     * 当前状态的合法流转目标。
+     *
+     * @return 不可变目标集合；终态返回空集
+     */
+    public Set<PayOrderStatus> allowedTransitions() {
+        return TRANSITIONS.get(this);
+    }
+
+    /**
+     * 是否允许流转到目标状态。
+     *
+     * @param target 目标状态
+     * @return true 表示合法
+     */
+    public boolean canTransitionTo(PayOrderStatus target) {
+        return target != null && TRANSITIONS.get(this).contains(target);
     }
 }

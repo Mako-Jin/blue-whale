@@ -25,8 +25,11 @@ public interface PayChannelAdapter {
     /**
      * 渠道收单。
      *
-     * @param order 支付单（状态已抢占为 PAID）
-     * @return 渠道结果（渠道流水号 + 渠道状态）
+     * <p>正常返回即代表渠道已接单：{@link PayChannelStatus#SUCCESS} 可立即落账，
+     * {@link PayChannelStatus#ACCEPTED} 表示结果待回调确认；渠道明确失败直接抛异常。</p>
+     *
+     * @param order 支付单（状态已抢占为 PAYING）
+     * @return 渠道结果（渠道流水号 + 结果状态）
      */
     PayChannelResult pay(PayOrderPo order);
 

@@ -14,17 +14,15 @@ import com.bluewhale.pay.converter.PayOrderConverter;
 import com.bluewhale.pay.dto.PayInternalCreateRequest;
 import com.bluewhale.pay.dto.PayOrderCreateRequest;
 import com.bluewhale.pay.dto.PayOrderQueryRequest;
-import com.bluewhale.pay.po.PayNotifyTaskPo;
 import com.bluewhale.pay.po.PayOrderPo;
 import com.bluewhale.pay.po.PayTransactionPo;
-import com.bluewhale.pay.enums.PayNotifyEvent;
 import com.bluewhale.pay.enums.PayOrderStatus;
 import com.bluewhale.pay.mapper.PayOrderMapper;
 import com.bluewhale.pay.mapper.PayTransactionMapper;
 import com.bluewhale.pay.mapper.stat.PayStaleOrderPo;
-import com.bluewhale.pay.service.PayNotifyService;
 import com.bluewhale.pay.service.PayOrderService;
 import com.bluewhale.pay.service.PayRefundService;
+import com.bluewhale.pay.service.PaySettlementService;
 import com.bluewhale.pay.vo.PayOrderVO;
 import com.bluewhale.pay.vo.PayReconcileVO;
 import com.bluewhale.pay.vo.PayTransactionVO;
@@ -70,15 +68,6 @@ public class PayOrderServiceImpl implements PayOrderService {
     private static final long MAX_PAGE_SIZE = 200L;
 
 
-    /** 流水类型：支付 */
-    private static final String TYPE_PAY = "PAY";
-
-    /** 流水类型：退款 */
-    private static final String TYPE_REFUND = "REFUND";
-
-    /** 流水状态：成功 */
-    private static final String TX_SUCCESS = "SUCCESS";
-
     /** 默认渠道：mock */
     private static final String DEFAULT_CHANNEL = "MOCK";
 
@@ -97,9 +86,9 @@ public class PayOrderServiceImpl implements PayOrderService {
 
     private final PayChannelGateway payChannelGateway;
 
-    private final PayNotifyService payNotifyService;
-
     private final PayRefundService payRefundService;
+
+    private final PaySettlementService paySettlementService;
 
     private final TransactionTemplate transactionTemplate;
 
@@ -170,9 +159,9 @@ public class PayOrderServiceImpl implements PayOrderService {
                     releasePaymentClaim(id, ex.getMessage()));
             throw ex;
         }
-        /* ③ 记账事务：渠道成功后写 PAID、流水与通知任务。本段失败时订单保持 PAYING
-           （渠道可能已扣款，不能回退），由对账兜底。 */
-        transactionTemplate.executeWithoutResult(status -> settlePayment(existing, result));
+        /* ③ 记账：渠道即时成功才落账；受理中保持 PAYING，等回调或对账确认。
+           本段失败时订单保持 PAYING（渠道可能已扣款，不能回退），由对账兜底。 */
+        paySettlementService.markPaid(existing, result);
         return toVo(payOrderMapper.selectById(id));
     }
 
@@ -329,41 +318,8 @@ public class PayOrderServiceImpl implements PayOrderService {
                     order.getOrderNo(), channelStatus);
             return false;
         }
-        Boolean settled = transactionTemplate.execute(status -> settleReconciledPayment(order));
-        return Boolean.TRUE.equals(settled);
-    }
-
-    /**
-     * 对账收敛事务：条件抢占 {@code PAYING → PAID}（多实例只有一个成功），补流水与通知。
-     *
-     * @param order 支付单（状态为 PAYING）
-     * @return 是否由本次事务完成收敛
-     */
-    private boolean settleReconciledPayment(PayOrderPo order) {
-        LocalDateTime now = LocalDateTime.now();
-        LambdaUpdateWrapper<PayOrderPo> update = new LambdaUpdateWrapper<>();
-        update.eq(PayOrderPo::getId, order.getId())
-                .eq(PayOrderPo::getStatus, PayOrderStatus.PAYING.code())
-                .set(PayOrderPo::getStatus, PayOrderStatus.PAID.code())
-                .set(PayOrderPo::getPayTime, now)
-                .set(PayOrderPo::getUpdateTime, now);
-        if (StringUtils.hasText(order.getChannelTradeNo())) {
-            update.set(PayOrderPo::getChannelTradeNo, order.getChannelTradeNo());
-        }
-        if (payOrderMapper.update(null, update) == 0) {
-            log.warn("支付单已被其他实例收敛，跳过重复流水: id={}", order.getId());
-            return false;
-        }
-        if (!StringUtils.hasText(order.getChannelTradeNo())) {
-            log.warn("渠道未返回流水号，自动收敛后 channel_trade_no 为空，需人工补录: orderNo={}",
-                    order.getOrderNo());
-        }
-        order.setStatus(PayOrderStatus.PAID.code());
-        order.setPayTime(now);
-        recordTransaction(order, TYPE_PAY, new PayChannelResult(order.getChannelTradeNo()));
-        PayNotifyTaskPo task = payNotifyService.enqueue(PayNotifyEvent.PAID, order, null, null);
-        payNotifyService.dispatchAfterCommit(task == null ? null : task.getId());
-        return true;
+        // 与同步支付、渠道回调共用同一落账入口：条件抢占 PAYING → PAID，避免重复流水
+        return paySettlementService.markPaid(order, new PayChannelResult(order.getChannelTradeNo()));
     }
 
     @Override
@@ -374,26 +330,6 @@ public class PayOrderServiceImpl implements PayOrderService {
         return payTransactionMapper.selectList(wrapper).stream()
                 .map(PayOrderServiceImpl::toTransactionVo)
                 .toList();
-    }
-
-    /**
-     * 追加支付/退款成功流水
-     *
-     * @param order  支付单
-     * @param type   流水类型
-     * @param result 渠道结果
-     */
-    private void recordTransaction(PayOrderPo order, String type, PayChannelResult result) {
-        PayTransactionPo transaction = new PayTransactionPo();
-        transaction.setOrderId(order.getId());
-        transaction.setOrderNo(order.getOrderNo());
-        transaction.setType(type);
-        transaction.setChannel(order.getChannel());
-        transaction.setAmount(order.getAmount());
-        transaction.setCurrency(order.getCurrency());
-        transaction.setProviderTradeNo(result.providerTradeNo());
-        transaction.setStatus(TX_SUCCESS);
-        payTransactionMapper.insert(transaction);
     }
 
     /**
@@ -456,12 +392,20 @@ public class PayOrderServiceImpl implements PayOrderService {
      * 未命中说明状态已被并发事务改变，直接抛 {@code PARAM_ERROR}；
      * 调用方处于事务内，后续渠道调用失败时抢占一并回滚。
      *
+     * <p>流转合法性由 {@link PayOrderStatus#canTransitionTo} 判定：新增状态时只改枚举，
+     * 不用在服务里逐处补分支。</p>
+     *
      * @param id      支付单ID
      * @param from    期望的当前状态
      * @param to      目标状态
      * @param message 抢占失败时的错误提示
      */
     private void claimTransition(Long id, String from, String to, String message) {
+        PayOrderStatus fromStatus = PayOrderStatus.fromCode(from);
+        PayOrderStatus toStatus = PayOrderStatus.fromCode(to);
+        if (fromStatus == null || toStatus == null || !fromStatus.canTransitionTo(toStatus)) {
+            throw new BizException(ErrorCode.PARAM_ERROR, message);
+        }
         LambdaUpdateWrapper<PayOrderPo> claim = new LambdaUpdateWrapper<>();
         claim.eq(PayOrderPo::getId, id)
                 .eq(PayOrderPo::getStatus, from)
@@ -504,22 +448,6 @@ public class PayOrderServiceImpl implements PayOrderService {
         if (payOrderMapper.update(null, release) == 0) {
             log.warn("渠道失败后未能回退 PAYING→CREATED，需人工对账: id={} reason={}", id, reason);
         }
-    }
-
-    /**
-     * 支付记账事务：PAYING → PAID，回填渠道流水号与支付时间，写流水并投递通知。
-     *
-     * @param order  支付单实体
-     * @param result 渠道结果
-     */
-    private void settlePayment(PayOrderPo order, PayChannelResult result) {
-        order.setStatus(PayOrderStatus.PAID.code());
-        order.setPayTime(LocalDateTime.now());
-        order.setChannelTradeNo(result.providerTradeNo());
-        payOrderMapper.updateById(order);
-        recordTransaction(order, TYPE_PAY, result);
-        PayNotifyTaskPo task = payNotifyService.enqueue(PayNotifyEvent.PAID, order, null, null);
-        payNotifyService.dispatchAfterCommit(task == null ? null : task.getId());
     }
 
     /**
