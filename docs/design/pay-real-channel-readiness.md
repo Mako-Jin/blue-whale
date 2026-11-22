@@ -384,7 +384,7 @@ public interface PayChannelAdapter {
 | 状态机显式化 | 骨架一 | `PayOrderStatus.allowedTransitions()`，`markPaid`/`cancel`/`markRefunded` 从状态机取合法目标，非法转换统一报错 |
 | 配置校验 | 骨架一、三 | `PayNotifyProperties` 加 `@Min/@Max`；`mock=false` 且白名单含无适配器渠道时拒绝启动（网关已有校验，补 `@PostConstruct` 显式守卫） |
 | `PayChannelResult` 扩展 | 骨架一 | 已增加 `status`（`SUCCESS`/`ACCEPTED`）；金额、币种与渠道原始状态待回调入站时补充，避免先落无用字段 |
-| 数据生命周期 | 骨架二之后 | `pay_transaction`、`pay_notify_task` 按 `create_time` 归档到 `*_history`；`SUCCESS` 通知保留 30 天，`DEAD` 永久保留；补 `idx_tenant_create_time` |
+| 数据生命周期 | 骨架二之后 | 已完成（阶段 6，见 7.6）：`pay_transaction` / `pay_notify_task` 按 `create_time` 归档到 `*_history`；`SUCCESS` 通知保留 30 天，`DEAD` 永久保留；补 `idx_tenant_create_time` |
 | 测试补齐 | 每块骨架 | 见第六节 |
 
 ---
@@ -420,7 +420,7 @@ public interface PayChannelAdapter {
 阶段 3  批量对账（表 + 任务 + 差异处置接口 + 概览告警） ✅
 阶段 4  内网鉴权部署侧切换 + whale-pay-client SDK ✅
 阶段 5  次优三件（超时关单、通知指标 + ShedLock、部分退款 + 能力矩阵） ✅
-阶段 6  数据生命周期与归档
+阶段 6  数据生命周期与归档 ✅
 ```
 
 **依赖**：阶段 2、3 都依赖阶段 1，否则状态推进会重复实现三份；阶段 4 可与 2、3 并行（改动面不重叠）。
@@ -529,6 +529,22 @@ public interface PayChannelAdapter {
 
 **验证**：`mvn -pl whale-services/whale-service-pay test` 96 项通过（新增 8 项：超时关单 4、通知批量重试 1、部分退款 2、剩余可退金额 1），Checkstyle 门禁通过（仅魔术数字 info 级提示）。
 
+### 7.6 阶段 6 落地记录（2026-11-22）
+
+| 改动 | 内容 |
+|---|---|
+| `V8__pay_archive.sql` | 新建 `pay_transaction_history` / `pay_notify_task_history`（结构对齐主表，主键沿用雪花 ID）；主表补 `idx_tenant_create_time` |
+| `PayArchiveMapper` | `INSERT IGNORE ... SELECT` + `DELETE ... LIMIT` 成对出现，均 `@InterceptorIgnore(tenantLine)` 跨租户执行 |
+| `PayArchiveService(Impl)` + `PayArchiveProperties` | `@Scheduled(cron = "${whale.pay.archive.cron:0 0 3 * * ?}")` + `@SchedulerLock(name = "pay-archive", lockAtMostFor = "30m")`；流水保留 180 天、成功通知保留 30 天；按 `batch-size`（500）分批，单轮最多 `max-batches-per-run`（200）批；流水/通知任一阶段异常只记日志，不阻断另一阶段 |
+
+**与定稿的差异（理由随行）**
+
+1. 只归档 `SUCCESS` 通知，`PENDING` / `DEAD` 永久留在热表：与定稿「`DEAD` 永久保留」一致；`PENDING` 尚未投递成功，迁移会让重试器扫不到，必须留在热表。
+2. 归档不做「先查 ID 再按 ID 搬删」，而是同谓词、同排序、同 LIMIT 的 `SELECT` / `DELETE`：两条语句选中的集合一致，省掉大 ID 列表与动态 SQL；中断重跑由 `INSERT IGNORE` + 主键兜底，不丢不重。
+3. 归档结果只落日志，未新增管理端接口与指标：本轮目标是热表瘦身，运维可通过 `pay_%_history` 行数与日志观测；容量/告警列入待做项。
+
+**验证**：`mvn -pl whale-services/whale-service-pay test` 100 项通过（新增归档 4 项：分批搬迁、通知截止时间、流水失败不阻断通知、单轮批次上限），Checkstyle 无 warning/error 级违规。
+
 ---
 
 
@@ -557,11 +573,12 @@ public interface PayChannelAdapter {
 | 阶段 3：批量对账 + 差异闭环（批次/差异/处置/概览告警） | 已完成（2026-11-22，见 7.3） |
 | 阶段 4：内网鉴权 + `whale-pay-client` SDK（代码侧） | 已完成（2026-11-22，见 7.4；部署侧待下发） |
 | 阶段 5：超时关单 + 通知可观测 + 部分退款/能力矩阵 | 已完成（2026-11-22，见 7.5） |
+| 阶段 6：数据生命周期与归档 | 已完成（2026-11-22，见 7.6） |
 | 本设计文档 | 已完成 |
 
 ### 待做项
 
-1. 阶段 6 实现（数据生命周期与归档：`pay_transaction` / `pay_notify_task` 归档、`DEAD` 永久保留、补充索引）。
+1. 归档容量与保留期按合规要求调整，并接入运维告警（当前归档结果仅落日志）。
 2. 部署侧下发 `issuer-id`/`issuer-secret` 与租户白名单，配置 NetworkPolicy。
 3. 并发/幂等/故障注入集成测试（需 MySQL 环境）。
 4. `queryStatus` 扩展为可返回渠道流水号的 `queryResult`，补齐自动收敛时 `channel_trade_no` 为空的问题。
