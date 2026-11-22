@@ -1,6 +1,8 @@
 package com.bluewhale.form.service.impl;
 
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.result.PageResult;
@@ -15,6 +17,8 @@ import com.bluewhale.form.po.FormTableRegistryPo;
 import com.bluewhale.form.service.FormReconcileService;
 import com.bluewhale.form.support.FormDataEngine;
 import com.bluewhale.form.support.FormMetrics;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -50,6 +54,19 @@ import static org.mockito.Mockito.when;
  */
 @ExtendWith(MockitoExtension.class)
 class FormReconcileServiceImplTest {
+
+    /**
+     * 初始化 MyBatis-Plus 表元数据：单测没有 Mapper 扫描过程，
+     * LambdaQueryWrapper 的方法引用无法解析列名，会抛
+     * "can not find lambda cache for this entity"。
+     */
+    @BeforeAll
+    static void initTableInfo() {
+        MapperBuilderAssistant assistant = new MapperBuilderAssistant(new MybatisConfiguration(), "");
+        TableInfoHelper.initTableInfo(assistant, FormTableRegistryPo.class);
+        TableInfoHelper.initTableInfo(assistant, FormDataPo.class);
+        TableInfoHelper.initTableInfo(assistant, FormReconcileDiffPo.class);
+    }
 
     private static final int PARAM_ERROR_CODE = 400;
     private static final int NOT_FOUND_CODE = 404;

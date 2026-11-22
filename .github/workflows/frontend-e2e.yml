@@ -117,8 +117,8 @@ jobs:
           M="docker exec -i bw-mysql mysql -uroot -p${{ env.CI_MYSQL_ROOT_PASSWORD }} --default-character-set=utf8mb4"
           $M bluewhale_auth < whale-backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/init.sql
           $M bluewhale_auth < whale-backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/migration-2026-10-30-admin-random-password.sql
-          $M bluewhale_workflow < whale-backend/whale-services/whale-workflow/src/main/resources/db/init.sql
-          $M bluewhale_workflow < whale-backend/whale-services/whale-workflow/src/main/resources/db/migration-5.63-workflow-task-operator.sql
+          $M bluewhale_workflow < whale-backend/whale-services/whale-service-workflow/src/main/resources/db/init.sql
+          $M bluewhale_workflow < whale-backend/whale-services/whale-service-workflow/src/main/resources/db/migration-5.63-workflow-task-operator.sql
           $M bluewhale_form < whale-backend/whale-services/whale-service-form/src/main/resources/db/init.sql
           $M -e "SHOW TABLES FROM bluewhale_auth; SELECT COUNT(*) AS auth_tables FROM information_schema.tables WHERE table_schema='bluewhale_auth';"
 
@@ -161,7 +161,7 @@ jobs:
           }
           start_svc gateway  whale-backend/whale-services/whale-service-gateway/target/whale-service-gateway.jar 8080
           start_svc auth     whale-backend/whale-services/whale-service-auth/whale-service-auth-starter/target/whale-service-auth.jar 8081
-          start_svc workflow whale-backend/whale-services/whale-workflow/target/whale-workflow.jar 8083
+          start_svc workflow whale-backend/whale-services/whale-service-workflow/target/whale-service-workflow.jar 8083
           start_svc form     whale-backend/whale-services/whale-service-form/target/whale-service-form.jar 8084
 
       - name: Wait for backend ports
