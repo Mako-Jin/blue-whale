@@ -166,3 +166,7 @@ whale:
           name: 邮驿
           url: http://bw-mail:8099/mail/overview
           permission: sys:mail:account:list
+        - nodeKey: chuanxin-stage
+          name: 传信司
+          url: http://bw-im:8091/im/overview
+          permission: sys:im:chat

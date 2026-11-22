@@ -79,6 +79,12 @@
             <artifactId>whale-spring-boot-starter</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- 三维王城概览 SDK（S7/T7.5）：传信司屏风数据源，/im/overview -->
+        <dependency>
+            <groupId>com.bluewhale</groupId>
+            <artifactId>whale-overview-sdk</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <!-- 国际化 SDK：按请求 Locale 解析 BizException 文案键，本服务自带 i18n/im 文案 -->
         <dependency>
             <groupId>com.bluewhale</groupId>
