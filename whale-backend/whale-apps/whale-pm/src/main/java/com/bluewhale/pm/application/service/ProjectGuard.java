@@ -33,7 +33,7 @@ public class ProjectGuard {
     public PmProject requireProject(Long projectId) {
         PmProject project = projectId == null ? null : projectMapper.selectById(projectId);
         if (project == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "项目不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pm.application.project-found", "项目不存在");
         }
         return project;
     }
@@ -47,7 +47,7 @@ public class ProjectGuard {
     public PmProject requireActiveProject(Long projectId) {
         PmProject project = requireProject(projectId);
         if (STATUS_ARCHIVED.equals(project.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "项目已归档，请先恢复为进行中");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.project-archived-restore-it-in-progress", "项目已归档，请先恢复为进行中");
         }
         return project;
     }

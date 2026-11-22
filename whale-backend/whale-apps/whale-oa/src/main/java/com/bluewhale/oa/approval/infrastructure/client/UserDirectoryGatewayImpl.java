@@ -108,7 +108,7 @@ public class UserDirectoryGatewayImpl implements UserDirectoryGateway {
     private String baseUrl() {
         List<ServiceInstance> instances = discoveryClient.getInstances(SERVICE_NAME);
         if (instances.isEmpty()) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "用户目录服务不可用");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.oa.approval.directory-service-unavailable", "用户目录服务不可用");
         }
         return instances.getFirst().getUri().toString();
     }

@@ -39,14 +39,14 @@ public final class PdmChgApprovalStatus {
      */
     public static String fromWorkflow(Integer workflowStatus) {
         if (workflowStatus == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "审批状态不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.change.approval-status-empty", "审批状态不能为空");
         }
         return switch (workflowStatus) {
             case 0 -> RUNNING;
             case 1 -> APPROVED;
             case 2 -> REJECTED;
             case 3 -> WITHDRAWN;
-            default -> throw new BizException(ErrorCode.PARAM_ERROR, "审批状态仅支持 0/1/2/3");
+            default -> throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.change.approval-status-supports-0-1-2", "审批状态仅支持 0/1/2/3");
         };
     }
 

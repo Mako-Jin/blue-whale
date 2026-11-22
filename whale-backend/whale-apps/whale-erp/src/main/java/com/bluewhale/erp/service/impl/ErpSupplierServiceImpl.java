@@ -95,7 +95,7 @@ public class ErpSupplierServiceImpl implements ErpSupplierService {
     private ErpSupplier requireSupplier(Long id) {
         ErpSupplier supplier = id == null ? null : erpSupplierMapper.selectById(id);
         if (supplier == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "供应商不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.erp.service.supplier-found", "供应商不存在");
         }
         return supplier;
     }
@@ -113,7 +113,7 @@ public class ErpSupplierServiceImpl implements ErpSupplierService {
             wrapper.ne(ErpSupplier::getId, excludeId);
         }
         if (erpSupplierMapper.selectCount(wrapper) > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "供应商编码已存在");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.erp.service.supplier-code-already-exists", "供应商编码已存在");
         }
     }
 

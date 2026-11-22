@@ -29,12 +29,13 @@ public enum ProjectRole {
      */
     public static ProjectRole from(String code) {
         if (code == null || code.isBlank()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "项目角色不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.domain.project-role-empty", "项目角色不能为空");
         }
         try {
             return valueOf(code.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException e) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "项目角色仅支持 ADMIN / MEMBER / VIEWER");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.domain.project-role-supports-admin-member-viewer",
+                          "项目角色仅支持 ADMIN / MEMBER / VIEWER");
         }
     }
 }

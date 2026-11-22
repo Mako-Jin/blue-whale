@@ -29,7 +29,7 @@ public class WorkItemGuard {
     public PmWorkItem requireItem(Long workItemId) {
         PmWorkItem item = workItemId == null ? null : workItemMapper.selectById(workItemId);
         if (item == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "工作项不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pm.application.work-item-found", "工作项不存在");
         }
         return item;
     }
@@ -70,7 +70,7 @@ public class WorkItemGuard {
     public PmWorkItem requireInProject(Long workItemId, Long projectId) {
         PmWorkItem item = requireItem(workItemId);
         if (!projectId.equals(item.getProjectId())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "工作项不属于当前项目");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.work-item-belong-project", "工作项不属于当前项目");
         }
         return item;
     }

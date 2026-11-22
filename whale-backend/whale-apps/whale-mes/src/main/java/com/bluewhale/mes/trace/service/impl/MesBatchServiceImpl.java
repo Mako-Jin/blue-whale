@@ -83,7 +83,7 @@ public class MesBatchServiceImpl implements MesBatchService {
                 ? request.getBatchNo() : MesCodeGenerator.nextNo("BAT");
         if (batchMapper.selectCount(new LambdaQueryWrapper<MesMaterialBatch>()
                 .eq(MesMaterialBatch::getBatchNo, batchNo)) > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "批次号已存在：" + batchNo);
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.trace.batch-number-already-exists", "批次号已存在：{0}", batchNo);
         }
         MesMaterialBatch batch = new MesMaterialBatch();
         batch.setBatchNo(batchNo);
@@ -127,14 +127,14 @@ public class MesBatchServiceImpl implements MesBatchService {
     public MesBatchVO close(Long id) {
         MesMaterialBatch batch = batchMapper.selectById(id);
         if (batch == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "批次不存在：" + id);
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.trace.batch-found", "批次不存在：{0}", id);
         }
         if (BATCH_CLOSED.equals(batch.getStatus())) {
             return toBatchVo(batch);
         }
         batch.setStatus(BATCH_CLOSED);
         if (batchMapper.updateById(batch) == 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "批次已被其他用户修改，请刷新后重试");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.trace.batch-was-modified-refresh-retry", "批次已被其他用户修改，请刷新后重试");
         }
         return toBatchVo(batch);
     }
@@ -143,27 +143,27 @@ public class MesBatchServiceImpl implements MesBatchService {
     @Transactional(rollbackFor = Exception.class)
     public Long link(MesTraceLinkRequest request) {
         if (request.getParentBatchNo().equals(request.getChildBatchNo())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "同一批次不能建立谱系链接");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.trace.lineage-link-cannot-created-within-same", "同一批次不能建立谱系链接");
         }
         MesMaterialBatch parent = requireBatch(request.getParentBatchNo());
         MesMaterialBatch child = requireBatch(request.getChildBatchNo());
         if (BATCH_CLOSED.equals(parent.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "上级批次已封批，不能继续消耗：" + parent.getBatchNo());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.trace.parent-batch-batch-closure-cannot-continue", "上级批次已封批，不能继续消耗：{0}",
+                          parent.getBatchNo());
         }
         if (canReachDownstream(child.getId(), parent.getId())) {
-            throw new BizException(ErrorCode.PARAM_ERROR,
-                    "谱系成环，禁止建链：" + parent.getBatchNo() + " -> " + child.getBatchNo());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.trace.lineage-cycle-detected-link-creation-forbidden", "谱系成环，禁止建链：{0} -> {1}",
+                          parent.getBatchNo(), child.getBatchNo());
         }
         BigDecimal consumed = parent.getConsumedQuantity() == null ? BigDecimal.ZERO : parent.getConsumedQuantity();
         BigDecimal after = consumed.add(request.getQuantity());
         if (after.compareTo(parent.getQuantity() == null ? BigDecimal.ZERO : parent.getQuantity()) > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR,
-                    "消耗数量超过批次投入量：" + parent.getBatchNo() + "，可消耗 "
-                            + parent.getQuantity().subtract(consumed).stripTrailingZeros().toPlainString());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.trace.consumption-quantity-exceed-batch-input-quantity", "消耗数量超过批次投入量：{0}，可消耗 {1}",
+                          parent.getBatchNo(), parent.getQuantity().subtract(consumed).stripTrailingZeros().toPlainString());
         }
         parent.setConsumedQuantity(after);
         if (batchMapper.updateById(parent) == 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "批次已被其他用户修改，请刷新后重试");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.trace.batch-was-modified-refresh-retry-2", "批次已被其他用户修改，请刷新后重试");
         }
         MesTraceLink link = new MesTraceLink();
         link.setParentBatchId(parent.getId());
@@ -188,31 +188,31 @@ public class MesBatchServiceImpl implements MesBatchService {
     public void reverseLink(Long id, String remark) {
         MesTraceLink link = linkMapper.selectById(id);
         if (link == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "谱系链接不存在：" + id);
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.trace.lineage-link-found", "谱系链接不存在：{0}", id);
         }
         if (LINK_REVERSED.equals(link.getStatus())) {
             return;
         }
         if (!LINK_ACTIVE.equals(link.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "谱系链接状态不允许冲销：" + link.getStatus());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.trace.lineage-link-status-allowed-reversal", "谱系链接状态不允许冲销：{0}", link.getStatus());
         }
         MesMaterialBatch parent = batchMapper.selectById(link.getParentBatchId());
         if (parent == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "上级批次不存在：" + link.getParentBatchNo());
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.trace.parent-batch-found", "上级批次不存在：{0}", link.getParentBatchNo());
         }
         BigDecimal quantity = link.getQuantity() == null ? BigDecimal.ZERO : link.getQuantity();
         BigDecimal consumed = parent.getConsumedQuantity() == null ? BigDecimal.ZERO : parent.getConsumedQuantity();
         BigDecimal after = consumed.subtract(quantity);
         parent.setConsumedQuantity(after.signum() < 0 ? BigDecimal.ZERO : after);
         if (batchMapper.updateById(parent) == 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "批次已被其他用户修改，请刷新后重试");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.trace.batch-was-modified-refresh-retry-3", "批次已被其他用户修改，请刷新后重试");
         }
         link.setStatus(LINK_REVERSED);
         if (StringUtils.hasText(remark)) {
             link.setRemark(remark);
         }
         if (linkMapper.updateById(link) == 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "谱系链接已被其他用户修改，请刷新后重试");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.trace.lineage-link-was-modified-refresh-retry", "谱系链接已被其他用户修改，请刷新后重试");
         }
         log.info("批次谱系冲销: linkId={}, {} -> {}, quantity={}",
                 id, link.getParentBatchNo(), link.getChildBatchNo(), quantity);
@@ -317,7 +317,7 @@ public class MesBatchServiceImpl implements MesBatchService {
                 .eq(MesMaterialBatch::getBatchNo, batchNo)
                 .last("LIMIT 1"));
         if (batch == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "批次不存在：" + batchNo);
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.trace.batch-found-2", "批次不存在：{0}", batchNo);
         }
         return batch;
     }

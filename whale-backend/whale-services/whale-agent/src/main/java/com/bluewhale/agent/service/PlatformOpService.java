@@ -131,7 +131,7 @@ public class PlatformOpService {
         requireOwner(record, userId);
         if (isExpired(record)) {
             markExpired(record);
-            throw new BizException(410, "确认令牌已过期，请重新发起");
+            throw new BizException(410, "biz.agent.service.confirmation-token-expired-start-again", "确认令牌已过期，请重新发起");
         }
         PlatformOperationCatalog.Operation operation = PlatformOperationCatalog.require(record.getOperation());
         requirePermission(operation, permissionCodes);
@@ -150,7 +150,7 @@ public class PlatformOpService {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             finish(record, STATUS_FAILED, null, "执行被中断", ErrorCode.SYSTEM_ERROR.getCode(), elapsed(startedMillis));
-            throw new BizException("平台操作执行被中断");
+            throw new BizException("biz.agent.service.platform-operation-execute-assigned-interrupted", "平台操作执行被中断");
         } catch (IOException | RuntimeException e) {
             finish(record, STATUS_FAILED, null, e.getMessage(), ErrorCode.SYSTEM_ERROR.getCode(),
                     elapsed(startedMillis));

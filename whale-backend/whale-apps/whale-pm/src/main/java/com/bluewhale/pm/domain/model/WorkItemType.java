@@ -35,12 +35,13 @@ public enum WorkItemType {
      */
     public static WorkItemType from(String code) {
         if (code == null || code.isBlank()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "工作项类型不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.domain.work-item-type-empty", "工作项类型不能为空");
         }
         try {
             return valueOf(code.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException e) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "工作项类型仅支持 EPIC / STORY / TASK / BUG / SUBTASK");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.domain.work-item-type-supports-epic-story",
+                          "工作项类型仅支持 EPIC / STORY / TASK / BUG / SUBTASK");
         }
     }
 }

@@ -37,12 +37,12 @@ public final class UserContext {
         }
         String raw = WebHeaders.userId(request);
         if (raw == null) {
-            throw new BizException(ErrorCode.UNAUTHORIZED, "缺少用户标识，请通过网关登录后访问");
+            throw new BizException(ErrorCode.UNAUTHORIZED, "biz.common.web.identifier-missing-sign-in-via-gateway", "缺少用户标识，请通过网关登录后访问");
         }
         try {
             return Long.valueOf(raw);
         } catch (NumberFormatException e) {
-            throw new BizException(ErrorCode.UNAUTHORIZED, "用户标识非法");
+            throw new BizException(ErrorCode.UNAUTHORIZED, "biz.common.web.identifier-invalid", "用户标识非法");
         }
     }
 

@@ -45,6 +45,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -175,7 +176,8 @@ class MesEquipmentServiceImplTest {
         request.setChecklistResults(List.of("润滑=正常"));
         BizException exception = assertThrows(BizException.class,
                 () -> equipmentService.completeMaintenanceOrder(5L, request));
-        assertTrue(exception.getMessage().contains("紧固"));
+        assertEquals("biz.mes.equipment.maintenance-item-provide-conclusion", exception.getMessageKey());
+        assertArrayEquals(new Object[]{"紧固"}, exception.getMessageArgs());
         verify(maintenanceOrderMapper, never()).updateById(any(MesMaintenanceOrder.class));
 
         request.setChecklistResults(List.of("润滑=正常", "紧固=正常"));

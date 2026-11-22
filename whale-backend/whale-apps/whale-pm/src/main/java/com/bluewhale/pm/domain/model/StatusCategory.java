@@ -29,12 +29,13 @@ public enum StatusCategory {
      */
     public static StatusCategory from(String code) {
         if (code == null || code.isBlank()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "状态分类不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.domain.status-category-empty", "状态分类不能为空");
         }
         try {
             return valueOf(code.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException e) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "状态分类仅支持 TODO / IN_PROGRESS / DONE");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.domain.status-category-supports-todo-in-progress",
+                          "状态分类仅支持 TODO / IN_PROGRESS / DONE");
         }
     }
 }

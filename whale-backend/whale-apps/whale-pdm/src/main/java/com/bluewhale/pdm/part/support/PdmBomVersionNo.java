@@ -36,7 +36,7 @@ public final class PdmBomVersionNo {
      */
     public static String requireValid(String versionNo) {
         if (versionNo == null || !PATTERN.matcher(versionNo).matches()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "BOM 版本号必须形如 V1.0");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.part.b-o-m-version-in-format", "BOM 版本号必须形如 V1.0");
         }
         return versionNo;
     }

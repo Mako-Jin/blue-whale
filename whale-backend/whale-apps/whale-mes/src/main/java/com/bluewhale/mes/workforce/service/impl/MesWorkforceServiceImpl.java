@@ -179,7 +179,7 @@ public class MesWorkforceServiceImpl implements MesWorkforceService {
         MesTeam team = requireTeam(request.getTeamId());
         MesTeamMember existing = request.getId() == null ? null : teamMemberMapper.selectById(request.getId());
         if (request.getId() != null && existing == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "班组成员不存在：" + request.getId());
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.workforce.team-member-found", "班组成员不存在：{0}", request.getId());
         }
         assertTeamMemberUnique(request.getTeamId(), request.getEmployeeId(), request.getId());
         MesTeamMember member = existing == null ? new MesTeamMember() : existing;
@@ -238,10 +238,10 @@ public class MesWorkforceServiceImpl implements MesWorkforceService {
         assertShiftTime(request.getStartAt(), request.getEndAt());
         MesShiftAssignment existing = request.getId() == null ? null : shiftAssignmentMapper.selectById(request.getId());
         if (request.getId() != null && existing == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "排班记录不存在：" + request.getId());
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.workforce.shift-schedule-record-found", "排班记录不存在：{0}", request.getId());
         }
         if (existing != null && SHIFT_CANCELLED.equals(existing.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "已取消的排班不可编辑");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.workforce.cancelled-shift-schedule-cannot-edit", "已取消的排班不可编辑");
         }
         assertShiftUnique(request, existing);
         assertPrimaryOperatorUnique(request, existing);
@@ -301,7 +301,7 @@ public class MesWorkforceServiceImpl implements MesWorkforceService {
     public MesShiftAssignmentVO cancelShiftAssignment(Long id) {
         MesShiftAssignment assignment = shiftAssignmentMapper.selectById(id);
         if (assignment == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "排班记录不存在：" + id);
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.workforce.shift-schedule-record-found-2", "排班记录不存在：{0}", id);
         }
         if (!SHIFT_CANCELLED.equals(assignment.getStatus())) {
             assignment.setStatus(SHIFT_CANCELLED);
@@ -360,11 +360,11 @@ public class MesWorkforceServiceImpl implements MesWorkforceService {
     public MesHandoverVO confirmHandover(Long id, MesHandoverConfirmRequest request) {
         MesHandover handover = handoverMapper.selectById(id);
         if (handover == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "交接班记录不存在：" + id);
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.workforce.shift-handover-record-found", "交接班记录不存在：{0}", id);
         }
         if (HANDOVER_CONFIRMED.equals(handover.getStatus())) {
             // MES-8005 同一交接单重复确认
-            throw new BizException(ErrorCode.PARAM_ERROR, "交接单已确认，请勿重复确认");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.workforce.handover-single-confirmation-duplicate-confirmation", "交接单已确认，请勿重复确认");
         }
         handover.setStatus(HANDOVER_CONFIRMED);
         handover.setConfirmedBy(request.getConfirmedBy());
@@ -380,7 +380,7 @@ public class MesWorkforceServiceImpl implements MesWorkforceService {
         MesWorkOrderTask task = taskMapper.selectById(request.getTaskId());
         if (task == null) {
             // MES-8006 任务在租户内不可见或不存在
-            throw new BizException(ErrorCode.NOT_FOUND, "任务不存在：" + request.getTaskId());
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.workforce.task-found", "任务不存在：{0}", request.getTaskId());
         }
         String source = StringUtils.hasText(request.getSource()) ? request.getSource() : SOURCE_MANUAL;
         assertNetSeconds(request, source);
@@ -428,7 +428,7 @@ public class MesWorkforceServiceImpl implements MesWorkforceService {
         MesWorkHour workHour = workHourMapper.selectById(id);
         if (workHour == null) {
             // MES-8011 跨租户同 ID 记录不可见，统一按不存在处理
-            throw new BizException(ErrorCode.NOT_FOUND, "工时记录不存在：" + id);
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.workforce.work-hours-record-found", "工时记录不存在：{0}", id);
         }
         if (!WORK_HOUR_VOID.equals(workHour.getStatus())) {
             workHour.setStatus(WORK_HOUR_VOID);
@@ -509,7 +509,7 @@ public class MesWorkforceServiceImpl implements MesWorkforceService {
                         .eq(request.getTeamId() != null, MesPerformanceStat::getTeamId, request.getTeamId()));
         if (stats.isEmpty()) {
             // MES-8014 期间无月统计不可锁定
-            throw new BizException(ErrorCode.PARAM_ERROR, "该期间暂无月度绩效统计，无法锁定");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.workforce.monthly-performance-statistics-period-cannot-lock", "该期间暂无月度绩效统计，无法锁定");
         }
         LocalDateTime now = LocalDateTime.now();
         int lockedCount = 0;
@@ -539,7 +539,7 @@ public class MesWorkforceServiceImpl implements MesWorkforceService {
     public MesSkillMatrixVO saveSkill(MesSkillMatrixSaveRequest request) {
         MesSkillMatrix existing = request.getId() == null ? null : skillMatrixMapper.selectById(request.getId());
         if (request.getId() != null && existing == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "技能记录不存在：" + request.getId());
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.workforce.skill-record-found", "技能记录不存在：{0}", request.getId());
         }
         assertSkillUnique(request.getEmployeeId(), request.getSkillCode(), request.getId());
         MesSkillMatrix skill = existing == null ? new MesSkillMatrix() : existing;
@@ -587,7 +587,7 @@ public class MesWorkforceServiceImpl implements MesWorkforceService {
         MesTeam team = teamMapper.selectById(teamId);
         if (team == null) {
             // MES-8001 班组不存在或跨租户不可见
-            throw new BizException(ErrorCode.NOT_FOUND, "班组不存在：" + teamId);
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.workforce.team-found", "班组不存在：{0}", teamId);
         }
         return team;
     }
@@ -601,7 +601,7 @@ public class MesWorkforceServiceImpl implements MesWorkforceService {
     private MesTeamMember requireTeamMember(Long id) {
         MesTeamMember member = teamMemberMapper.selectById(id);
         if (member == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "班组成员不存在：" + id);
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.workforce.team-member-found-2", "班组成员不存在：{0}", id);
         }
         return member;
     }
@@ -615,7 +615,7 @@ public class MesWorkforceServiceImpl implements MesWorkforceService {
     private MesStation requireStation(Long stationId) {
         MesStation station = stationMapper.selectById(stationId);
         if (station == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "工位不存在：" + stationId);
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.workforce.workstation-found", "工位不存在：{0}", stationId);
         }
         return station;
     }
@@ -634,7 +634,7 @@ public class MesWorkforceServiceImpl implements MesWorkforceService {
                 .ne(excludeId != null, MesTeamMember::getId, excludeId));
         if (count > 0) {
             // MES-8002 同班组同员工唯一
-            throw new BizException(ErrorCode.PARAM_ERROR, "该员工已在班组中：" + employeeId);
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.workforce.employee-already-in-team", "该员工已在班组中：{0}", employeeId);
         }
     }
 
@@ -647,7 +647,7 @@ public class MesWorkforceServiceImpl implements MesWorkforceService {
     private void assertShiftTime(LocalDateTime startAt, LocalDateTime endAt) {
         if (startAt != null && endAt != null && !endAt.isAfter(startAt)) {
             // MES-8008 结束时间必须晚于开始时间
-            throw new BizException(ErrorCode.PARAM_ERROR, "排班结束时间必须晚于开始时间");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.workforce.shift-schedule-end-time-later-than", "排班结束时间必须晚于开始时间");
         }
     }
 
@@ -666,7 +666,7 @@ public class MesWorkforceServiceImpl implements MesWorkforceService {
                 .ne(existing != null, MesShiftAssignment::getId, existing == null ? null : existing.getId()));
         if (count > 0) {
             // MES-8004 同工位班次员工唯一
-            throw new BizException(ErrorCode.PARAM_ERROR, "该员工已在此工位班次排班");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.workforce.employee-already-scheduled-workstation-shift", "该员工已在此工位班次排班");
         }
     }
 
@@ -689,7 +689,7 @@ public class MesWorkforceServiceImpl implements MesWorkforceService {
                 .ne(existing != null, MesShiftAssignment::getId, existing == null ? null : existing.getId()));
         if (count > 0) {
             // MES-8003 同一工位班次仅允许一名主操作
-            throw new BizException(ErrorCode.PARAM_ERROR, "该工位班次已存在主操作员");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.workforce.primary-operator-already-exists-workstation-shift", "该工位班次已存在主操作员");
         }
     }
 
@@ -702,7 +702,7 @@ public class MesWorkforceServiceImpl implements MesWorkforceService {
         long count = handoverMapper.selectCount(new LambdaQueryWrapper<MesHandover>()
                 .eq(MesHandover::getHandoverNo, handoverNo));
         if (count > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "交接单号已存在：" + handoverNo);
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.workforce.handover-number-already-exists", "交接单号已存在：{0}", handoverNo);
         }
     }
 
@@ -715,15 +715,15 @@ public class MesWorkforceServiceImpl implements MesWorkforceService {
     private void assertNetSeconds(MesWorkHourSaveRequest request, String source) {
         if (!request.getEndAt().isAfter(request.getStartAt())) {
             // MES-8008 结束时间必须晚于开始时间
-            throw new BizException(ErrorCode.PARAM_ERROR, "工时结束时间必须晚于开始时间");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.workforce.work-hours-end-time-later-than", "工时结束时间必须晚于开始时间");
         }
         if (netSeconds(request) < 0) {
             // MES-8009 净工时 = 结束-开始-暂停，必须非负
-            throw new BizException(ErrorCode.PARAM_ERROR, "净工时不能为负");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.workforce.net-work-hours-negative", "净工时不能为负");
         }
         if (SOURCE_REPORT.equals(source) && !hasReport(request.getTaskId(), request.getWorkDate())) {
             // MES-8007 报工来源必须存在当日报工
-            throw new BizException(ErrorCode.PARAM_ERROR, "该任务当日无报工记录，不能登记报工来源工时");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.workforce.work-report-task-on-day-source", "该任务当日无报工记录，不能登记报工来源工时");
         }
     }
 
@@ -764,7 +764,7 @@ public class MesWorkforceServiceImpl implements MesWorkforceService {
                 .eq(MesWorkHour::getStartAt, request.getStartAt()));
         if (count > 0) {
             // MES-8010 同员工同任务同开始时间唯一
-            throw new BizException(ErrorCode.PARAM_ERROR, "该员工此任务开始时间的工时已存在");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.workforce.work-hours-employee-at-task-start", "该员工此任务开始时间的工时已存在");
         }
     }
 
@@ -783,7 +783,7 @@ public class MesWorkforceServiceImpl implements MesWorkforceService {
             return YearMonth.parse(periodCode, MONTHLY_FORMAT).atDay(1);
         } catch (DateTimeParseException exception) {
             // MES-8012 期间编码与统计层级不匹配
-            throw new BizException(ErrorCode.PARAM_ERROR, "期间编码不合法：" + periodCode);
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.workforce.invalid-period-code", "期间编码不合法：{0}", periodCode);
         }
     }
 
@@ -803,7 +803,7 @@ public class MesWorkforceServiceImpl implements MesWorkforceService {
                 .eq(teamId != null, MesPerformanceStat::getTeamId, teamId));
         if (locked > 0) {
             // MES-8013 月度锁定后禁止重算
-            throw new BizException(ErrorCode.PARAM_ERROR, "期间已锁定，禁止重算");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.workforce.period-locked-forbidden-recalculate", "期间已锁定，禁止重算");
         }
     }
 
@@ -1094,7 +1094,7 @@ public class MesWorkforceServiceImpl implements MesWorkforceService {
                 .ne(excludeId != null, MesSkillMatrix::getId, excludeId));
         if (count > 0) {
             // MES-8015 同员工同技能编码唯一
-            throw new BizException(ErrorCode.PARAM_ERROR, "该员工此技能已登记：" + skillCode);
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.workforce.skill-already-registered-employee", "该员工此技能已登记：{0}", skillCode);
         }
     }
 

@@ -106,7 +106,8 @@ public class PdmClbReviewServiceImpl implements PdmClbReviewService {
         requireDraft(entity);
         String conclusion = request.getConclusion().trim().toUpperCase();
         if (!PdmClbReviewConstants.isValidConclusion(conclusion)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "评审结论仅支持 PASSED/CONDITIONAL/REJECTED");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.collab.review-conclusion-supports-passed-conditional-rejected",
+                          "评审结论仅支持 PASSED/CONDITIONAL/REJECTED");
         }
         entity.setConclusion(conclusion);
         entity.setConclusionComment(request.getConclusionComment());
@@ -134,12 +135,13 @@ public class PdmClbReviewServiceImpl implements PdmClbReviewService {
     private void applyRequest(PdmClbReview entity, PdmClbReviewSaveRequest request) {
         String reviewType = request.getReviewType().trim().toUpperCase();
         if (!PdmClbReviewConstants.isValidType(reviewType)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "评审类型仅支持 DESIGN/PROTOTYPE/TRANSFER");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.collab.review-type-supports-design-prototype-transfer",
+                          "评审类型仅支持 DESIGN/PROTOTYPE/TRANSFER");
         }
         String objectType = StringUtils.hasText(request.getObjectType())
                 ? request.getObjectType().trim().toUpperCase() : null;
         if (objectType != null && !PdmClbObjectType.isValidReview(objectType)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "评审对象类型不合法");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.collab.review-object-type-invalid", "评审对象类型不合法");
         }
         validateAttachment(request);
         entity.setReviewType(reviewType);
@@ -167,7 +169,7 @@ public class PdmClbReviewServiceImpl implements PdmClbReviewService {
         }
         PdmDocDocument document = documentMapper.selectById(request.getAttachmentDocumentId());
         if (document == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "评审附件文档不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.collab.review-attachment-document-found", "评审附件文档不存在");
         }
         if (!StringUtils.hasText(request.getAttachmentVersionNo())) {
             return;
@@ -176,7 +178,7 @@ public class PdmClbReviewServiceImpl implements PdmClbReviewService {
                 .eq(PdmDocVersion::getDocumentId, request.getAttachmentDocumentId())
                 .eq(PdmDocVersion::getVersionNo, request.getAttachmentVersionNo().trim()));
         if (version == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "评审附件文档版本不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.collab.review-attachment-document-version-found", "评审附件文档版本不存在");
         }
     }
 
@@ -189,7 +191,7 @@ public class PdmClbReviewServiceImpl implements PdmClbReviewService {
     private PdmClbReview requireReview(Long id) {
         PdmClbReview entity = reviewMapper.selectById(id);
         if (entity == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "评审记录不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.collab.review-record-found", "评审记录不存在");
         }
         return entity;
     }
@@ -201,7 +203,7 @@ public class PdmClbReviewServiceImpl implements PdmClbReviewService {
      */
     private void requireDraft(PdmClbReview entity) {
         if (!PdmClbReviewConstants.STATUS_DRAFT.equals(entity.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "评审已关闭，不能再修改");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.collab.review-close-cannot-modify", "评审已关闭，不能再修改");
         }
     }
 

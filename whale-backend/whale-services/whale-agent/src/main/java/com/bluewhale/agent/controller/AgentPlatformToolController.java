@@ -86,7 +86,7 @@ public class AgentPlatformToolController {
     @AuditLog(operation = "智能体孪生场景概要查询", type = OperateType.QUERY, targetType = "twin_scene")
     public Result<JsonNode> twinSceneOverview(@RequestBody TwinSceneToolRequest request) {
         if (request.getSceneId() == null && !StringUtils.hasText(request.getSceneCode())) {
-            throw new BizException("需提供 sceneId 或 sceneCode");
+            throw new BizException("biz.agent.controller.s-c-e-n-e-i", "需提供 sceneId 或 sceneCode");
         }
         try {
             return Result.ok(platformToolClient.twinSceneOverview(
@@ -106,7 +106,7 @@ public class AgentPlatformToolController {
         if (request.getDeviceId() == null
                 && !(StringUtils.hasText(request.getProductCode())
                 && StringUtils.hasText(request.getDeviceName()))) {
-            throw new BizException("需提供 deviceId 或 productCode+deviceName");
+            throw new BizException("biz.agent.controller.d-e-v-i-c-e", "需提供 deviceId 或 productCode+deviceName");
         }
     }
 }

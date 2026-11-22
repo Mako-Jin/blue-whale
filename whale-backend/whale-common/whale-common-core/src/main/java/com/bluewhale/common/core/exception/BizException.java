@@ -72,15 +72,54 @@ public class BizException extends RuntimeException {
      *
      * @param code 业务错误码
      * @param messageKey 国际化文案键
-     * @param message 中文兜底文案
+     * @param message 中文兜底模板（构造时按 {@code args} 渲染，{@code getMessage()} 即可直接展示）
      * @param args 文案占位参数
      */
     public BizException(int code, String messageKey, String message, Object... args) {
-        super(message);
+        super(render(message, args));
         this.code = code;
-        this.message = message;
+        this.message = render(message, args);
         this.messageKey = messageKey;
         this.messageArgs = args == null ? new Object[0] : args.clone();
+    }
+
+    /**
+     * 用占位参数渲染兜底文案。
+     *
+     * <p>{@code getMessage()} 必须仍是可直接展示的中文（日志、单测、旧调用方都按文案判断），
+     * 因此兜底模板在构造时就地展开；未提供的占位符原样保留。这里不用
+     * {@code MessageFormat}，避免长整型被插成 {@code 1,234,567} 这类本地化数字。</p>
+     *
+     * @param message 模板文案
+     * @param args 占位参数
+     * @return 渲染后的文案
+     */
+    private static String render(String message, Object... args) {
+        if (message == null || args == null || args.length == 0 || message.indexOf('{') < 0) {
+            return message;
+        }
+        StringBuilder out = new StringBuilder(message.length() + 16);
+        int i = 0;
+        while (i < message.length()) {
+            char ch = message.charAt(i);
+            if (ch == '{') {
+                int end = message.indexOf('}', i + 1);
+                if (end > i + 1) {
+                    String raw = message.substring(i + 1, end);
+                    if (raw.chars().allMatch(Character::isDigit)) {
+                        int idx = Integer.parseInt(raw);
+                        if (idx < args.length) {
+                            out.append(args[idx]);
+                            i = end + 1;
+                            continue;
+                        }
+                    }
+                }
+            }
+            out.append(ch);
+            i++;
+        }
+        return out.toString();
     }
 
     /**
@@ -100,5 +139,19 @@ public class BizException extends RuntimeException {
      */
     public BizException(String message) {
         this(ErrorCode.SYSTEM_ERROR.getCode(), null, message);
+    }
+
+    /**
+     * 以国际化键与中文兜底构造业务异常，错误码取系统错误。
+     *
+     * <p>用于原 {@code new BizException("biz.common.core.chinese", "中文")} 调用的迁移；键由
+     * {@code GlobalExceptionHandler} 按请求 Locale 解析，资源缺失时回落到中文兜底。</p>
+     *
+     * @param messageKey 国际化文案键
+     * @param message 中文兜底文案
+     * @param args 文案占位参数
+     */
+    public BizException(String messageKey, String message, Object... args) {
+        this(ErrorCode.SYSTEM_ERROR.getCode(), messageKey, message, args);
     }
 }

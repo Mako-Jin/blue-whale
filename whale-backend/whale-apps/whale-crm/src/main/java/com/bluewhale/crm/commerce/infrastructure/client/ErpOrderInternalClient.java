@@ -208,7 +208,7 @@ public class ErpOrderInternalClient implements ErpOrderPort {
      * @return 业务异常
      */
     private BizException failure(String message) {
-        return new BizException(ErrorCode.SYSTEM_ERROR, "ERP 下发失败: " + message);
+        return new BizException(ErrorCode.SYSTEM_ERROR, "biz.crm.commerce.failed-e-r-p-dispatch", "ERP 下发失败: {0}", message);
     }
 
     /**

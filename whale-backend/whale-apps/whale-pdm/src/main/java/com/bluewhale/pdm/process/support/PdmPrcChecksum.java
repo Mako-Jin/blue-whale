@@ -39,7 +39,7 @@ public final class PdmPrcChecksum {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             return HexFormat.of().formatHex(digest.digest(json));
         } catch (NoSuchAlgorithmException | com.fasterxml.jackson.core.JsonProcessingException ex) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "计算下发校验和失败");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.pdm.process.failed-calculate-dispatch-checksum", "计算下发校验和失败");
         }
     }
 }

@@ -297,7 +297,7 @@ public class BoardAppService {
                 .eq(PmBoardColumn::getBoardId, boardId)
                 .eq(PmBoardColumn::getStatusId, request.getTargetStatusId()));
         if (column == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "目标状态未配置在当前看板列中");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.target-status-configured-in-kanban-column", "目标状态未配置在当前看板列中");
         }
         int limit = column.getWipLimit() == null ? WIP_UNLIMITED : column.getWipLimit();
         if (limit > WIP_UNLIMITED) {
@@ -305,8 +305,8 @@ public class BoardAppService {
                     .eq(PmWorkItem::getProjectId, board.getProjectId())
                     .eq(PmWorkItem::getStatusId, request.getTargetStatusId()));
             if (current != null && current >= limit) {
-                throw new BizException(ErrorCode.PARAM_ERROR,
-                        "目标列已超过 WIP 上限（" + limit + "），请先完成在进行中的工作项");
+                throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.target-column-exceeded-wip-limit-complete",
+                              "目标列已超过 WIP 上限（{0}），请先完成在进行中的工作项", limit);
             }
         }
         WorkItemTransitionRequest transition = new WorkItemTransitionRequest();
@@ -324,7 +324,7 @@ public class BoardAppService {
     private PmBoard requireBoard(Long id) {
         PmBoard board = id == null ? null : boardMapper.selectById(id);
         if (board == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "看板不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pm.application.kanban-found", "看板不存在");
         }
         return board;
     }
@@ -339,7 +339,7 @@ public class BoardAppService {
     private PmBoardColumn requireColumn(Long boardId, Long columnId) {
         PmBoardColumn column = columnId == null ? null : columnMapper.selectById(columnId);
         if (column == null || !boardId.equals(column.getBoardId())) {
-            throw new BizException(ErrorCode.NOT_FOUND, "看板列不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pm.application.kanban-column-found", "看板列不存在");
         }
         return column;
     }
@@ -379,7 +379,7 @@ public class BoardAppService {
     private PmStatus requireProjectStatus(Long projectId, Long statusId) {
         PmStatus status = statusId == null ? null : statusMapper.selectById(statusId);
         if (status == null || !projectId.equals(status.getProjectId())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "状态不存在或不属于当前项目");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.status-exist-belong-project", "状态不存在或不属于当前项目");
         }
         return status;
     }
@@ -397,7 +397,7 @@ public class BoardAppService {
                 .eq(PmBoardColumn::getStatusId, statusId)
                 .ne(excludeId != null, PmBoardColumn::getId, excludeId));
         if (count != null && count > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "该状态已映射到当前看板的其它列");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.status-already-mapped-column-kanban", "该状态已映射到当前看板的其它列");
         }
     }
 
@@ -425,7 +425,7 @@ public class BoardAppService {
                 .eq(PmBoard::getName, name)
                 .ne(excludeId != null, PmBoard::getId, excludeId));
         if (count != null && count > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "看板名称已存在");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.kanban-name-already-exists", "看板名称已存在");
         }
     }
 }

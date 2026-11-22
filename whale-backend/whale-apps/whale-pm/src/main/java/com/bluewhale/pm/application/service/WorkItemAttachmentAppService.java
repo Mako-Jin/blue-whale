@@ -72,7 +72,7 @@ public class WorkItemAttachmentAppService {
                 .eq(PmAttachment::getWorkItemId, workItemId)
                 .eq(PmAttachment::getFileId, request.getFileId()));
         if (exists != null && exists > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "该文件已登记为当前工作项附件");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.file-already-been-registered-as-attachment", "该文件已登记为当前工作项附件");
         }
         PmAttachment attachment = new PmAttachment();
         attachment.setProjectId(item.getProjectId());
@@ -97,7 +97,7 @@ public class WorkItemAttachmentAppService {
     public void delete(Long attachmentId, Long operatorId) {
         PmAttachment attachment = attachmentId == null ? null : attachmentMapper.selectById(attachmentId);
         if (attachment == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "附件不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pm.application.attachment-found", "附件不存在");
         }
         PmWorkItem item = workItemGuard.requireWritable(attachment.getWorkItemId(), operatorId);
         projectGuard.requireActiveProject(item.getProjectId());

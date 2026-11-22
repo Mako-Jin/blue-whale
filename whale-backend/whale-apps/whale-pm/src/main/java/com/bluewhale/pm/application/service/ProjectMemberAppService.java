@@ -65,7 +65,7 @@ public class ProjectMemberAppService {
                 .eq(PmProjectMember::getProjectId, projectId)
                 .eq(PmProjectMember::getUserId, request.getUserId()));
         if (duplicated > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "该用户已是项目成员");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.already-project-member", "该用户已是项目成员");
         }
         PmProjectMember member = new PmProjectMember();
         member.setProjectId(projectId);
@@ -91,7 +91,7 @@ public class ProjectMemberAppService {
         ProjectRole role = ProjectRole.from(request.getProjectRole());
         boolean leader = member.getUserId().equals(project.getLeadUserId());
         if (leader && role != ProjectRole.ADMIN) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "项目负责人必须保留管理员角色");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.project-owner-retain-administrator-role", "项目负责人必须保留管理员角色");
         }
         if (ProjectRole.ADMIN.name().equals(member.getProjectRole()) && role != ProjectRole.ADMIN) {
             assertNotLastAdmin(member);
@@ -112,7 +112,7 @@ public class ProjectMemberAppService {
         PmProjectMember member = requireMember(memberId);
         PmProject project = projectGuard.requireActiveProject(member.getProjectId());
         if (member.getUserId().equals(project.getLeadUserId())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "项目负责人不可移除，请先变更负责人");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.project-owner-cannot-removed-change-owner", "项目负责人不可移除，请先变更负责人");
         }
         if (ProjectRole.ADMIN.name().equals(member.getProjectRole())) {
             assertNotLastAdmin(member);
@@ -130,7 +130,7 @@ public class ProjectMemberAppService {
     private PmProjectMember requireMember(Long memberId) {
         PmProjectMember member = memberId == null ? null : memberMapper.selectById(memberId);
         if (member == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "项目成员不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pm.application.project-member-found", "项目成员不存在");
         }
         return member;
     }
@@ -145,7 +145,7 @@ public class ProjectMemberAppService {
                 .eq(PmProjectMember::getProjectId, member.getProjectId())
                 .eq(PmProjectMember::getProjectRole, ProjectRole.ADMIN.name()));
         if (adminCount <= 1) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "项目至少保留一名管理员");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.project-retain-at-least-one-administrator", "项目至少保留一名管理员");
         }
     }
 }

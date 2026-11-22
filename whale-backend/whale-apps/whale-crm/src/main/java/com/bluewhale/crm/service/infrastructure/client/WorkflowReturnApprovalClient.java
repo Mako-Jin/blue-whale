@@ -141,6 +141,6 @@ public class WorkflowReturnApprovalClient implements ReturnApprovalPort {
      * @return 业务异常
      */
     private BizException failure(String message) {
-        return new BizException(ErrorCode.SYSTEM_ERROR, "发起退换货审批失败: " + message);
+        return new BizException(ErrorCode.SYSTEM_ERROR, "biz.crm.service.failed-initiator-return-exchange-approval", "发起退换货审批失败: {0}", message);
     }
 }

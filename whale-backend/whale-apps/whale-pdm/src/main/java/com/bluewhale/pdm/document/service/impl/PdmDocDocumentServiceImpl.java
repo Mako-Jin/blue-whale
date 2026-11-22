@@ -239,7 +239,7 @@ public class PdmDocDocumentServiceImpl implements PdmDocDocumentService {
                 .eq(PdmDocVersion::getDocumentId, id)
                 .eq(PdmDocVersion::getStatus, VERSION_RELEASED));
         if (releasedCount > 0) {
-            throw new BizException(ErrorCode.REPEAT_SUBMIT, "文档存在已发布版本，不能删除");
+            throw new BizException(ErrorCode.REPEAT_SUBMIT, "biz.pdm.document.document-exist-published-version-cannot-delete", "文档存在已发布版本，不能删除");
         }
         versionMapper.delete(new LambdaQueryWrapper<PdmDocVersion>().eq(PdmDocVersion::getDocumentId, id));
         documentMapper.deleteById(id);
@@ -280,7 +280,7 @@ public class PdmDocDocumentServiceImpl implements PdmDocDocumentService {
             if (document.getCheckedOutBy().equals(userId)) {
                 return PdmConverter.INSTANCE.toDocumentVo(document);
             }
-            throw new BizException(ErrorCode.REPEAT_SUBMIT, "文档已被他人检出");
+            throw new BizException(ErrorCode.REPEAT_SUBMIT, "biz.pdm.document.document-been-checked-out", "文档已被他人检出");
         }
         document.setCheckedOutBy(userId == null ? 0L : userId);
         document.setCheckedOutTime(LocalDateTime.now());
@@ -296,10 +296,10 @@ public class PdmDocDocumentServiceImpl implements PdmDocDocumentService {
         assertWriteAccess(document, viewer, PdmDocAclConstants.ACTION_EDIT, false);
         Long userId = viewer == null ? null : viewer.userId();
         if (document.getCheckedOutBy() == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "文档未检出，不能检入");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.document.document-check-out-cannot-check-in", "文档未检出，不能检入");
         }
         if (!document.getCheckedOutBy().equals(userId)) {
-            throw new BizException(ErrorCode.FORBIDDEN, "文档由他人检出，不能检入");
+            throw new BizException(ErrorCode.FORBIDDEN, "biz.pdm.document.document-checked-out-cannot-checked-in", "文档由他人检出，不能检入");
         }
         PdmDocVersion version = createDraft(document, file, changeNote, userId, SOURCE_CHECKIN);
         document.setCheckedOutBy(null);
@@ -315,7 +315,7 @@ public class PdmDocDocumentServiceImpl implements PdmDocDocumentService {
         assertWriteAccess(document, viewer, PdmDocAclConstants.ACTION_EDIT, canManage);
         PdmDocVersion version = requireVersion(documentId, versionId);
         if (!VERSION_DRAFT.equals(version.getStatus())) {
-            throw new BizException(ErrorCode.REPEAT_SUBMIT, "只有草稿版本可以发布");
+            throw new BizException(ErrorCode.REPEAT_SUBMIT, "biz.pdm.document.draft-version-can-publish", "只有草稿版本可以发布");
         }
         PdmDocVersionNo target = PdmDocVersionNo.parse(version.getVersionNo()).releaseTarget();
         if (!target.value().equals(version.getVersionNo())) {
@@ -377,7 +377,7 @@ public class PdmDocDocumentServiceImpl implements PdmDocDocumentService {
         assertReadAccess(document, viewer, PdmDocAclConstants.ACTION_DOWNLOAD);
         PdmDocVersion version = requireVersion(documentId, versionId);
         if (version.getFileId() == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "版本文件不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.document.version-file-found", "版本文件不存在");
         }
         byte[] content = fileClient.content(version.getFileId());
         return new PdmDocDownload(content, version.getFileName(), version.getContentType());
@@ -391,14 +391,14 @@ public class PdmDocDocumentServiceImpl implements PdmDocDocumentService {
                 .eq(PdmDocVersion::getVersionNo, versionNo)
                 .last("LIMIT 1"));
         if (versions.isEmpty()) {
-            throw new BizException(ErrorCode.NOT_FOUND, "文档版本不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.document.document-version-found", "文档版本不存在");
         }
         PdmDocVersion version = versions.get(0);
         if (!VERSION_RELEASED.equals(version.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "仅已发布文档版本可内网读取");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.document.published-document-version-can-intranet-read", "仅已发布文档版本可内网读取");
         }
         if (version.getFileId() == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "版本文件不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.document.version-file-found-2", "版本文件不存在");
         }
         byte[] content = fileClient.content(version.getFileId());
         return new PdmDocDownload(content, version.getFileName(), version.getContentType());
@@ -451,10 +451,10 @@ public class PdmDocDocumentServiceImpl implements PdmDocDocumentService {
      */
     private void validateFile(PdmDocUploadFile file) {
         if (file == null || file.content() == null || file.content().length == 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "上传文件不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.document.upload-file-empty", "上传文件不能为空");
         }
         if (!StringUtils.hasText(file.fileName())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "文件名不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.document.file-name-empty", "文件名不能为空");
         }
     }
 
@@ -480,11 +480,11 @@ public class PdmDocDocumentServiceImpl implements PdmDocDocumentService {
      */
     private PdmDocDocument requireDocument(Long id) {
         if (id == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "文档不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.document.document-found", "文档不存在");
         }
         PdmDocDocument document = documentMapper.selectById(id);
         if (document == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "文档不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.document.document-found-2", "文档不存在");
         }
         return document;
     }
@@ -499,7 +499,7 @@ public class PdmDocDocumentServiceImpl implements PdmDocDocumentService {
     private PdmDocVersion requireVersion(Long documentId, Long versionId) {
         PdmDocVersion version = versionMapper.selectById(versionId);
         if (version == null || !version.getDocumentId().equals(documentId)) {
-            throw new BizException(ErrorCode.NOT_FOUND, "文档版本不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.document.document-version-found-2", "文档版本不存在");
         }
         return version;
     }
@@ -517,7 +517,7 @@ public class PdmDocDocumentServiceImpl implements PdmDocDocumentService {
             wrapper.ne(PdmDocDocument::getId, exclude);
         }
         if (documentMapper.selectCount(wrapper) > 0) {
-            throw new BizException(ErrorCode.REPEAT_SUBMIT, "文档编号已存在");
+            throw new BizException(ErrorCode.REPEAT_SUBMIT, "biz.pdm.document.document-number-already-exists", "文档编号已存在");
         }
     }
 
@@ -536,7 +536,7 @@ public class PdmDocDocumentServiceImpl implements PdmDocDocumentService {
             wrapper.ne(PdmDocVersion::getId, exclude);
         }
         if (versionMapper.selectCount(wrapper) > 0) {
-            throw new BizException(ErrorCode.REPEAT_SUBMIT, "版本号已存在");
+            throw new BizException(ErrorCode.REPEAT_SUBMIT, "biz.pdm.document.version-already-exists", "版本号已存在");
         }
     }
 
@@ -551,7 +551,7 @@ public class PdmDocDocumentServiceImpl implements PdmDocDocumentService {
         PdmDocAclDecision decision = aclResolver.decideDocument(document.getId(), document.getFolderId(),
                 viewer, action);
         if (decision == PdmDocAclDecision.DENY) {
-            throw new BizException(ErrorCode.FORBIDDEN, "无权访问该文档");
+            throw new BizException(ErrorCode.FORBIDDEN, "biz.pdm.document.permission-access-document", "无权访问该文档");
         }
     }
 
@@ -568,7 +568,7 @@ public class PdmDocDocumentServiceImpl implements PdmDocDocumentService {
         PdmDocAclDecision decision = aclResolver.decideDocument(document.getId(), document.getFolderId(),
                 viewer, action);
         if (decision == PdmDocAclDecision.DENY) {
-            throw new BizException(ErrorCode.FORBIDDEN, "无权操作该文档");
+            throw new BizException(ErrorCode.FORBIDDEN, "biz.pdm.document.permission-operate-document", "无权操作该文档");
         }
         if (decision == PdmDocAclDecision.ALLOW) {
             return;
@@ -588,7 +588,7 @@ public class PdmDocDocumentServiceImpl implements PdmDocDocumentService {
             return;
         }
         if (userId == null || !document.getOwnerId().equals(userId)) {
-            throw new BizException(ErrorCode.FORBIDDEN, "只能操作本人创建的文档");
+            throw new BizException(ErrorCode.FORBIDDEN, "biz.pdm.document.can-operation-self-creation-document", "只能操作本人创建的文档");
         }
     }
 
@@ -600,7 +600,7 @@ public class PdmDocDocumentServiceImpl implements PdmDocDocumentService {
      */
     private void assertNotCheckedOutByOther(PdmDocDocument document, Long userId) {
         if (document.getCheckedOutBy() != null && !document.getCheckedOutBy().equals(userId)) {
-            throw new BizException(ErrorCode.REPEAT_SUBMIT, "文档已被他人检出");
+            throw new BizException(ErrorCode.REPEAT_SUBMIT, "biz.pdm.document.document-been-checked-out-2", "文档已被他人检出");
         }
     }
 
@@ -619,7 +619,7 @@ public class PdmDocDocumentServiceImpl implements PdmDocDocumentService {
                 return candidate;
             }
         }
-        throw new BizException(ErrorCode.SYSTEM_ERROR, "文档编号生成失败，请重试");
+        throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.pdm.document.failed-generate-document-number-retry", "文档编号生成失败，请重试");
     }
 
     /**
@@ -633,7 +633,7 @@ public class PdmDocDocumentServiceImpl implements PdmDocDocumentService {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             return HexFormat.of().formatHex(digest.digest(content));
         } catch (NoSuchAlgorithmException ex) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "文件校验和计算失败");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.pdm.document.failed-file-checksum-calculate", "文件校验和计算失败");
         }
     }
 

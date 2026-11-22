@@ -69,12 +69,12 @@ public class ApprovalNotifyGatewayImpl implements ApprovalNotifyGateway {
                 .retrieve()
                 .body(Map.class);
         if (response == null) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "消息服务响应为空");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.oa.approval.message-service-returned-empty-response", "消息服务响应为空");
         }
         Object code = response.get("code");
         if (!(code instanceof Number number) || number.intValue() != CODE_SUCCESS) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR,
-                    "消息服务返回失败: " + response.get("message"));
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.oa.approval.failed-message-service-return-message",
+                    "消息服务返回失败: {0}", response.get("message"));
         }
     }
 
@@ -86,7 +86,7 @@ public class ApprovalNotifyGatewayImpl implements ApprovalNotifyGateway {
     private String baseUrl() {
         List<ServiceInstance> instances = discoveryClient.getInstances(SERVICE_NAME);
         if (instances.isEmpty()) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "消息服务不可用");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.oa.approval.message-service-unavailable", "消息服务不可用");
         }
         return instances.getFirst().getUri().toString();
     }

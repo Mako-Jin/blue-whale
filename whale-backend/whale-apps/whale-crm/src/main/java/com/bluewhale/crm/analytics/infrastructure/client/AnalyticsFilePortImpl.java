@@ -89,7 +89,7 @@ public class AnalyticsFilePortImpl implements AnalyticsFilePort {
             throw ex;
         } catch (Exception ex) {
             log.warn("分析导出上传文件失败: fileName={}, error={}", fileName, ex.getMessage());
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "上传导出文件失败: " + ex.getMessage());
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.crm.analytics.failed-upload-export-file", "上传导出文件失败: {0}", ex.getMessage());
         }
         Object fileId = data(response).get("id");
         if (fileId instanceof Number number) {
@@ -98,7 +98,7 @@ public class AnalyticsFilePortImpl implements AnalyticsFilePort {
         if (fileId instanceof String string && !string.isBlank()) {
             return Long.parseLong(string.trim());
         }
-        throw new BizException(ErrorCode.SYSTEM_ERROR, "文件服务响应缺少文件ID");
+        throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.crm.analytics.file-service-response-missing-file-id", "文件服务响应缺少文件ID");
     }
 
     @Override
@@ -111,7 +111,7 @@ public class AnalyticsFilePortImpl implements AnalyticsFilePort {
                     .body(byte[].class);
         } catch (Exception ex) {
             log.warn("分析导出下载文件失败: fileId={}, error={}", fileId, ex.getMessage());
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "读取导出文件失败: " + ex.getMessage());
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.crm.analytics.failed-read-export-file", "读取导出文件失败: {0}", ex.getMessage());
         }
     }
 
@@ -125,7 +125,7 @@ public class AnalyticsFilePortImpl implements AnalyticsFilePort {
         if (response == null || !(response.get("code") instanceof Number code)
                 || code.intValue() != CODE_SUCCESS
                 || !(response.get("data") instanceof Map)) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "文件服务响应异常");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.crm.analytics.file-service-response-exception", "文件服务响应异常");
         }
         @SuppressWarnings("unchecked")
         Map<String, Object> data = (Map<String, Object>) response.get("data");

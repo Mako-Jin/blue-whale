@@ -80,7 +80,7 @@ public class WorkItemLinkAppService {
         projectGuard.requireActiveProject(source.getProjectId());
         LinkType linkType = LinkType.from(request.getLinkType());
         if (workItemId.equals(request.getTargetItemId())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "不能关联工作项自身");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.cannot-association-work-item-itself", "不能关联工作项自身");
         }
         PmWorkItem target = workItemGuard.requireInProject(request.getTargetItemId(), source.getProjectId());
         Long exists = linkMapper.selectCount(new LambdaQueryWrapper<PmWorkItemLink>()
@@ -88,7 +88,7 @@ public class WorkItemLinkAppService {
                 .eq(PmWorkItemLink::getTargetId, target.getId())
                 .eq(PmWorkItemLink::getLinkType, linkType.name()));
         if (exists != null && exists > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "该关联已存在");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.association-already-exists", "该关联已存在");
         }
         PmWorkItemLink link = new PmWorkItemLink();
         link.setProjectId(source.getProjectId());
@@ -112,7 +112,7 @@ public class WorkItemLinkAppService {
     public void delete(Long linkId, Long operatorId) {
         PmWorkItemLink link = linkId == null ? null : linkMapper.selectById(linkId);
         if (link == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "工作项关联不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pm.application.work-item-association-found", "工作项关联不存在");
         }
         workItemGuard.requireWritable(link.getSourceId(), operatorId);
         projectGuard.requireActiveProject(link.getProjectId());

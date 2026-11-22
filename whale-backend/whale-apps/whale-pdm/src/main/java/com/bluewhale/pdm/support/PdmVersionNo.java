@@ -52,7 +52,7 @@ public final class PdmVersionNo implements Comparable<PdmVersionNo> {
      */
     public static PdmVersionNo of(int major, int minor) {
         if (major < 0 || minor < 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "版本号不能为负数");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.support.version-number-negative", "版本号不能为负数");
         }
         return new PdmVersionNo(major, minor);
     }
@@ -65,11 +65,11 @@ public final class PdmVersionNo implements Comparable<PdmVersionNo> {
      */
     public static PdmVersionNo parse(String value) {
         if (value == null || value.isBlank()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "版本号不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.support.version-empty", "版本号不能为空");
         }
         Matcher matcher = PATTERN.matcher(value.trim());
         if (!matcher.matches()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "版本号格式应为 V{主版本}.{次版本}");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.support.version-format-should-v-major-version", "版本号格式应为 V{主版本}.{次版本}");
         }
         return new PdmVersionNo(Integer.parseInt(matcher.group(1)), Integer.parseInt(matcher.group(2)));
     }

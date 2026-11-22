@@ -118,19 +118,22 @@ public class OverviewService implements DisposableBean {
      */
     public OverviewProvider resolve(String nodeKey) {
         if (providers.isEmpty()) {
-            throw new BizException(ErrorCode.NOT_FOUND, "本服务尚未接入概览（未实现 OverviewProvider）");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.overview.overview-service.service-integrated-overview-overviewprovider-implemented",
+                          "本服务尚未接入概览（未实现 OverviewProvider）");
         }
         if (nodeKey == null || nodeKey.isBlank()) {
             if (providers.size() == 1) {
                 return providers.get(0);
             }
             String candidates = providers.stream().map(OverviewProvider::nodeKey).collect(Collectors.joining(", "));
-            throw new BizException(ErrorCode.PARAM_ERROR, "本服务提供多个概览节点，请用 node 参数指定：" + candidates);
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.overview.overview-service.service-provides-multiple-overview-nodes-specify",
+                          "本服务提供多个概览节点，请用 node 参数指定：{0}", candidates);
         }
         return providers.stream()
                 .filter(provider -> nodeKey.equals(provider.nodeKey()))
                 .findFirst()
-                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND, "未知概览节点：" + nodeKey));
+                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND, "biz.overview.overview-service.unknown-overview-node", "未知概览节点：{0}",
+                                           nodeKey));
     }
 
     /**

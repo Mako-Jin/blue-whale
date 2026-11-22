@@ -151,7 +151,7 @@ public class ContractServiceImpl implements ContractService {
     @Override
     public List<ContractVO> listByBiz(String bizType, String bizId) {
         if (!StringUtils.hasText(bizType) || !StringUtils.hasText(bizId)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "bizType 与 bizId 不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.contract.service.biztype-bizid-empty", "bizType 与 bizId 不能为空");
         }
         LambdaQueryWrapper<CtContract> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(CtContract::getBizType, bizType.trim());
@@ -165,7 +165,7 @@ public class ContractServiceImpl implements ContractService {
     @Override
     public long countByBiz(String bizType, String bizId) {
         if (!StringUtils.hasText(bizType) || !StringUtils.hasText(bizId)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "bizType 与 bizId 不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.contract.service.biztype-bizid-empty-2", "bizType 与 bizId 不能为空");
         }
         return contractMapper.selectCount(new LambdaQueryWrapper<CtContract>()
                 .eq(CtContract::getBizType, bizType.trim())
@@ -177,10 +177,10 @@ public class ContractServiceImpl implements ContractService {
     public int rewriteBizReferences(String bizType, String sourceBizId, String targetBizId) {
         if (!StringUtils.hasText(bizType) || !StringUtils.hasText(sourceBizId)
                 || !StringUtils.hasText(targetBizId)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "bizType 与源/目标业务 ID 不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.contract.service.biztype-source-target-business-id-empty", "bizType 与源/目标业务 ID 不能为空");
         }
         if (sourceBizId.trim().equals(targetBizId.trim())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "源与目标业务 ID 不能相同");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.contract.service.source-target-business-ids-same", "源与目标业务 ID 不能相同");
         }
         UpdateWrapper<CtContract> wrapper = new UpdateWrapper<>();
         wrapper.eq("biz_type", bizType.trim())
@@ -263,7 +263,8 @@ public class ContractServiceImpl implements ContractService {
         CtContract contract = requireContract(id);
         requireStatus(contract, "提交审批", ContractStatus.DRAFT, ContractStatus.REJECTED, ContractStatus.WITHDRAWN);
         if (!approvalProperties.isEnabled() || approvalProperties.getDefinitionId() == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "合同审批流程未配置，请设置 whale.contract.approval.definition-id");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.contract.service.contract-approval-workflow-configured-set-whale",
+                          "合同审批流程未配置，请设置 whale.contract.approval.definition-id");
         }
         String businessKey = businessKey(contract);
         Map<String, Object> variables = new LinkedHashMap<>();
@@ -468,7 +469,7 @@ public class ContractServiceImpl implements ContractService {
                 return code;
             }
         }
-        throw new BizException(ErrorCode.SYSTEM_ERROR, "合同编号生成失败，请稍后重试");
+        throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.contract.service.failed-generate-contract-number-retry-later", "合同编号生成失败，请稍后重试");
     }
 
     /**
@@ -569,7 +570,7 @@ public class ContractServiceImpl implements ContractService {
     private CtContract requireContract(Long id) {
         CtContract contract = id == null ? null : contractMapper.selectById(id);
         if (contract == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "合同不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.contract.service.contract-found-simple", "合同不存在");
         }
         return contract;
     }
@@ -587,8 +588,8 @@ public class ContractServiceImpl implements ContractService {
                 return;
             }
         }
-        throw new BizException(ErrorCode.PARAM_ERROR,
-                "当前状态（" + contract.getStatus() + "）不允许" + action + "合同");
+        throw new BizException(ErrorCode.PARAM_ERROR, "biz.contract.service.status-allowed-contract", "当前状态（{0}）不允许{1}合同", contract.getStatus(),
+                      action);
     }
 
     /**
@@ -599,7 +600,7 @@ public class ContractServiceImpl implements ContractService {
      */
     private void assertDateRange(LocalDate effectiveDate, LocalDate expireDate) {
         if (effectiveDate != null && expireDate != null && expireDate.isBefore(effectiveDate)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "到期日期不得早于生效日期");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.contract.service.expiration-date-earlier-than-effective-date", "到期日期不得早于生效日期");
         }
     }
 

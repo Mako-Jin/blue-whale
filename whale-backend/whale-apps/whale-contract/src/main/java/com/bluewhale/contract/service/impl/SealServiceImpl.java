@@ -143,16 +143,16 @@ public class SealServiceImpl implements SealService {
     public SealImage downloadImage(Long id) {
         CtSeal seal = requireSeal(id);
         if (seal.getImageFileId() == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "印章未上传图片，无法导出原图: " + id);
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.contract.service.seal-upload-image-cannot-export-original", "印章未上传图片，无法导出原图: {0}", id);
         }
         byte[] bytes;
         try {
             bytes = fileClient.download(seal.getImageFileId());
         } catch (Exception ex) {
-            throw new BizException(ErrorCode.NOT_FOUND, "印章原图读取失败: " + ex.getMessage());
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.contract.service.failed-seal-original-image-read", "印章原图读取失败: {0}", ex.getMessage());
         }
         if (bytes == null || bytes.length == 0) {
-            throw new BizException(ErrorCode.NOT_FOUND, "印章原图为空: " + id);
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.contract.service.seal-original-image-empty", "印章原图为空: {0}", id);
         }
         String contentType = detectImageContentType(bytes);
         String extension = "image/png".equals(contentType) ? ".png"
@@ -184,10 +184,10 @@ public class SealServiceImpl implements SealService {
     @Override
     public Long uploadImage(String filename, String contentType, byte[] content) {
         if (content == null || content.length == 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "印章图片不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.contract.service.seal-image-empty", "印章图片不能为空");
         }
         if (!StringUtils.hasText(contentType) || !contentType.toLowerCase(Locale.ROOT).startsWith("image/")) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "印章图片必须为图片类型");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.contract.service.seal-image-image-type", "印章图片必须为图片类型");
         }
         String extension = ".png";
         if (StringUtils.hasText(filename) && filename.lastIndexOf('.') > 0) {
@@ -272,7 +272,7 @@ public class SealServiceImpl implements SealService {
     private CtSeal requireSeal(Long id) {
         CtSeal seal = sealMapper.selectById(id);
         if (seal == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "印章不存在: " + id);
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.contract.service.seal-found", "印章不存在: {0}", id);
         }
         return seal;
     }
@@ -299,7 +299,7 @@ public class SealServiceImpl implements SealService {
      */
     private void assertDateRange(LocalDate from, LocalDate to) {
         if (from != null && to != null && from.isAfter(to)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "有效期起不能晚于有效期止");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.contract.service.validity-start-later-than-validity-end", "有效期起不能晚于有效期止");
         }
     }
 

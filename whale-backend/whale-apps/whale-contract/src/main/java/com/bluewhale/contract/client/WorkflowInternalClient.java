@@ -87,17 +87,17 @@ public class WorkflowInternalClient {
                     .body(new ParameterizedTypeReference<Map<String, Object>>() {
                     });
             if (response == null) {
-                throw new BizException(ErrorCode.SYSTEM_ERROR, "工作流任务完成失败: 空响应");
+                throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.contract.client.failed-workflow-task-complete-empty-response", "工作流任务完成失败: 空响应");
             }
             Object code = response.get(FIELD_CODE);
             if (!(code instanceof Number number) || number.intValue() != CODE_SUCCESS) {
-                throw new BizException(ErrorCode.SYSTEM_ERROR,
-                        "工作流任务完成失败: " + response.get(FIELD_MESSAGE));
+                throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.contract.client.failed-workflow-task-complete", "工作流任务完成失败: {0}",
+                              response.get(FIELD_MESSAGE));
             }
         } catch (BizException ex) {
             throw ex;
         } catch (Exception ex) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "工作流任务完成失败: " + ex.getMessage());
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.contract.client.failed-workflow-task-complete-2", "工作流任务完成失败: {0}", ex.getMessage());
         }
     }
 }

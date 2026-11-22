@@ -136,7 +136,7 @@ public class ErpItemServiceImpl implements ErpItemService {
     private ErpItem requireItem(Long id) {
         ErpItem item = id == null ? null : erpItemMapper.selectById(id);
         if (item == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "物料不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.erp.service.material-found", "物料不存在");
         }
         return item;
     }
@@ -154,7 +154,7 @@ public class ErpItemServiceImpl implements ErpItemService {
             wrapper.ne(ErpItem::getId, excludeId);
         }
         if (erpItemMapper.selectCount(wrapper) > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "物料编码已存在");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.erp.service.material-code-already-exists", "物料编码已存在");
         }
     }
 

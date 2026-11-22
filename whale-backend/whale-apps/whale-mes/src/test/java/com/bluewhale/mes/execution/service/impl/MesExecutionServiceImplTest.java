@@ -47,6 +47,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -163,7 +164,8 @@ class MesExecutionServiceImplTest {
         BizException exception = assertThrows(BizException.class,
                 () -> executionService.start(TASK_ID, new MesTaskActionRequest()));
 
-        assertTrue(exception.getMessage().contains("不允许开工"));
+        assertEquals("biz.mes.execution.task-status-allowed", exception.getMessageKey());
+        assertArrayEquals(new Object[]{"PLANNED", "开工"}, exception.getMessageArgs());
         verify(taskMapper, never()).updateById(any(MesWorkOrderTask.class));
     }
 

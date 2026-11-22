@@ -134,11 +134,11 @@ public class MesInspectionServiceImpl implements MesInspectionService {
         } else {
             plan = planMapper.selectById(request.getId());
             if (plan == null) {
-                throw new BizException(ErrorCode.NOT_FOUND, "检验计划不存在：" + request.getId());
+                throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.quality.inspection-plan-found", "检验计划不存在：{0}", request.getId());
             }
             if (taskMapper.selectCount(new LambdaQueryWrapper<MesInspectionTask>()
                     .eq(MesInspectionTask::getPlanId, plan.getId())) > 0) {
-                throw new BizException(ErrorCode.PARAM_ERROR, "检验计划已产生检验任务，不可修改");
+                throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.inspection-plan-generate-inspection-task-cannot", "检验计划已产生检验任务，不可修改");
             }
         }
         assertPlanNoUnique(plan.getId(), plan.getPlanNo());
@@ -157,7 +157,7 @@ public class MesInspectionServiceImpl implements MesInspectionService {
             planMapper.insert(plan);
         } else {
             if (planMapper.updateById(plan) == 0) {
-                throw new BizException(ErrorCode.PARAM_ERROR, "检验计划已被其他用户修改，请刷新后重试");
+                throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.inspection-plan-was-modified-refresh-retry", "检验计划已被其他用户修改，请刷新后重试");
             }
             planItemMapper.delete(new LambdaQueryWrapper<MesInspectionPlanItem>()
                     .eq(MesInspectionPlanItem::getPlanId, plan.getId()));
@@ -188,7 +188,7 @@ public class MesInspectionServiceImpl implements MesInspectionService {
     public MesInspectionPlanVO getPlan(Long id) {
         MesInspectionPlan plan = planMapper.selectById(id);
         if (plan == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "检验计划不存在：" + id);
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.quality.inspection-plan-found-2", "检验计划不存在：{0}", id);
         }
         MesInspectionPlanVO vo = toPlanVo(plan);
         List<MesInspectionPlanItem> items = listPlanItems(plan.getId());
@@ -202,7 +202,8 @@ public class MesInspectionServiceImpl implements MesInspectionService {
         MesInspectionPlan plan = resolvePlan(request);
         List<MesInspectionPlanItem> items = listPlanItems(plan.getId());
         if (items.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "检验计划未配置检验项：" + plan.getPlanNo());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.inspection-plan-configured-inspection-item", "检验计划未配置检验项：{0}",
+                          plan.getPlanNo());
         }
         MesInspectionTask task = new MesInspectionTask();
         task.setTaskNo(MesCodeGenerator.nextNo("QCT"));
@@ -278,13 +279,15 @@ public class MesInspectionServiceImpl implements MesInspectionService {
     public MesInspectionTaskDetailVO submitResults(Long id, MesInspectionResultSubmitRequest request) {
         MesInspectionTask task = loadTask(id);
         if (!STATUS_PENDING.equals(task.getStatus()) && !STATUS_INSPECTED.equals(task.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "当前状态不可录入检验结果：" + task.getStatus());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.status-cannot-enter-inspection-result", "当前状态不可录入检验结果：{0}",
+                          task.getStatus());
         }
         Map<Long, MesInspectionPlanItem> itemMap = planItemMap(task.getPlanId());
         for (MesInspectionResultItemRequest itemRequest : request.getResults()) {
             MesInspectionPlanItem planItem = itemMap.get(itemRequest.getPlanItemId());
             if (planItem == null) {
-                throw new BizException(ErrorCode.PARAM_ERROR, "检验项不属于该计划：" + itemRequest.getPlanItemId());
+                throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.inspection-item-belong-plan", "检验项不属于该计划：{0}",
+                              itemRequest.getPlanItemId());
             }
             assertMeasuredValue(planItem, itemRequest);
             resultMapper.insert(buildResult(task, planItem, itemRequest, request.getInspector()));
@@ -302,7 +305,7 @@ public class MesInspectionServiceImpl implements MesInspectionService {
             task.setInspector(request.getInspector());
         }
         if (taskMapper.updateById(task) == 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "检验任务已被其他用户修改，请刷新后重试");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.inspection-task-was-modified-refresh-retry", "检验任务已被其他用户修改，请刷新后重试");
         }
         return getTask(id);
     }
@@ -312,14 +315,14 @@ public class MesInspectionServiceImpl implements MesInspectionService {
     public MesInspectionTaskVO judge(Long id, MesInspectionJudgeRequest request) {
         MesInspectionTask task = loadTask(id);
         if (STATUS_PASSED.equals(task.getStatus()) || STATUS_FAILED.equals(task.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "检验任务已判定，不可重复判定");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.inspection-task-judge-cannot-duplicate-judge", "检验任务已判定，不可重复判定");
         }
         if (STATUS_CANCELLED.equals(task.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "检验任务已取消，不可判定");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.inspection-task-cancelled-cannot-judge", "检验任务已取消，不可判定");
         }
         List<MesInspectionPlanItem> items = listPlanItems(task.getPlanId());
         if (items.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "检验计划未配置检验项，不可判定");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.inspection-plan-configured-inspection-item-cannot", "检验计划未配置检验项，不可判定");
         }
         List<MesInspectionResult> results = listResults(task.getId());
         Set<Long> completedItemIds = new HashSet<>();
@@ -329,8 +332,8 @@ public class MesInspectionServiceImpl implements MesInspectionService {
             }
         });
         if (completedItemIds.size() < items.size()) {
-            throw new BizException(ErrorCode.PARAM_ERROR,
-                    "检验项未完成，不可判定：应检 " + items.size() + " 项，已检 " + completedItemIds.size() + " 项");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.inspection-item-complete-cannot-judge-required",
+                          "检验项未完成，不可判定：应检 {0} 项，已检 {1} 项", items.size(), completedItemIds.size());
         }
         boolean failed = results.stream().anyMatch(result -> RESULT_NG.equals(result.getResult()))
                 || !defectMapper.selectList(new LambdaQueryWrapper<MesInspectionDefect>()
@@ -346,7 +349,7 @@ public class MesInspectionServiceImpl implements MesInspectionService {
             log.warn("检验不合格，已生成 NCR: taskNo={}, ncrId={}", task.getTaskNo(), ncrId);
         }
         if (taskMapper.updateById(task) == 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "检验任务已被其他用户修改，请刷新后重试");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.inspection-task-was-modified-refresh-retry-2", "检验任务已被其他用户修改，请刷新后重试");
         }
         return toTaskVo(task);
     }
@@ -418,11 +421,13 @@ public class MesInspectionServiceImpl implements MesInspectionService {
         Set<Integer> itemNos = new HashSet<>();
         for (MesInspectionPlanItemRequest item : items) {
             if (!itemNos.add(item.getItemNo())) {
-                throw new BizException(ErrorCode.PARAM_ERROR, "检验项序号重复：" + item.getItemNo());
+                throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.inspection-item-sequence-number-duplicate", "检验项序号重复：{0}",
+                              item.getItemNo());
             }
             if (item.getMinValue() != null && item.getMaxValue() != null
                     && item.getMinValue().compareTo(item.getMaxValue()) > 0) {
-                throw new BizException(ErrorCode.PARAM_ERROR, "检验项上下限不合法：" + item.getItemName());
+                throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.invalid-upper-lower-limits-inspection-item", "检验项上下限不合法：{0}",
+                              item.getItemName());
             }
         }
     }
@@ -438,7 +443,7 @@ public class MesInspectionServiceImpl implements MesInspectionService {
                 .eq(MesInspectionPlan::getPlanNo, planNo)
                 .ne(id != null, MesInspectionPlan::getId, id);
         if (planMapper.selectCount(wrapper) > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "检验计划编号已存在：" + planNo);
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.inspection-plan-number-already-exists", "检验计划编号已存在：{0}", planNo);
         }
     }
 
@@ -475,10 +480,10 @@ public class MesInspectionServiceImpl implements MesInspectionService {
         if (request.getPlanId() != null) {
             MesInspectionPlan plan = planMapper.selectById(request.getPlanId());
             if (plan == null) {
-                throw new BizException(ErrorCode.NOT_FOUND, "检验计划不存在：" + request.getPlanId());
+                throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.quality.inspection-plan-found-3", "检验计划不存在：{0}", request.getPlanId());
             }
             if (!PLAN_ENABLED.equals(plan.getStatus())) {
-                throw new BizException(ErrorCode.PARAM_ERROR, "检验计划未启用：" + plan.getPlanNo());
+                throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.inspection-plan-enabled", "检验计划未启用：{0}", plan.getPlanNo());
             }
             return plan;
         }
@@ -490,9 +495,8 @@ public class MesInspectionServiceImpl implements MesInspectionService {
                 .eq(request.getLineId() != null, MesInspectionPlan::getLineId, request.getLineId())
                 .orderByAsc(MesInspectionPlan::getId));
         if (plans.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR,
-                    "未找到可用检验计划：type=" + request.getTaskType()
-                            + ", operation=" + request.getOperationCode());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.found-available-inspection-plan-t-y", "未找到可用检验计划：type={0}, operation={1}",
+                          request.getTaskType(), request.getOperationCode());
         }
         return plans.get(0);
     }
@@ -506,7 +510,7 @@ public class MesInspectionServiceImpl implements MesInspectionService {
     private MesInspectionTask loadTask(Long id) {
         MesInspectionTask task = taskMapper.selectById(id);
         if (task == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "检验任务不存在：" + id);
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.quality.inspection-task-found", "检验任务不存在：{0}", id);
         }
         return task;
     }
@@ -562,12 +566,12 @@ public class MesInspectionServiceImpl implements MesInspectionService {
             return;
         }
         if (planItem.getMinValue() != null && value.compareTo(planItem.getMinValue()) < 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR,
-                    "实测值低于下限：" + planItem.getItemName() + " " + value.toPlainString());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.measured-value-below-lower-limit", "实测值低于下限：{0} {1}",
+                          planItem.getItemName(), value.toPlainString());
         }
         if (planItem.getMaxValue() != null && value.compareTo(planItem.getMaxValue()) > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR,
-                    "实测值高于上限：" + planItem.getItemName() + " " + value.toPlainString());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.measured-value-above-limit", "实测值高于上限：{0} {1}", planItem.getItemName(),
+                          value.toPlainString());
         }
     }
 
@@ -628,7 +632,7 @@ public class MesInspectionServiceImpl implements MesInspectionService {
         try {
             return LocalDate.parse(boardDate);
         } catch (DateTimeParseException exception) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "统计日期格式应为 yyyy-MM-dd：" + boardDate);
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.statistics-date-format-should-y-y", "统计日期格式应为 yyyy-MM-dd：{0}", boardDate);
         }
     }
 

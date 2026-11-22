@@ -176,7 +176,8 @@ public class PdmIntReconcileServiceImpl implements PdmIntReconcileService {
         PdmBomReleaseVO release = bomService.releases(bomNo).stream()
                 .filter(item -> versionNo.equals(item.getVersionNo()))
                 .findFirst()
-                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND, "BOM 发布版本不存在: " + versionNo));
+                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND, "biz.pdm.integration.b-o-m-publish-version-found", "BOM 发布版本不存在: {0}",
+                                           versionNo));
         String key = "ERP:BOM_NOTIFY:" + bomNo + ":" + versionNo;
         return syncService.record(PdmIntChannel.ERP, PdmIntAction.BOM_NOTIFY, PdmIntDirection.OUTBOUND,
                 "BOM", release.getId(), bomNo, versionNo, key, null, release.getChecksum(), null, null, operatorId);
@@ -201,7 +202,8 @@ public class PdmIntReconcileServiceImpl implements PdmIntReconcileService {
         if (OA_TYPE_ORDER.equalsIgnoreCase(bizType)) {
             return compensateOrder(bizId, operatorId);
         }
-        throw new BizException(ErrorCode.PARAM_ERROR, "OA 补偿业务类型仅支持 REQUEST/ORDER");
+        throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.integration.o-compensate-business-type-supports-request",
+                      "OA 补偿业务类型仅支持 REQUEST/ORDER");
     }
 
     /**
@@ -214,17 +216,19 @@ public class PdmIntReconcileServiceImpl implements PdmIntReconcileService {
     private PdmIntReconcileVO compensateRequest(Long bizId, Long operatorId) {
         PdmChgRequest request = bizId == null ? null : requestMapper.selectById(bizId);
         if (request == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "变更申请不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.integration.change-application-found", "变更申请不存在");
         }
         if (!List.of(PdmChgRequestStatus.DRAFT, PdmChgRequestStatus.SUBMITTED).contains(request.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "当前变更申请状态不支持 OA 补偿");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.integration.change-application-status-supported-o-compensate",
+                          "当前变更申请状态不支持 OA 补偿");
         }
         String target = switch (request.getApprovalStatus() == null ? "" : request.getApprovalStatus()) {
             case "APPROVED" -> PdmChgRequestStatus.APPROVED;
             case "REJECTED" -> PdmChgRequestStatus.REJECTED;
             case "WITHDRAWN" -> PdmChgRequestStatus.DRAFT;
             case "RUNNING" -> PdmChgRequestStatus.SUBMITTED;
-            default -> throw new BizException(ErrorCode.PARAM_ERROR, "OA 审批状态缺失或未知，无法补偿");
+            default -> throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.integration.o-approval-status-missing-unknown-cannot",
+                                     "OA 审批状态缺失或未知，无法补偿");
         };
         String previous = request.getStatus();
         if (!target.equals(previous)) {
@@ -251,17 +255,18 @@ public class PdmIntReconcileServiceImpl implements PdmIntReconcileService {
     private PdmIntReconcileVO compensateOrder(Long bizId, Long operatorId) {
         PdmChgOrder order = bizId == null ? null : orderMapper.selectById(bizId);
         if (order == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "变更单不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.integration.change-order-found", "变更单不存在");
         }
         if (!List.of(PdmChgOrderStatus.ASSESSING, PdmChgOrderStatus.APPROVING).contains(order.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "当前变更单状态不支持 OA 补偿");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.integration.change-order-status-supported-o-compensate", "当前变更单状态不支持 OA 补偿");
         }
         String target = switch (order.getApprovalStatus() == null ? "" : order.getApprovalStatus()) {
             case "APPROVED" -> PdmChgOrderStatus.APPROVED;
             case "REJECTED" -> PdmChgOrderStatus.REJECTED;
             case "WITHDRAWN" -> PdmChgOrderStatus.CANCELLED;
             case "RUNNING" -> PdmChgOrderStatus.APPROVING;
-            default -> throw new BizException(ErrorCode.PARAM_ERROR, "OA 审批状态缺失或未知，无法补偿");
+            default -> throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.integration.o-approval-status-missing-unknown-cannot-2",
+                                     "OA 审批状态缺失或未知，无法补偿");
         };
         String previous = order.getStatus();
         if (!target.equals(previous)) {

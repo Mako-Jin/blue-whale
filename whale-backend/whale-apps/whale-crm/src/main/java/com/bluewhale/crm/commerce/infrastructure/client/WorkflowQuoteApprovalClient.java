@@ -142,6 +142,6 @@ public class WorkflowQuoteApprovalClient implements QuoteApprovalPort {
      * @return 业务异常
      */
     private BizException failure(String message) {
-        return new BizException(ErrorCode.SYSTEM_ERROR, "发起审批失败: " + message);
+        return new BizException(ErrorCode.SYSTEM_ERROR, "biz.crm.commerce.failed-initiator-approval", "发起审批失败: {0}", message);
     }
 }

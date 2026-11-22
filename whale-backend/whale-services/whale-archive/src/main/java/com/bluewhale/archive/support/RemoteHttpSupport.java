@@ -113,6 +113,6 @@ public final class RemoteHttpSupport {
      * @return 业务异常
      */
     public static BizException failure(String action, String message) {
-        return new BizException(ErrorCode.SYSTEM_ERROR.getCode(), action + "失败: " + message);
+        return new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "biz.archive.support.failed", "{0}失败: {1}", action, message);
     }
 }

@@ -86,7 +86,7 @@ public class PdmDocFileClient {
                 .retrieve()
                 .body(byte[].class);
         if (bytes == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "图文档文件内容不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.document.drawing-document-file-content-found", "图文档文件内容不存在");
         }
         return bytes;
     }
@@ -99,7 +99,7 @@ public class PdmDocFileClient {
      */
     private Map<?, ?> extractData(Map<?, ?> response) {
         if (response == null) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "文件服务响应为空");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.pdm.document.file-service-returned-empty-response", "文件服务响应为空");
         }
         Object code = response.get("code");
         if (code instanceof Number number && number.intValue() != 0) {
@@ -107,7 +107,7 @@ public class PdmDocFileClient {
         }
         Object data = response.get("data");
         if (!(data instanceof Map<?, ?> map)) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "文件服务返回数据格式异常");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.pdm.document.file-service-returned-data-in-invalid", "文件服务返回数据格式异常");
         }
         return map;
     }
@@ -120,7 +120,7 @@ public class PdmDocFileClient {
     private String baseUrl() {
         List<ServiceInstance> instances = discoveryClient.getInstances(SERVICE_NAME);
         if (instances.isEmpty()) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "文件服务不可用");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.pdm.document.file-service-unavailable", "文件服务不可用");
         }
         return instances.get(0).getUri().toString();
     }

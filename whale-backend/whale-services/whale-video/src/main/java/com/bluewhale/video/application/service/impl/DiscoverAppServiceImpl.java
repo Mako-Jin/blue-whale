@@ -188,7 +188,7 @@ public class DiscoverAppServiceImpl implements DiscoverAppService {
         }
         ContentType parsed = ContentType.parse(type);
         if (parsed == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "榜单内容类型非法");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "biz.video.application.leaderboard-content-type-invalid", "榜单内容类型非法");
         }
         return parsed;
     }
@@ -273,7 +273,7 @@ public class DiscoverAppServiceImpl implements DiscoverAppService {
             }
             return cursor;
         } catch (NumberFormatException ex) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "feed 游标非法，请重新加载");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "biz.video.application.invalid-feed-cursor-reload", "feed 游标非法，请重新加载");
         }
     }
 

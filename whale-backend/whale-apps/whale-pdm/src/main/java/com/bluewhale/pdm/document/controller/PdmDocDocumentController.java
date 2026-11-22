@@ -312,13 +312,13 @@ public class PdmDocDocumentController {
      */
     private PdmDocUploadFile toUploadFile(MultipartFile file) {
         if (file == null || file.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "上传文件不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.document.upload-file-empty", "上传文件不能为空");
         }
         try {
             return new PdmDocUploadFile(file.getBytes(), file.getOriginalFilename(),
                     file.getContentType(), file.getSize());
         } catch (IOException ex) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "读取上传文件失败");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.document.failed-read-upload-file", "读取上传文件失败");
         }
     }
 }

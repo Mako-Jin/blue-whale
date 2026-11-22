@@ -102,21 +102,22 @@ public class ArchiveInternalClient {
                     .body(new ParameterizedTypeReference<Map<String, Object>>() {
                     });
         } catch (Exception ex) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "合同快照入档失败: " + ex.getMessage());
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.contract.client.failed-contract-snapshot-archive", "合同快照入档失败: {0}", ex.getMessage());
         }
         if (response == null) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "合同快照入档失败: 空响应");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.contract.client.failed-contract-snapshot-archive-empty-response", "合同快照入档失败: 空响应");
         }
         Object code = response.get(FIELD_CODE);
         if (!(code instanceof Number number) || number.intValue() != CODE_SUCCESS) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR,
-                    "合同快照入档失败: " + response.get(FIELD_MESSAGE));
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.contract.client.failed-contract-snapshot-archive-2", "合同快照入档失败: {0}",
+                          response.get(FIELD_MESSAGE));
         }
         Object data = response.get(FIELD_DATA);
         Object itemId = data instanceof Map<?, ?> map ? map.get(FIELD_ITEM_ID) : null;
         Long parsed = parseId(itemId);
         if (parsed == null) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "合同快照入档失败: 响应缺少档案条目ID");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.contract.client.failed-archive-contract-snapshot-response-missing",
+                          "合同快照入档失败: 响应缺少档案条目ID");
         }
         return parsed;
     }
@@ -176,7 +177,8 @@ public class ArchiveInternalClient {
         try {
             return JSON.writeValueAsString(snapshot);
         } catch (Exception ex) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "合同快照序列化失败: " + ex.getMessage());
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.contract.client.failed-contract-snapshot-serialize", "合同快照序列化失败: {0}",
+                          ex.getMessage());
         }
     }
 

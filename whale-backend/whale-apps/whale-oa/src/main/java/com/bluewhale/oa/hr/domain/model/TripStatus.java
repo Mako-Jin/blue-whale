@@ -34,7 +34,7 @@ public enum TripStatus {
         try {
             return TripStatus.valueOf(value);
         } catch (IllegalArgumentException | NullPointerException exception) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "出差状态非法");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.oa.hr.business-trip-status-invalid", "出差状态非法");
         }
     }
 }

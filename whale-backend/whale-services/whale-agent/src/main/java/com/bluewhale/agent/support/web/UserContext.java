@@ -24,12 +24,12 @@ public final class UserContext {
     public static Long requireUserId(HttpServletRequest request) {
         String userId = WebHeaders.userId(request);
         if (userId == null) {
-            throw new BizException("缺少用户标识，请通过网关登录后访问");
+            throw new BizException("biz.agent.support.identifier-missing-sign-in-via-gateway", "缺少用户标识，请通过网关登录后访问");
         }
         try {
             return Long.valueOf(userId);
         } catch (NumberFormatException e) {
-            throw new BizException("用户标识非法");
+            throw new BizException("biz.agent.support.identifier-invalid", "用户标识非法");
         }
     }
 

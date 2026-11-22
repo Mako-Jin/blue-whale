@@ -392,7 +392,7 @@ public class WorkflowApprovalGatewayImpl implements WorkflowApprovalGateway {
             Map<String, Object> result = (Map<String, Object>) map;
             return result;
         }
-        throw new BizException(OaErrorCode.APPROVAL_WORKFLOW_UNAVAILABLE, "流程服务返回数据格式异常");
+        throw new BizException(OaErrorCode.APPROVAL_WORKFLOW_UNAVAILABLE, "biz.oa.approval.process-service-returned-data-in-invalid", "流程服务返回数据格式异常");
     }
 
     /**

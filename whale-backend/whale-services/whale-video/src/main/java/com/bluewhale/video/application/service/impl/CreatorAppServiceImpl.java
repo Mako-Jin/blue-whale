@@ -114,7 +114,8 @@ public class CreatorAppServiceImpl implements CreatorAppService {
         }
         String trimmed = displayName.trim();
         if (trimmed.length() > DISPLAY_NAME_MAX_LENGTH) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "创作者昵称不能超过 64 个字符");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "biz.video.application.creator-nickname-exceed-64-characters",
+                          "创作者昵称不能超过 64 个字符");
         }
         creator.setDisplayName(trimmed);
     }
@@ -131,7 +132,7 @@ public class CreatorAppServiceImpl implements CreatorAppService {
         }
         String trimmed = bio.trim();
         if (trimmed.length() > BIO_MAX_LENGTH) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "创作者简介不能超过 500 个字符");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "biz.video.application.creator-bio-exceed-500-characters", "创作者简介不能超过 500 个字符");
         }
         creator.setBio(trimmed.isEmpty() ? null : trimmed);
     }
@@ -145,7 +146,7 @@ public class CreatorAppServiceImpl implements CreatorAppService {
     private int parseStatus(Integer status) {
         int value = status;
         if (value != STATUS_ENABLED && value != STATUS_DISABLED) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "创作者状态仅支持 0 或 1");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "biz.video.application.creator-status-supports-0-1", "创作者状态仅支持 0 或 1");
         }
         return value;
     }

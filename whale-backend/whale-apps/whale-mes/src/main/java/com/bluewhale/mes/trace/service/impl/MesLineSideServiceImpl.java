@@ -116,7 +116,7 @@ public class MesLineSideServiceImpl implements MesLineSideService {
             before = stock.getQuantity() == null ? BigDecimal.ZERO : stock.getQuantity();
             stock.setQuantity(before.add(quantity));
             if (stockMapper.updateById(stock) == 0) {
-                throw new BizException(ErrorCode.PARAM_ERROR, "线边库存已被其他用户修改，请刷新后重试");
+                throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.trace.line-side-inventory-was-modified-refresh", "线边库存已被其他用户修改，请刷新后重试");
             }
         }
         MesLineSideMovement movement = buildMovement(request, stock, movementType, DIRECTION_IN, quantity, before);
@@ -132,18 +132,18 @@ public class MesLineSideServiceImpl implements MesLineSideService {
         MesLineSideStock stock = findStock(request.getLineId(), request.getWarehouseCode(),
                 request.getItemCode(), batchNo);
         if (stock == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "线边库存不存在，无法领用："
-                    + request.getItemCode() + "/" + batchNo);
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.trace.line-side-inventory-found-cannot-requisition", "线边库存不存在，无法领用：{0}/{1}",
+                          request.getItemCode(), batchNo);
         }
         BigDecimal before = stock.getQuantity() == null ? BigDecimal.ZERO : stock.getQuantity();
         BigDecimal after = before.subtract(request.getQuantity());
         if (after.compareTo(BigDecimal.ZERO) < 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "线边库存不足，当前余额 "
-                    + before.stripTrailingZeros().toPlainString());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.trace.line-side-inventory-insufficient-balance", "线边库存不足，当前余额 {0}",
+                          before.stripTrailingZeros().toPlainString());
         }
         stock.setQuantity(after);
         if (stockMapper.updateById(stock) == 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "线边库存已被其他用户修改，请刷新后重试");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.trace.line-side-inventory-was-modified-refresh-2", "线边库存已被其他用户修改，请刷新后重试");
         }
         MesLineSideMovement movement = buildMovement(request, stock, TYPE_ISSUE, DIRECTION_OUT,
                 request.getQuantity(), before);

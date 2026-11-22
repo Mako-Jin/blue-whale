@@ -169,7 +169,7 @@ public class ErpReceivableInternalClient implements ErpReceivablePort {
      * @return 业务异常
      */
     private BizException failure(String message) {
-        return new BizException(ErrorCode.SYSTEM_ERROR, "ERP 应收查询失败: " + message);
+        return new BizException(ErrorCode.SYSTEM_ERROR, "biz.crm.commerce.failed-query-erp-accounts-receivable", "ERP 应收查询失败: {0}", message);
     }
 
     /**

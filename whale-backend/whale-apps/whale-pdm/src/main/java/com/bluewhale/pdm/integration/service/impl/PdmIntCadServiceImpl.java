@@ -160,7 +160,7 @@ public class PdmIntCadServiceImpl implements PdmIntCadService {
         return page.getRecords().stream()
                 .filter(record -> code.equals(record.getCode()))
                 .findFirst()
-                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND, "零件不存在: " + code));
+                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND, "biz.pdm.integration.part-found", "零件不存在: {0}", code));
     }
 
     /**

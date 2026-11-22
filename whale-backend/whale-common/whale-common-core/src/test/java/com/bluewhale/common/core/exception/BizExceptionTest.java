@@ -71,6 +71,33 @@ class BizExceptionTest {
     }
 
     @Test
+    @DisplayName("带占位参数的兜底文案：构造时展开，getMessage 可直接展示且数字不带千分位")
+    void shouldRenderFallbackWithArgs() {
+        BizException ex = new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.rule-not-found",
+                "SPC 规则不存在：{0}", 1234567L);
+
+        assertEquals(ErrorCode.PARAM_ERROR.getCode(), ex.getCode());
+        assertEquals("SPC 规则不存在：1234567", ex.getMessage());
+        assertEquals(1234567L, ex.getMessageArgs()[0]);
+    }
+
+    @Test
+    @DisplayName("占位符无对应参数或非数字：原样保留，不抛异常")
+    void shouldKeepUnresolvedPlaceholders() {
+        BizException ex = new BizException(40901, "biz.x.y", "缺少 {0} 与 {1} 及 {abc}", "字段");
+
+        assertEquals("缺少 字段 与 {1} 及 {abc}", ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("无占位参数或无花括号：文案原样保留")
+    void shouldKeepPlainMessage() {
+        assertEquals("无参数文案", new BizException(40901, "biz.x.a", "无参数文案").getMessage());
+        assertEquals("无占位 {}", new BizException(40901, "biz.x.b", "无占位 {}").getMessage());
+        assertEquals("结尾花括号 {", new BizException(40901, "biz.x.c", "结尾花括号 {").getMessage());
+    }
+
+    @Test
     @DisplayName("仅以文案构造：错误码缺省为系统错误")
     void shouldDefaultToSystemError() {
         BizException ex = new BizException("服务内部错误");

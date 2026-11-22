@@ -111,6 +111,6 @@ public class PdmPrcMesClientImpl implements PdmPrcMesClient {
      */
     private BizException failure(String message) {
         String safe = StringUtils.hasText(message) ? message : "未知错误";
-        return new BizException(ErrorCode.SYSTEM_ERROR, "工艺路线下发失败: " + safe);
+        return new BizException(ErrorCode.SYSTEM_ERROR, "biz.pdm.process.failed-routing-dispatch", "工艺路线下发失败: {0}", safe);
     }
 }

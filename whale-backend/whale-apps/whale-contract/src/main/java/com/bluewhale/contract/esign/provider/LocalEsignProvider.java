@@ -32,6 +32,6 @@ public class LocalEsignProvider extends AbstractHmacEsignProvider {
 
     @Override
     public byte[] downloadSignedFile(String providerTaskId) {
-        throw new BizException(ErrorCode.PARAM_ERROR, "本地签章件由本地签署接口生成，不提供下载");
+        throw new BizException(ErrorCode.PARAM_ERROR, "biz.contract.esign.local-sealed-documents-generated-local-signing", "本地签章件由本地签署接口生成，不提供下载");
     }
 }

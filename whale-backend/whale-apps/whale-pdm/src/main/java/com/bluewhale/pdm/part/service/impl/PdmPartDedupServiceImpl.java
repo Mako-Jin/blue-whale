@@ -89,25 +89,25 @@ public class PdmPartDedupServiceImpl implements PdmPartDedupService {
         Long sourceId = request.getSourceId();
         Long targetId = request.getTargetId();
         if (Objects.equals(sourceId, targetId)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "源零件与保留零件不能相同");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.part.source-part-retained-part-same", "源零件与保留零件不能相同");
         }
         PdmProduct source = requirePart(sourceId, "源零件不存在");
         PdmProduct target = requirePart(targetId, "保留零件不存在");
         if (!PART_ENABLED.equals(source.getStatus()) || source.getMergedTo() != null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "源零件已停用或已合并");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.part.source-part-disabled-merge", "源零件已停用或已合并");
         }
         if (!PART_ENABLED.equals(target.getStatus()) || target.getMergedTo() != null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "保留零件不可用");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.part.retained-part-unavailable", "保留零件不可用");
         }
         long bomRootCount = bomMapper.selectCount(new LambdaQueryWrapper<PdmBom>()
                 .eq(PdmBom::getProductId, sourceId));
         if (bomRootCount > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "源零件为 BOM 主体，不能合并");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.part.source-part-bom-main-body-cannot", "源零件为 BOM 主体，不能合并");
         }
         long parentLineCount = bomLineMapper.selectCount(new LambdaQueryWrapper<PdmBomLine>()
                 .eq(PdmBomLine::getParentPartId, sourceId));
         if (parentLineCount > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "源零件在 BOM 结构中作为父件使用，不能合并");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.part.source-part-used-as-parent-part", "源零件在 BOM 结构中作为父件使用，不能合并");
         }
 
         List<PdmBomLine> lines = bomLineMapper.selectList(new LambdaQueryWrapper<PdmBomLine>()

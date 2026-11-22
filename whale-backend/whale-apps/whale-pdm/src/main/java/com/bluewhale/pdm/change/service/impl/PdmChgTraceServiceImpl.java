@@ -56,7 +56,7 @@ public class PdmChgTraceServiceImpl implements PdmChgTraceService {
     @Override
     public List<PdmChgTraceVO> timeline(String objectType, Long objectId) {
         if (!StringUtils.hasText(objectType) || objectId == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "对象类型与对象ID不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.change.object-type-object-id-empty", "对象类型与对象ID不能为空");
         }
         return traceMapper.selectList(new LambdaQueryWrapper<PdmChgTrace>()
                         .eq(PdmChgTrace::getObjectType, objectType.trim().toUpperCase())

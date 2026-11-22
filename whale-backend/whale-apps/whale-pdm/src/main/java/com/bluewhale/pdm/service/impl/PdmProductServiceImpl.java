@@ -107,7 +107,7 @@ public class PdmProductServiceImpl implements PdmProductService {
         long lineCount = bomLineMapper.selectCount(new LambdaQueryWrapper<PdmBomLine>()
                 .eq(PdmBomLine::getChildPartId, id));
         if (bomCount > 0 || lineCount > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "零件已被 BOM 引用，不能删除");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.service.part-assigned-b-o-m-reference", "零件已被 BOM 引用，不能删除");
         }
         pdmProductMapper.deleteById(id);
         log.info("产品已删除: id={}", product.getId());
@@ -122,7 +122,7 @@ public class PdmProductServiceImpl implements PdmProductService {
     private PdmProduct requireProduct(Long id) {
         PdmProduct product = id == null ? null : pdmProductMapper.selectById(id);
         if (product == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "产品不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.service.product-found", "产品不存在");
         }
         return product;
     }
@@ -156,7 +156,7 @@ public class PdmProductServiceImpl implements PdmProductService {
         long count = categoryMapper.selectCount(new LambdaQueryWrapper<PdmPartCategory>()
                 .eq(PdmPartCategory::getCode, categoryCode.trim()));
         if (count == 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "物料分类不存在");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.service.material-category-found", "物料分类不存在");
         }
     }
 
@@ -173,7 +173,7 @@ public class PdmProductServiceImpl implements PdmProductService {
             wrapper.ne(PdmProduct::getId, excludeId);
         }
         if (pdmProductMapper.selectCount(wrapper) > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "产品编码已存在");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.service.product-code-already-exists", "产品编码已存在");
         }
     }
 

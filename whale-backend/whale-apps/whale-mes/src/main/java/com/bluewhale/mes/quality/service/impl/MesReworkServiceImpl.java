@@ -65,7 +65,8 @@ public class MesReworkServiceImpl implements MesReworkService {
     public MesReworkOrderVO start(Long id, MesReworkActionRequest request) {
         MesReworkOrder rework = load(id);
         if (!STATUS_CREATED.equals(rework.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "返工单当前状态不可开工：" + rework.getStatus());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.status-rework-single-allow-start-work", "返工单当前状态不可开工：{0}",
+                          rework.getStatus());
         }
         rework.setStatus(STATUS_IN_PROGRESS);
         rework.setOperator(request == null ? null : request.getOperator());
@@ -83,7 +84,8 @@ public class MesReworkServiceImpl implements MesReworkService {
     public MesReworkOrderVO complete(Long id, MesReworkActionRequest request) {
         MesReworkOrder rework = load(id);
         if (!STATUS_IN_PROGRESS.equals(rework.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "返工单当前状态不可完工：" + rework.getStatus());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.status-rework-single-allow-completion", "返工单当前状态不可完工：{0}",
+                          rework.getStatus());
         }
         rework.setStatus(STATUS_COMPLETED);
         rework.setCompletedAt(LocalDateTime.now());
@@ -107,7 +109,7 @@ public class MesReworkServiceImpl implements MesReworkService {
     private MesReworkOrder load(Long id) {
         MesReworkOrder rework = reworkMapper.selectById(id);
         if (rework == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "返工单不存在：" + id);
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.quality.rework-single-found", "返工单不存在：{0}", id);
         }
         return rework;
     }
@@ -119,7 +121,7 @@ public class MesReworkServiceImpl implements MesReworkService {
      */
     private void update(MesReworkOrder rework) {
         if (reworkMapper.updateById(rework) == 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "返工单已被其他用户修改，请刷新后重试");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.rework-single-was-modified-refresh-retry", "返工单已被其他用户修改，请刷新后重试");
         }
     }
 

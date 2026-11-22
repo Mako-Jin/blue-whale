@@ -60,7 +60,7 @@ public final class TenantContext {
     public static Long requireId() {
         Long tenantId = HOLDER.get();
         if (tenantId == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "缺少租户上下文，请通过网关访问");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "biz.common.tenant.tenant-context-missing-access-via-gateway", "缺少租户上下文，请通过网关访问");
         }
         return tenantId;
     }

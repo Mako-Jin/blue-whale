@@ -101,7 +101,7 @@ public class WorkItemCommentAppService {
     public void delete(Long commentId, Long operatorId) {
         PmComment comment = commentId == null ? null : commentMapper.selectById(commentId);
         if (comment == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "评论不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pm.application.comment-found", "评论不存在");
         }
         PmWorkItem item = workItemGuard.requireReadable(comment.getWorkItemId(), operatorId);
         projectGuard.requireActiveProject(item.getProjectId());
@@ -128,7 +128,7 @@ public class WorkItemCommentAppService {
         }
         PmComment parent = commentMapper.selectById(parentId);
         if (parent == null || !workItemId.equals(parent.getWorkItemId())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "父评论不存在或不属于当前工作项");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.parent-comment-exist-belong-work-item", "父评论不存在或不属于当前工作项");
         }
         return parent;
     }

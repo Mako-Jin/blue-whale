@@ -36,7 +36,7 @@ public final class PdmPrcVersionNo {
      */
     public static String requireValid(String versionNo) {
         if (versionNo == null || !PATTERN.matcher(versionNo).matches()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "工艺路线版本号必须形如 V1.0");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.process.routing-version-in-format-v1-0", "工艺路线版本号必须形如 V1.0");
         }
         return versionNo;
     }

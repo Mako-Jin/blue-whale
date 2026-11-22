@@ -67,7 +67,7 @@ public class ContractInternalClient implements ContractSyncPort {
     @Override
     public List<ContractProjection> listByCustomer(Long customerId) {
         if (customerId == null || customerId <= 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "客户ID不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.crm.commerce.customer-id-empty", "客户ID不能为空");
         }
         Long tenantId = TenantContext.get();
         try {
@@ -81,7 +81,7 @@ public class ContractInternalClient implements ContractSyncPort {
         } catch (BizException exception) {
             throw exception;
         } catch (Exception exception) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "合同服务不可用: " + exception.getMessage());
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.crm.commerce.contract-service-unavailable", "合同服务不可用: {0}", exception.getMessage());
         }
     }
 
@@ -141,7 +141,7 @@ public class ContractInternalClient implements ContractSyncPort {
      * @return 业务异常
      */
     private BizException failure(String message) {
-        return new BizException(ErrorCode.SYSTEM_ERROR, "合同投影同步失败: " + message);
+        return new BizException(ErrorCode.SYSTEM_ERROR, "biz.crm.commerce.failed-contract-projection-sync", "合同投影同步失败: {0}", message);
     }
 
     /**

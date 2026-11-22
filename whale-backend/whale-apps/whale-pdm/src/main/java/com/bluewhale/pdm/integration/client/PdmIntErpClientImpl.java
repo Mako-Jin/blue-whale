@@ -183,7 +183,7 @@ public class PdmIntErpClientImpl implements PdmIntErpClient {
      */
     private BizException readFailure(String message) {
         String safe = StringUtils.hasText(message) ? message : "未知错误";
-        return new BizException(ErrorCode.SYSTEM_ERROR, "ERP 库存读取失败: " + safe);
+        return new BizException(ErrorCode.SYSTEM_ERROR, "biz.pdm.integration.failed-e-r-p-inventory-read", "ERP 库存读取失败: {0}", safe);
     }
 
     /**
@@ -207,6 +207,6 @@ public class PdmIntErpClientImpl implements PdmIntErpClient {
      */
     private BizException failure(String message) {
         String safe = StringUtils.hasText(message) ? message : "未知错误";
-        return new BizException(ErrorCode.SYSTEM_ERROR, "ERP 物料同步失败: " + safe);
+        return new BizException(ErrorCode.SYSTEM_ERROR, "biz.pdm.integration.failed-e-r-p-material-sync", "ERP 物料同步失败: {0}", safe);
     }
 }

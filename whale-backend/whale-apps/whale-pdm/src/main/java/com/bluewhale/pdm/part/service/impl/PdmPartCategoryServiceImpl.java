@@ -129,12 +129,12 @@ public class PdmPartCategoryServiceImpl implements PdmPartCategoryService {
         long childCount = categoryMapper.selectCount(new LambdaQueryWrapper<PdmPartCategory>()
                 .eq(PdmPartCategory::getParentId, id));
         if (childCount > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "分类下存在子分类，不能删除");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.part.there-sub-category-under-category-cannot", "分类下存在子分类，不能删除");
         }
         long partCount = productMapper.selectCount(new LambdaQueryWrapper<PdmProduct>()
                 .eq(PdmProduct::getCategoryCode, category.getCode()));
         if (partCount > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "分类下存在零件，不能删除");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.part.there-part-under-category-cannot-delete", "分类下存在零件，不能删除");
         }
         categoryMapper.deleteById(id);
     }
@@ -156,11 +156,11 @@ public class PdmPartCategoryServiceImpl implements PdmPartCategoryService {
      */
     private PdmPartCategory requireCategory(Long id) {
         if (id == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "物料分类不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.part.material-category-found", "物料分类不存在");
         }
         PdmPartCategory category = categoryMapper.selectById(id);
         if (category == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "物料分类不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.part.material-category-found-2", "物料分类不存在");
         }
         return category;
     }
@@ -191,7 +191,7 @@ public class PdmPartCategoryServiceImpl implements PdmPartCategoryService {
             wrapper.ne(PdmPartCategory::getId, exclude);
         }
         if (categoryMapper.selectCount(wrapper) > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "分类编码已存在");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.part.category-code-already-exists", "分类编码已存在");
         }
     }
 
@@ -210,7 +210,7 @@ public class PdmPartCategoryServiceImpl implements PdmPartCategoryService {
             wrapper.ne(PdmPartCategory::getId, exclude);
         }
         if (categoryMapper.selectCount(wrapper) > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "同级分类名称已存在");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.part.same-level-category-name-already-exists", "同级分类名称已存在");
         }
     }
 
@@ -227,7 +227,7 @@ public class PdmPartCategoryServiceImpl implements PdmPartCategoryService {
         if (parent.getId().equals(category.getId())
                 || (parent.getPath() != null && category.getPath() != null
                 && parent.getPath().startsWith(category.getPath()))) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "不能把分类移动到自身或子分类下");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.part.cannot-move-category-under-itself-sub", "不能把分类移动到自身或子分类下");
         }
     }
 

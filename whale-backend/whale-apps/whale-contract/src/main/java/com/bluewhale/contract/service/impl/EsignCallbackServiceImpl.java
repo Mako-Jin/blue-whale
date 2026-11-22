@@ -118,13 +118,14 @@ public class EsignCallbackServiceImpl implements EsignCallbackService {
         EsignProvider provider = providerRegistry.require(providerName);
         if (!provider.verifyCallback(rawBody, headers)) {
             log.warn("电子签章回调验签失败: provider={}", provider.name());
-            throw new BizException(ErrorCode.FORBIDDEN, "回调验签失败或时间戳超出允许窗口");
+            throw new BizException(ErrorCode.FORBIDDEN, "biz.contract.service.callback-signature-verification-failed-timestamp-outside",
+                          "回调验签失败或时间戳超出允许窗口");
         }
         EsignCallbackPayload payload = parsePayload(rawBody);
         String eventId = payload.getProviderEventId().trim();
         String action = payload.getAction().trim().toUpperCase(Locale.ROOT);
         if (!ACTION_SIGN.equals(action) && !ACTION_REFUSE.equals(action)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "不支持的回调动作: " + payload.getAction());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.contract.service.unsupported-callback-action", "不支持的回调动作: {0}", payload.getAction());
         }
         CtEsignCallback existing = findCallback(provider.name(), eventId);
         if (existing != null && CALLBACK_PROCESSED.equals(existing.getStatus())) {
@@ -154,22 +155,22 @@ public class EsignCallbackServiceImpl implements EsignCallbackService {
      */
     private EsignCallbackPayload parsePayload(String rawBody) {
         if (!StringUtils.hasText(rawBody)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "回调报文为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.contract.service.callback-payload-empty", "回调报文为空");
         }
         EsignCallbackPayload payload;
         try {
             payload = JSON.readValue(rawBody, EsignCallbackPayload.class);
         } catch (Exception ex) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "回调报文解析失败");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.contract.service.failed-callback-payload-parse", "回调报文解析失败");
         }
         if (payload == null || !StringUtils.hasText(payload.getProviderEventId())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "回调缺少事件ID");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.contract.service.callback-missing-event-id", "回调缺少事件ID");
         }
         if (payload.getProviderEventId().trim().length() > 128) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "回调事件ID超长");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.contract.service.callback-event-id-too-long", "回调事件ID超长");
         }
         if (!StringUtils.hasText(payload.getAction())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "回调缺少动作");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.contract.service.callback-missing-action", "回调缺少动作");
         }
         return payload;
     }
@@ -244,7 +245,8 @@ public class EsignCallbackServiceImpl implements EsignCallbackService {
             return;
         }
         if (!TASK_PENDING.equals(task.getStatus()) && !TASK_SIGNING.equals(task.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "签署任务状态不可签署: " + task.getStatus());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.contract.service.signing-task-status-cannot-sign", "签署任务状态不可签署: {0}",
+                          task.getStatus());
         }
         String providerTaskId = StringUtils.hasText(payload.getProviderTaskId())
                 ? payload.getProviderTaskId() : task.getProviderTaskId();
@@ -320,7 +322,7 @@ public class EsignCallbackServiceImpl implements EsignCallbackService {
      */
     private void handleRefusal(CtSignTask task, EsignCallbackPayload payload, EsignProvider provider) {
         if (TASK_SIGNED.equals(task.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "签署任务已完成，不能再拒签");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.contract.service.signing-task-complete-cannot-refuse-signing", "签署任务已完成，不能再拒签");
         }
         String reason = StringUtils.hasText(payload.getRefuseReason())
                 ? payload.getRefuseReason() : "三方拒签";
@@ -347,14 +349,15 @@ public class EsignCallbackServiceImpl implements EsignCallbackService {
                     .eq(CtSignTask::getProviderTaskId, payload.getProviderTaskId())
                     .last("LIMIT 1"));
         } else {
-            throw new BizException(ErrorCode.PARAM_ERROR, "回调缺少 signTaskId 或 providerTaskId");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.contract.service.callback-missing-s-i-g-n", "回调缺少 signTaskId 或 providerTaskId");
         }
         if (task == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "签署任务不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.contract.service.signing-task-found-simple", "签署任务不存在");
         }
         String taskProvider = task.getProvider() == null ? "" : task.getProvider();
         if (!provider.name().equalsIgnoreCase(taskProvider)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "回调渠道与签署任务不一致: " + provider.name());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.contract.service.callback-channel-inconsistent-signing-task", "回调渠道与签署任务不一致: {0}",
+                          provider.name());
         }
         return task;
     }
@@ -459,7 +462,7 @@ public class EsignCallbackServiceImpl implements EsignCallbackService {
     private CtContract requireContract(Long id) {
         CtContract contract = contractMapper.selectById(id);
         if (contract == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "合同不存在: " + id);
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.contract.service.contract-found", "合同不存在: {0}", id);
         }
         return contract;
     }

@@ -29,12 +29,13 @@ public enum SprintStatus {
      */
     public static SprintStatus from(String code) {
         if (code == null || code.isBlank()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "迭代状态不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.domain.iteration-status-empty", "迭代状态不能为空");
         }
         try {
             return valueOf(code.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException e) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "迭代状态仅支持 FUTURE / ACTIVE / CLOSED");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.domain.iteration-status-supports-future-active-closed",
+                          "迭代状态仅支持 FUTURE / ACTIVE / CLOSED");
         }
     }
 }

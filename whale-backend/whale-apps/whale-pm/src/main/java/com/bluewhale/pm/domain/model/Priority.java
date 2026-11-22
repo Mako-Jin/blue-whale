@@ -35,12 +35,13 @@ public enum Priority {
      */
     public static Priority from(String code) {
         if (code == null || code.isBlank()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "优先级不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.domain.priority-empty", "优先级不能为空");
         }
         try {
             return valueOf(code.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException e) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "优先级仅支持 HIGHEST / HIGH / MEDIUM / LOW / LOWEST");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.domain.priority-supports-highest-high-medium-low",
+                          "优先级仅支持 HIGHEST / HIGH / MEDIUM / LOW / LOWEST");
         }
     }
 }

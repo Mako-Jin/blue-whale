@@ -51,7 +51,7 @@ public class PdmDocPreviewServiceImpl implements PdmDocPreviewService {
                                       PdmDocViewer viewer) {
         String type = previewType == null ? "" : previewType.trim().toUpperCase();
         if (!PdmDocPreviewStatus.isValidType(type)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "预览类型仅支持 2D/3D");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.collab.preview-type-supports-2d-3d", "预览类型仅支持 2D/3D");
         }
         PdmDocVersionVO version = requireVersion(documentId, versionId, viewer);
         String idempotencyKey = documentId + ":" + versionId + ":" + type;
@@ -107,7 +107,7 @@ public class PdmDocPreviewServiceImpl implements PdmDocPreviewService {
     public PdmDocDownload content(Long jobId, PdmDocViewer viewer) {
         PdmDocPreviewJob job = requireJob(jobId);
         if (!PdmDocPreviewStatus.SUCCESS.equals(job.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "预览尚未就绪：" + job.getLastError());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.collab.preview-ready", "预览尚未就绪：{0}", job.getLastError());
         }
         PdmDocDownload original = documentService.download(job.getDocumentId(), job.getVersionId(), viewer);
         if (job.getArtifactFileId() == null) {
@@ -149,7 +149,7 @@ public class PdmDocPreviewServiceImpl implements PdmDocPreviewService {
         return versions.stream()
                 .filter(version -> version.getId().equals(versionId))
                 .findFirst()
-                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND, "文档版本不存在"));
+                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND, "biz.pdm.collab.document-version-found", "文档版本不存在"));
     }
 
     /**
@@ -161,7 +161,7 @@ public class PdmDocPreviewServiceImpl implements PdmDocPreviewService {
     private PdmDocPreviewJob requireJob(Long jobId) {
         PdmDocPreviewJob job = jobMapper.selectById(jobId);
         if (job == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "预览任务不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.collab.preview-task-found", "预览任务不存在");
         }
         return job;
     }

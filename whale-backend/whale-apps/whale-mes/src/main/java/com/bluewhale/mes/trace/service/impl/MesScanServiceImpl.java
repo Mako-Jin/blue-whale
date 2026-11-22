@@ -101,11 +101,11 @@ public class MesScanServiceImpl implements MesScanService {
         duplicate.eq(MesScanRule::getRuleCode, request.getRuleCode());
         duplicate.ne(request.getId() != null, MesScanRule::getId, request.getId());
         if (ruleMapper.selectCount(duplicate) > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "扫码规则编码已存在：" + request.getRuleCode());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.trace.scan-rule-code-already-exists", "扫码规则编码已存在：{0}", request.getRuleCode());
         }
         MesScanRule rule = request.getId() == null ? new MesScanRule() : ruleMapper.selectById(request.getId());
         if (rule == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "扫码规则不存在：" + request.getId());
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.trace.scan-rule-found", "扫码规则不存在：{0}", request.getId());
         }
         rule.setRuleCode(request.getRuleCode());
         rule.setRuleName(request.getRuleName());
@@ -118,7 +118,7 @@ public class MesScanServiceImpl implements MesScanService {
         if (rule.getId() == null) {
             ruleMapper.insert(rule);
         } else if (ruleMapper.updateById(rule) == 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "扫码规则已被其他用户修改，请刷新后重试");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.trace.scan-rule-was-modified-refresh-retry", "扫码规则已被其他用户修改，请刷新后重试");
         }
         return toRuleVo(rule);
     }

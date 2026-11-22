@@ -202,7 +202,7 @@ public class ProjectAppService {
             wrapper.ne(PmProject::getId, excludeId);
         }
         if (projectMapper.selectCount(wrapper) > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "项目键已被占用");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.project-key-already-in-use", "项目键已被占用");
         }
     }
 

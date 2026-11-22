@@ -30,11 +30,11 @@ public final class ProjectKeyPolicy {
      */
     public static String normalize(String raw) {
         if (raw == null || raw.isBlank()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "项目键不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.domain.project-key-empty", "项目键不能为空");
         }
         String normalized = raw.trim().toUpperCase(Locale.ROOT);
         if (!KEY_PATTERN.matcher(normalized).matches()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "项目键需以字母开头，2–10 位大写字母或数字");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.domain.project-key-start-letter-contain-2", "项目键需以字母开头，2–10 位大写字母或数字");
         }
         return normalized;
     }

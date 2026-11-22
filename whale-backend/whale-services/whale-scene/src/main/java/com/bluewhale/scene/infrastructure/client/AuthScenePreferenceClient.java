@@ -245,7 +245,7 @@ public class AuthScenePreferenceClient implements ScenePreferencePort {
         try {
             root = JSON_MAPPER.readTree(raw);
         } catch (RuntimeException error) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, errorMessage + "（响应无法解析）");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.scene.infrastructure.response-cannot-parse", "{0}（响应无法解析）", errorMessage);
         }
         if (!isSuccess(root)) {
             throw new BizException(ErrorCode.SYSTEM_ERROR,

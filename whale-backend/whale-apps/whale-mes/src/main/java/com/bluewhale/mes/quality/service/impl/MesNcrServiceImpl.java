@@ -126,7 +126,7 @@ public class MesNcrServiceImpl implements MesNcrService {
     public MesNcrVO create(MesNcrCreateRequest request) {
         BigDecimal quantity = request.getDefectQuantity();
         if (quantity == null || quantity.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "不良数量必须大于 0");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.defect-quantity-greater-than-0", "不良数量必须大于 0");
         }
         MesNonconformingRecord ncr = new MesNonconformingRecord();
         ncr.setNcrNo(MesCodeGenerator.nextNo("NCR"));
@@ -176,16 +176,16 @@ public class MesNcrServiceImpl implements MesNcrService {
     public MesDispositionVO createDisposition(MesDispositionCreateRequest request) {
         MesNonconformingRecord ncr = loadNcr(request.getNcrId());
         if (!STATUS_OPEN.equals(ncr.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "NCR 当前状态不可处置：" + ncr.getStatus());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.status-ncr-allow-disposition", "NCR 当前状态不可处置：{0}", ncr.getStatus());
         }
         if (dispositionMapper.selectCount(new LambdaQueryWrapper<MesDisposition>()
                 .eq(MesDisposition::getNcrId, ncr.getId())) > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "NCR 已存在处置记录：" + ncr.getNcrNo());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.n-c-r-already-exists-disposition", "NCR 已存在处置记录：{0}", ncr.getNcrNo());
         }
         BigDecimal quantity = request.getQuantity() == null ? ncr.getDefectQuantity() : request.getQuantity();
         if (quantity.compareTo(ncr.getDefectQuantity()) != 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR,
-                    "处置数量必须等于 NCR 不良数量：" + ncr.getDefectQuantity().toPlainString());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.disposition-quantity-equal-n-c-r", "处置数量必须等于 NCR 不良数量：{0}",
+                          ncr.getDefectQuantity().toPlainString());
         }
         MesDisposition disposition = new MesDisposition();
         disposition.setDispositionNo(MesCodeGenerator.nextNo("QDP"));
@@ -210,19 +210,21 @@ public class MesNcrServiceImpl implements MesNcrService {
     public MesDispositionVO executeDisposition(Long dispositionId) {
         MesDisposition disposition = dispositionMapper.selectById(dispositionId);
         if (disposition == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "处置记录不存在：" + dispositionId);
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.quality.disposition-record-found", "处置记录不存在：{0}", dispositionId);
         }
         if (!DISPOSITION_CONFIRMED.equals(disposition.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "处置记录当前状态不可执行：" + disposition.getStatus());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.status-disposition-record-allow-execute", "处置记录当前状态不可执行：{0}",
+                          disposition.getStatus());
         }
         MesNonconformingRecord ncr = loadNcr(disposition.getNcrId());
         if (!STATUS_DISPOSITION.equals(ncr.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "NCR 当前状态不可执行处置：" + ncr.getStatus());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.status-ncr-allow-execute-disposition", "NCR 当前状态不可执行处置：{0}",
+                          ncr.getStatus());
         }
         disposition.setStatus(DISPOSITION_EXECUTED);
         disposition.setExecutedAt(LocalDateTime.now());
         if (dispositionMapper.updateById(disposition) == 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "处置记录已被其他用户修改，请刷新后重试");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.disposition-record-was-modified-refresh-retry", "处置记录已被其他用户修改，请刷新后重试");
         }
         ncr.setStatus(disposition.getDispositionType());
         updateNcr(ncr);
@@ -239,11 +241,11 @@ public class MesNcrServiceImpl implements MesNcrService {
     public MesNcrVO close(Long id, MesNcrCloseRequest request) {
         MesNonconformingRecord ncr = loadNcr(id);
         if (!CLOSABLE_STATUS.contains(ncr.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR,
-                    "NCR 当前状态不可关闭（需完成处置并执行）：" + ncr.getStatus());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.ncr-in-status-cannot-closed-disposition", "NCR 当前状态不可关闭（需完成处置并执行）：{0}",
+                          ncr.getStatus());
         }
         if (!StringUtils.hasText(request.getConclusion())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "关闭 NCR 必须填写结论");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.close-n-c-r-fill-in", "关闭 NCR 必须填写结论");
         }
         if (STATUS_REWORK.equals(ncr.getStatus())) {
             assertReworkCompleted(ncr);
@@ -309,11 +311,11 @@ public class MesNcrServiceImpl implements MesNcrService {
         List<MesReworkOrder> reworks = reworkMapper.selectList(new LambdaQueryWrapper<MesReworkOrder>()
                 .eq(MesReworkOrder::getNcrId, ncr.getId()));
         if (reworks.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "返工处置未生成返工单，不可关闭");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.rework-disposition-generate-rework-single-cannot", "返工处置未生成返工单，不可关闭");
         }
         boolean allCompleted = reworks.stream().allMatch(rework -> REWORK_COMPLETED.equals(rework.getStatus()));
         if (!allCompleted) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "返工单未完成，不可关闭 NCR");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.rework-single-complete-cannot-close-n", "返工单未完成，不可关闭 NCR");
         }
     }
 
@@ -326,7 +328,7 @@ public class MesNcrServiceImpl implements MesNcrService {
     private MesNonconformingRecord loadNcr(Long id) {
         MesNonconformingRecord ncr = ncrMapper.selectById(id);
         if (ncr == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "NCR 不存在：" + id);
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.quality.ncr-found", "NCR 不存在：{0}", id);
         }
         return ncr;
     }
@@ -338,7 +340,7 @@ public class MesNcrServiceImpl implements MesNcrService {
      */
     private void updateNcr(MesNonconformingRecord ncr) {
         if (ncrMapper.updateById(ncr) == 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "NCR 已被其他用户修改，请刷新后重试");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.ncr-was-modified-refresh-retry", "NCR 已被其他用户修改，请刷新后重试");
         }
     }
 

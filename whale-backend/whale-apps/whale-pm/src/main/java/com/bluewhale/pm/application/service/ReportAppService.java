@@ -361,7 +361,7 @@ public class ReportAppService {
         if (sprintId != null) {
             PmSprint sprint = sprintMapper.selectById(sprintId);
             if (sprint == null || !projectId.equals(sprint.getProjectId())) {
-                throw new BizException(ErrorCode.NOT_FOUND, "迭代不存在");
+                throw new BizException(ErrorCode.NOT_FOUND, "biz.pm.application.iteration-found", "迭代不存在");
             }
             return sprint;
         }
@@ -383,7 +383,7 @@ public class ReportAppService {
         boolean hasStart = startDate != null;
         boolean hasEnd = endDate != null;
         if (hasStart != hasEnd) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "开始与结束日期需同时提供");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.start-end-dates-need-at-same", "开始与结束日期需同时提供");
         }
         LocalDate start;
         LocalDate end;
@@ -398,10 +398,10 @@ public class ReportAppService {
             start = end.minusDays(DEFAULT_FLOW_DAYS - 1L);
         }
         if (end.isBefore(start)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "结束日期不能早于开始日期");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.end-date-earlier-than-start-date", "结束日期不能早于开始日期");
         }
         if (ChronoUnit.DAYS.between(start, end) > MAX_RANGE_DAYS) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "统计区间不能超过 1 年");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.statistics-period-exceed-1-year", "统计区间不能超过 1 年");
         }
         return new LocalDate[] {start, end};
     }

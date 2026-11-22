@@ -69,7 +69,7 @@ public class FileClient {
      */
     public byte[] download(Long fileId) {
         if (fileId == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "文件ID不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.contract.esign.file-id-empty", "文件ID不能为空");
         }
         try {
             byte[] content = restClient.get()
@@ -77,13 +77,13 @@ public class FileClient {
                     .retrieve()
                     .body(byte[].class);
             if (content == null || content.length == 0) {
-                throw new BizException(ErrorCode.SYSTEM_ERROR, "文件内容为空: " + fileId);
+                throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.contract.esign.file-content-empty", "文件内容为空: {0}", fileId);
             }
             return content;
         } catch (BizException ex) {
             throw ex;
         } catch (Exception ex) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "下载文件失败: " + ex.getMessage());
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.contract.esign.failed-download-file", "下载文件失败: {0}", ex.getMessage());
         }
     }
 
@@ -116,7 +116,7 @@ public class FileClient {
         } catch (BizException ex) {
             throw ex;
         } catch (Exception ex) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "上传签章件失败: " + ex.getMessage());
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.contract.esign.failed-upload-sealed-document", "上传签章件失败: {0}", ex.getMessage());
         }
     }
 
@@ -128,11 +128,12 @@ public class FileClient {
      */
     private Long requireFileId(Map<String, Object> response) {
         if (response == null) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "上传签章件失败: 空响应");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.contract.esign.failed-upload-sealed-document-empty-response", "上传签章件失败: 空响应");
         }
         Object code = response.get(FIELD_CODE);
         if (!(code instanceof Number number) || number.intValue() != CODE_SUCCESS) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "上传签章件失败: " + response.get("message"));
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.contract.esign.failed-upload-sealed-document-message",
+                    "上传签章件失败: {0}", response.get("message"));
         }
         Object data = response.get(FIELD_DATA);
         if (data instanceof Map<?, ?> map) {
@@ -144,6 +145,6 @@ public class FileClient {
                 return Long.parseLong(text);
             }
         }
-        throw new BizException(ErrorCode.SYSTEM_ERROR, "上传签章件失败: 响应缺少文件ID");
+        throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.contract.esign.failed-upload-sealed-document-response-missing", "上传签章件失败: 响应缺少文件ID");
     }
 }

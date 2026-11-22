@@ -123,7 +123,8 @@ public class MesDashboardServiceImpl implements MesDashboardService {
         try {
             return LocalDate.parse(boardDate, DATE_FORMAT);
         } catch (DateTimeParseException ex) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "统计日期格式非法，应为 yyyy-MM-dd：" + boardDate);
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.dashboard.statistics-date-format-invalid-should-y", "统计日期格式非法，应为 yyyy-MM-dd：{0}",
+                          boardDate);
         }
     }
 

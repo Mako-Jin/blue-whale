@@ -30,12 +30,12 @@ public final class PdmBomRequestContext {
     public static Long requireUserId(HttpServletRequest request) {
         String raw = WebHeaders.userId(request);
         if (!StringUtils.hasText(raw)) {
-            throw new BizException(ErrorCode.UNAUTHORIZED, "缺少用户身份，请通过网关访问");
+            throw new BizException(ErrorCode.UNAUTHORIZED, "biz.pdm.part.identity-missing-access-via-gateway", "缺少用户身份，请通过网关访问");
         }
         try {
             return Long.valueOf(raw.trim());
         } catch (NumberFormatException ex) {
-            throw new BizException(ErrorCode.UNAUTHORIZED, "用户身份格式不正确");
+            throw new BizException(ErrorCode.UNAUTHORIZED, "biz.pdm.part.identity-invalid-format", "用户身份格式不正确");
         }
     }
 }

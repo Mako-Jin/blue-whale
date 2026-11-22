@@ -1,5 +1,6 @@
 package com.bluewhale.common.core.handler;
 
+import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.Result;
 import com.bluewhale.common.i18n.CommonMessageResolver;
@@ -93,6 +94,20 @@ class GlobalExceptionHandlerTest {
         assertEquals("此项为必填",
                 handler.handleMethodArgumentNotValidException(validationException("{common.validation.required}"))
                         .getMessage());
+    }
+
+    @Test
+    @DisplayName("业务异常 messageKey 按 Locale 从公共资源包解析")
+    void bizExceptionMessageKeyShouldBeLocalized() {
+        GlobalExceptionHandler handler = new GlobalExceptionHandler();
+        handler.setCommonMessageResolver(new CommonMessageResolver());
+        BizException exception = new BizException("biz.common.web.identifier-invalid", "用户标识非法");
+
+        LocaleContextHolder.setLocale(Locale.US);
+        assertEquals("user identifier invalid", handler.handleBizException(exception).getMessage());
+
+        LocaleContextHolder.setLocale(Locale.SIMPLIFIED_CHINESE);
+        assertEquals("用户标识非法", handler.handleBizException(exception).getMessage());
     }
 
     @Test

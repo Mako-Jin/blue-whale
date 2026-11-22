@@ -123,7 +123,7 @@ public class PdmChgRequestServiceImpl implements PdmChgRequestService {
     public PdmChgRequestVO submit(Long id) {
         PdmChgRequest entity = requireDraft(id);
         if (parseImpact(entity.getImpactJson()).isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "影响对象不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.change.affected-object-empty", "影响对象不能为空");
         }
         entity.setStatus(PdmChgRequestStatus.SUBMITTED);
         entity.setSubmitTime(LocalDateTime.now());
@@ -152,7 +152,7 @@ public class PdmChgRequestServiceImpl implements PdmChgRequestService {
     @Transactional(rollbackFor = Exception.class)
     public PdmChgRequestVO reject(Long id, String comment, Long userId) {
         if (!StringUtils.hasText(comment)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "驳回必须填写审批意见");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.change.reject-fill-in-approval-comment", "驳回必须填写审批意见");
         }
         PdmChgRequest entity = requireSubmitted(id);
         entity.setStatus(PdmChgRequestStatus.REJECTED);
@@ -171,7 +171,7 @@ public class PdmChgRequestServiceImpl implements PdmChgRequestService {
         PdmChgRequest entity = requireRequest(id);
         if (!PdmChgRequestStatus.APPROVED.equals(entity.getStatus())
                 && !PdmChgRequestStatus.REJECTED.equals(entity.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "仅已通过/已驳回的申请可关闭");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.change.pass-reject-application-can-close", "仅已通过/已驳回的申请可关闭");
         }
         entity.setStatus(PdmChgRequestStatus.CLOSED);
         entity.setCloseTime(LocalDateTime.now());
@@ -214,7 +214,7 @@ public class PdmChgRequestServiceImpl implements PdmChgRequestService {
     private PdmChgRequest requireRequest(Long id) {
         PdmChgRequest entity = chgRequestMapper.selectById(id);
         if (entity == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "变更申请不存在");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.change.change-application-found", "变更申请不存在");
         }
         return entity;
     }
@@ -228,7 +228,7 @@ public class PdmChgRequestServiceImpl implements PdmChgRequestService {
     private PdmChgRequest requireDraft(Long id) {
         PdmChgRequest entity = requireRequest(id);
         if (!PdmChgRequestStatus.DRAFT.equals(entity.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "仅草稿状态的申请可修改/删除/提交");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.change.draft-status-application-can-modify-delete", "仅草稿状态的申请可修改/删除/提交");
         }
         return entity;
     }
@@ -242,7 +242,7 @@ public class PdmChgRequestServiceImpl implements PdmChgRequestService {
     private PdmChgRequest requireSubmitted(Long id) {
         PdmChgRequest entity = requireRequest(id);
         if (!PdmChgRequestStatus.SUBMITTED.equals(entity.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "仅已提交的申请可审批");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.change.submit-application-can-approval", "仅已提交的申请可审批");
         }
         return entity;
     }
@@ -262,7 +262,7 @@ public class PdmChgRequestServiceImpl implements PdmChgRequestService {
                 }
                 object.setObjectType(PdmChgObjectType.requireValid(object.getObjectType()));
                 if (object.getObjectId() == null && !StringUtils.hasText(object.getObjectCode())) {
-                    throw new BizException(ErrorCode.PARAM_ERROR, "影响对象必须提供对象ID或编码");
+                    throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.change.affected-object-provide-object-id-code", "影响对象必须提供对象ID或编码");
                 }
                 normalized.add(object);
             }
@@ -270,7 +270,7 @@ public class PdmChgRequestServiceImpl implements PdmChgRequestService {
         try {
             return OBJECT_MAPPER.writeValueAsString(normalized);
         } catch (Exception ex) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "影响对象格式不正确");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.change.affected-object-invalid-format", "影响对象格式不正确");
         }
     }
 

@@ -78,14 +78,14 @@ public class ErpPurchaseGatewayImpl implements ErpPurchaseGateway {
         Map<String, Object> response = post(body);
         Object data = requireSuccess(response);
         if (!(data instanceof Map<?, ?> map)) {
-            throw new BizException(OaErrorCode.PURCHASE_ERP_UNAVAILABLE, "ERP 采购订单返回数据格式异常");
+            throw new BizException(OaErrorCode.PURCHASE_ERP_UNAVAILABLE, "biz.oa.administrative.e-r-p-purchase-order-returned", "ERP 采购订单返回数据格式异常");
         }
         Object poNo = map.get(FIELD_PO_NO);
         if (poNo == null) {
             poNo = map.get(FIELD_DOC_NO);
         }
         if (!StringUtils.hasText(poNo == null ? null : String.valueOf(poNo))) {
-            throw new BizException(OaErrorCode.PURCHASE_ERP_UNAVAILABLE, "ERP 采购订单未返回单号");
+            throw new BizException(OaErrorCode.PURCHASE_ERP_UNAVAILABLE, "biz.oa.administrative.e-r-p-purchase-order-return", "ERP 采购订单未返回单号");
         }
         return String.valueOf(poNo);
     }

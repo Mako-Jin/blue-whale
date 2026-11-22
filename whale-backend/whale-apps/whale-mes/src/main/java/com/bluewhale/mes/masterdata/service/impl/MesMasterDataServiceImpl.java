@@ -146,7 +146,7 @@ public class MesMasterDataServiceImpl implements MesMasterDataService {
     private MesMasterDataEntity requireEntity(MasterDataKind kind, Long id) {
         MesMasterDataEntity entity = id == null ? null : mapper(kind).selectById(id);
         if (entity == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, kind.getLabel() + "不存在：" + id);
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.masterdata.found", "{0}不存在：{1}", kind.getLabel(), id);
         }
         return entity;
     }
@@ -315,7 +315,8 @@ public class MesMasterDataServiceImpl implements MesMasterDataService {
                 MesProductionLine line = (MesProductionLine) requireParent(
                         MasterDataKind.LINE, workCenter.getLineId(), "所属产线");
                 if (!workCenter.getWorkshopId().equals(line.getWorkshopId())) {
-                    throw new BizException(ErrorCode.PARAM_ERROR, "所选产线不属于所选车间");
+                    throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.masterdata.selected-production-line-belong-selected-workshop",
+                                  "所选产线不属于所选车间");
                 }
             }
             case STATION -> {
@@ -325,17 +326,18 @@ public class MesMasterDataServiceImpl implements MesMasterDataService {
                 MesWorkCenter workCenter = (MesWorkCenter) requireParent(
                         MasterDataKind.WORK_CENTER, station.getWorkCenterId(), "所属工作中心");
                 if (!line.getId().equals(workCenter.getLineId())) {
-                    throw new BizException(ErrorCode.PARAM_ERROR, "所选工作中心不属于所选产线");
+                    throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.masterdata.selected-work-center-belong-selected-production",
+                                  "所选工作中心不属于所选产线");
                 }
             }
             case TEAM -> requireParent(MasterDataKind.WORKSHOP, ((MesTeam) entity).getWorkshopId(), "所属车间");
             case SHIFT -> {
                 MesShift shift = (MesShift) entity;
                 if (shift.getStartTime() == null || shift.getEndTime() == null) {
-                    throw new BizException(ErrorCode.PARAM_ERROR, "班次开始时间和结束时间不能为空");
+                    throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.masterdata.shift-start-time-end-time-empty", "班次开始时间和结束时间不能为空");
                 }
                 if (shift.getStartTime().equals(shift.getEndTime())) {
-                    throw new BizException(ErrorCode.PARAM_ERROR, "班次开始时间和结束时间不能相同");
+                    throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.masterdata.shift-start-time-end-time-same", "班次开始时间和结束时间不能相同");
                 }
             }
             default -> {
@@ -358,7 +360,7 @@ public class MesMasterDataServiceImpl implements MesMasterDataService {
             wrapper.ne("id", excludeId);
         }
         if (mapper(kind).selectCount(wrapper) > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, kind.getLabel() + "编码已存在：" + code);
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.masterdata.code-already-exists", "{0}编码已存在：{1}", kind.getLabel(), code);
         }
     }
 
@@ -372,11 +374,11 @@ public class MesMasterDataServiceImpl implements MesMasterDataService {
      */
     private MesMasterDataEntity requireParent(MasterDataKind parentKind, Long id, String label) {
         if (id == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, label + "不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.masterdata.empty", "{0}不能为空", label);
         }
         MesMasterDataEntity parent = mapper(parentKind).selectById(id);
         if (parent == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, label + "不存在：" + id);
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.masterdata.found-2", "{0}不存在：{1}", label, id);
         }
         return parent;
     }
@@ -399,7 +401,7 @@ public class MesMasterDataServiceImpl implements MesMasterDataService {
             default -> references = 0;
         }
         if (references > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, kind.getLabel() + "已被引用，不能删除");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.masterdata.referenced-cannot-deleted", "{0}已被引用，不能删除", kind.getLabel());
         }
     }
 

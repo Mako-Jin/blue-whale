@@ -91,7 +91,7 @@ public class MesCollectServiceImpl implements MesCollectService {
         } else {
             entity = deviceMapper.selectById(request.getId());
             if (entity == null) {
-                throw new BizException(ErrorCode.NOT_FOUND, "采集设备不存在：" + request.getId());
+                throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.collect.collection-equipment-found", "采集设备不存在：{0}", request.getId());
             }
             if (code != null && !code.equals(entity.getDeviceCode())) {
                 assertDeviceCodeUnique(entity.getId(), code);
@@ -115,7 +115,7 @@ public class MesCollectServiceImpl implements MesCollectService {
         if (entity.getId() == null) {
             deviceMapper.insert(entity);
         } else if (deviceMapper.updateById(entity) < 1) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "采集设备已被其他用户修改，请刷新后重试");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.collect.collection-equipment-was-modified-refresh-retry", "采集设备已被其他用户修改，请刷新后重试");
         }
         return toDeviceVO(entity);
     }
@@ -145,15 +145,15 @@ public class MesCollectServiceImpl implements MesCollectService {
         MesCollectDevice device = deviceMapper.selectOne(new LambdaQueryWrapper<MesCollectDevice>()
                 .eq(MesCollectDevice::getDeviceCode, deviceCode));
         if (device == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "采集设备不存在：" + deviceCode);
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.collect.collection-equipment-found-2", "采集设备不存在：{0}", deviceCode);
         }
         if ("DISABLED".equals(device.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "采集设备已停用：" + deviceCode);
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.collect.collection-equipment-disabled", "采集设备已停用：{0}", deviceCode);
         }
         device.setStatus("ONLINE");
         device.setLastHeartbeatAt(LocalDateTime.now());
         if (deviceMapper.updateById(device) < 1) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "采集设备已被其他用户修改，请刷新后重试");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.collect.collection-equipment-was-modified-refresh-retry-2", "采集设备已被其他用户修改，请刷新后重试");
         }
         return toDeviceVO(device);
     }
@@ -176,7 +176,7 @@ public class MesCollectServiceImpl implements MesCollectService {
         if (entity.getId() == null) {
             pointMapper.insert(entity);
         } else if (pointMapper.updateById(entity) < 1) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "采集点已被其他用户修改，请刷新后重试");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.collect.collection-point-was-modified-refresh-retry", "采集点已被其他用户修改，请刷新后重试");
         }
         return toPointVO(entity);
     }
@@ -210,7 +210,7 @@ public class MesCollectServiceImpl implements MesCollectService {
     private MesCollectionPoint updatePoint(MesCollectPointSaveRequest request, String code) {
         MesCollectionPoint entity = pointMapper.selectById(request.getId());
         if (entity == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "采集点不存在：" + request.getId());
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.collect.collection-point-found", "采集点不存在：{0}", request.getId());
         }
         if (code != null && !code.equals(entity.getPointCode())) {
             assertPointCodeUnique(entity.getId(), code);
@@ -239,7 +239,7 @@ public class MesCollectServiceImpl implements MesCollectService {
         if (request.getEquipmentId() != null) {
             equipment = equipmentMapper.selectById(request.getEquipmentId());
             if (equipment == null) {
-                throw new BizException(ErrorCode.NOT_FOUND, "设备不存在：" + request.getEquipmentId());
+                throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.collect.equipment-found", "设备不存在：{0}", request.getEquipmentId());
             }
         }
         entity.setEquipmentId(equipment == null ? request.getEquipmentId() : equipment.getId());
@@ -271,10 +271,10 @@ public class MesCollectServiceImpl implements MesCollectService {
         MesCollectionPoint point = pointMapper.selectOne(new LambdaQueryWrapper<MesCollectionPoint>()
                 .eq(MesCollectionPoint::getPointCode, pointCode));
         if (point == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "采集点不存在：" + pointCode);
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.collect.collection-point-found-2", "采集点不存在：{0}", pointCode);
         }
         if (point.getEnabled() != null && point.getEnabled() == 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "采集点已停用：" + pointCode);
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.collect.collection-point-disabled", "采集点已停用：{0}", pointCode);
         }
         int accepted = 0;
         int skipped = 0;
@@ -349,7 +349,7 @@ public class MesCollectServiceImpl implements MesCollectService {
         } else {
             entity = boardMapper.selectById(request.getId());
             if (entity == null) {
-                throw new BizException(ErrorCode.NOT_FOUND, "看板配置不存在：" + request.getId());
+                throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.collect.kanban-configuration-found", "看板配置不存在：{0}", request.getId());
             }
             if (code != null && !code.equals(entity.getBoardCode())) {
                 assertBoardCodeUnique(entity.getId(), code);
@@ -371,7 +371,7 @@ public class MesCollectServiceImpl implements MesCollectService {
         if (entity.getId() == null) {
             boardMapper.insert(entity);
         } else if (boardMapper.updateById(entity) < 1) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "看板配置已被其他用户修改，请刷新后重试");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.collect.kanban-configuration-was-modified-refresh-retry", "看板配置已被其他用户修改，请刷新后重试");
         }
         return toBoardVO(entity);
     }
@@ -399,10 +399,10 @@ public class MesCollectServiceImpl implements MesCollectService {
         MesCollectBoardConfig board = boardMapper.selectOne(new LambdaQueryWrapper<MesCollectBoardConfig>()
                 .eq(MesCollectBoardConfig::getBoardCode, boardCode));
         if (board == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "看板不存在：" + boardCode);
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.collect.kanban-found", "看板不存在：{0}", boardCode);
         }
         if (!"ENABLED".equals(board.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "看板已停用：" + boardCode);
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.collect.kanban-disabled", "看板已停用：{0}", boardCode);
         }
         List<String> pointCodes = splitCodes(board.getMetricCodes());
         LambdaQueryWrapper<MesCollectionPoint> pointWrapper = new LambdaQueryWrapper<MesCollectionPoint>()
@@ -444,7 +444,7 @@ public class MesCollectServiceImpl implements MesCollectService {
         if (entity.getId() == null) {
             archivePolicyMapper.insert(entity);
         } else if (archivePolicyMapper.updateById(entity) < 1) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "归档策略已被其他用户修改，请刷新后重试");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.collect.archive-policy-was-modified-refresh-retry", "归档策略已被其他用户修改，请刷新后重试");
         }
         return toArchivePolicyVO(entity);
     }
@@ -480,7 +480,7 @@ public class MesCollectServiceImpl implements MesCollectService {
     private MesArchivePolicy updateArchivePolicy(MesArchivePolicySaveRequest request, String code) {
         MesArchivePolicy entity = archivePolicyMapper.selectById(request.getId());
         if (entity == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "归档策略不存在：" + request.getId());
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.collect.archive-policy-found", "归档策略不存在：{0}", request.getId());
         }
         if (code != null && !code.equals(entity.getPolicyCode())) {
             assertPolicyCodeUnique(entity.getId(), code);
@@ -523,10 +523,10 @@ public class MesCollectServiceImpl implements MesCollectService {
     public MesArchivePolicyVO runArchive(Long id) {
         MesArchivePolicy policy = archivePolicyMapper.selectById(id);
         if (policy == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "归档策略不存在：" + id);
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.collect.archive-policy-found-2", "归档策略不存在：{0}", id);
         }
         if (!"ENABLED".equals(policy.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "归档策略已停用：" + policy.getPolicyCode());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.collect.archive-policy-disabled", "归档策略已停用：{0}", policy.getPolicyCode());
         }
         assertArchiveTable(policy.getTableName());
         LocalDateTime cutoff = LocalDate.now()
@@ -537,7 +537,7 @@ public class MesCollectServiceImpl implements MesCollectService {
         policy.setLastRunAt(LocalDateTime.now());
         policy.setLastCandidateCount(candidates);
         if (archivePolicyMapper.updateById(policy) < 1) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "归档策略已被其他用户修改，请刷新后重试");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.collect.archive-policy-was-modified-refresh-retry-2", "归档策略已被其他用户修改，请刷新后重试");
         }
         return toArchivePolicyVO(policy);
     }
@@ -553,7 +553,7 @@ public class MesCollectServiceImpl implements MesCollectService {
                 .eq(MesCollectDevice::getDeviceCode, code)
                 .ne(excludeId != null, MesCollectDevice::getId, excludeId));
         if (count > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "采集设备编码已存在：" + code);
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.collect.collection-equipment-code-already-exists", "采集设备编码已存在：{0}", code);
         }
     }
 
@@ -568,7 +568,7 @@ public class MesCollectServiceImpl implements MesCollectService {
                 .eq(MesCollectionPoint::getPointCode, code)
                 .ne(excludeId != null, MesCollectionPoint::getId, excludeId));
         if (count > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "采集点编码已存在：" + code);
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.collect.collection-point-code-already-exists", "采集点编码已存在：{0}", code);
         }
     }
 
@@ -583,7 +583,7 @@ public class MesCollectServiceImpl implements MesCollectService {
                 .eq(MesCollectBoardConfig::getBoardCode, code)
                 .ne(excludeId != null, MesCollectBoardConfig::getId, excludeId));
         if (count > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "看板编码已存在：" + code);
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.collect.kanban-code-already-exists", "看板编码已存在：{0}", code);
         }
     }
 
@@ -598,7 +598,7 @@ public class MesCollectServiceImpl implements MesCollectService {
                 .eq(MesArchivePolicy::getPolicyCode, code)
                 .ne(excludeId != null, MesArchivePolicy::getId, excludeId));
         if (count > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "归档策略编码已存在：" + code);
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.collect.archive-policy-code-already-exists", "归档策略编码已存在：{0}", code);
         }
     }
 
@@ -609,7 +609,7 @@ public class MesCollectServiceImpl implements MesCollectService {
      */
     private void assertArchiveTable(String tableName) {
         if (!ARCHIVE_TABLES.contains(tableName)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "归档目标表不受支持：" + tableName);
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.collect.archive-target-table-unsupported", "归档目标表不受支持：{0}", tableName);
         }
     }
 

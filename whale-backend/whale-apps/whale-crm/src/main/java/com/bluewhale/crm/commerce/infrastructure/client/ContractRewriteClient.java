@@ -119,7 +119,7 @@ public class ContractRewriteClient {
             throw ex;
         } catch (Exception ex) {
             log.warn("合同服务引用重写调用失败: error={}", ex.getMessage());
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "合同服务不可用: " + ex.getMessage());
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.crm.commerce.contract-service-unavailable", "合同服务不可用: {0}", ex.getMessage());
         }
         if (result == null || result.getCode() != CODE_SUCCESS) {
             throw new BizException(ErrorCode.SYSTEM_ERROR,

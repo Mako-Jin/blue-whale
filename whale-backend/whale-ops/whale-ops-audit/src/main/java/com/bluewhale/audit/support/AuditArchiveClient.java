@@ -107,11 +107,13 @@ public class AuditArchiveClient {
                     .body(new ParameterizedTypeReference<Map<String, Object>>() {
                     });
         } catch (Exception e) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "上传审计归档文件失败: " + e.getMessage());
+            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "biz.audit.support.failed-upload-audit-archive-file", "上传审计归档文件失败: {0}",
+                          e.getMessage());
         }
         if (response == null || !isSuccess(response.get(FIELD_CODE))) {
             String message = response == null ? "空响应" : String.valueOf(response.get(FIELD_MESSAGE));
-            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "上传审计归档文件失败: " + message);
+            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "biz.audit.support.failed-upload-audit-archive-file-2", "上传审计归档文件失败: {0}",
+                          message);
         }
         return toDataMap(response.get(FIELD_DATA));
     }

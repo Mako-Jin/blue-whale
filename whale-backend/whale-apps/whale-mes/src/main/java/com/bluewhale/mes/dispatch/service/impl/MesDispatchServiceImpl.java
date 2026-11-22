@@ -168,7 +168,7 @@ public class MesDispatchServiceImpl implements MesDispatchService {
                 .eq(MesWorkOrder::getErpOrderNo, erpOrderNo)
                 .last("LIMIT 1"));
         if (workOrder == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "MES 工单不存在: " + erpOrderNo);
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.dispatch.m-e-s-work-order-found", "MES 工单不存在: {0}", erpOrderNo);
         }
         List<MesWorkOrderTask> tasks = taskMapper.selectList(new LambdaQueryWrapper<MesWorkOrderTask>()
                 .eq(MesWorkOrderTask::getWorkOrderId, workOrder.getId())
@@ -210,10 +210,10 @@ public class MesDispatchServiceImpl implements MesDispatchService {
     public List<MesWorkOrderTaskVO> split(Long workOrderId, MesTaskSplitRequest request) {
         MesWorkOrder workOrder = requireWorkOrder(workOrderId);
         if (ORDER_CANCELLED.equals(workOrder.getStatus()) || ORDER_CLOSED.equals(workOrder.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "工单已取消或关闭，不允许拆分");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.dispatch.work-order-cancelled-close-allowed-split", "工单已取消或关闭，不允许拆分");
         }
         if (countTasks(workOrderId) > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "工单已拆分，请勿重复操作");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.dispatch.work-order-split-duplicate-operation", "工单已拆分，请勿重复操作");
         }
         List<MesTaskSplitRequest.Item> items = request.getItems() == null || request.getItems().isEmpty()
                 ? deriveItems(workOrder) : request.getItems();
@@ -233,11 +233,11 @@ public class MesDispatchServiceImpl implements MesDispatchService {
         List<MesWorkOrderTask> tasks = loadDispatchTasks(request.getTaskIds());
         Long workOrderId = tasks.get(0).getWorkOrderId();
         if (tasks.stream().anyMatch(task -> !Objects.equals(workOrderId, task.getWorkOrderId()))) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "一次派工仅允许同一工单的任务");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.dispatch.one-dispatch-allow-same-work-order", "一次派工仅允许同一工单的任务");
         }
         for (MesWorkOrderTask task : tasks) {
             if (!TASK_PLANNED.equals(task.getStatus())) {
-                throw new BizException(ErrorCode.PARAM_ERROR, "任务" + task.getTaskNo() + "不是待派工状态");
+                throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.dispatch.task-in-dispatchable-status", "任务{0}不是待派工状态", task.getTaskNo());
             }
         }
         MesProductionLine line = requireLine(request.getLineId());
@@ -255,16 +255,16 @@ public class MesDispatchServiceImpl implements MesDispatchService {
     public void withdraw(Long dispatchOrderId) {
         MesDispatchOrder order = dispatchOrderId == null ? null : dispatchOrderMapper.selectById(dispatchOrderId);
         if (order == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "派工单不存在：" + dispatchOrderId);
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.dispatch.dispatch-order-found", "派工单不存在：{0}", dispatchOrderId);
         }
         if (!DISPATCH_DISPATCHED.equals(order.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "派工单当前状态不允许撤回");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.dispatch.dispatch-order-status-allowed-withdraw", "派工单当前状态不允许撤回");
         }
         LambdaQueryWrapper<MesDispatchLine> lineWrapper = new LambdaQueryWrapper<>();
         lineWrapper.eq(MesDispatchLine::getDispatchOrderId, order.getId());
         List<MesDispatchLine> lines = dispatchLineMapper.selectList(lineWrapper);
         if (lines.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "派工单无明细，无法撤回");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.dispatch.dispatch-order-detail-cannot-withdraw", "派工单无明细，无法撤回");
         }
         for (MesDispatchLine line : lines) {
             withdrawTask(line);
@@ -331,7 +331,7 @@ public class MesDispatchServiceImpl implements MesDispatchService {
         if (!ORDER_RECEIVED.equals(workOrder.getStatus())) {
             if (workOrder.getPlannedQuantity() != null
                     && workOrder.getPlannedQuantity().compareTo(request.getPlannedQuantity()) != 0) {
-                throw new BizException(ErrorCode.PARAM_ERROR, "工单已派工，不允许修改计划数量");
+                throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.dispatch.work-order-dispatch-allowed-modify-planned", "工单已派工，不允许修改计划数量");
             }
             return MesConverter.INSTANCE.toWorkOrderVo(workOrder);
         }
@@ -368,7 +368,7 @@ public class MesDispatchServiceImpl implements MesDispatchService {
      */
     private void validatePlanWindow(LocalDateTime plannedStart, LocalDateTime plannedEnd) {
         if (plannedStart != null && plannedEnd != null && plannedEnd.isBefore(plannedStart)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "计划完工时间不能早于计划开工时间");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.dispatch.plan-completion-time-earlier-than-plan", "计划完工时间不能早于计划开工时间");
         }
     }
 
@@ -406,7 +406,7 @@ public class MesDispatchServiceImpl implements MesDispatchService {
         wrapper.orderByAsc(MesRoutingOperation::getSeqNo);
         List<MesRoutingOperation> operations = routingOperationMapper.selectList(wrapper);
         if (operations.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "工艺路线无工序，请手工拆分");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.dispatch.routing-operations-split-manually", "工艺路线无工序，请手工拆分");
         }
         List<MesTaskSplitRequest.Item> items = new ArrayList<>(operations.size());
         for (MesRoutingOperation operation : operations) {
@@ -439,8 +439,8 @@ public class MesDispatchServiceImpl implements MesDispatchService {
         wrapper.orderByDesc(MesRoutingSnapshot::getId);
         List<MesRoutingSnapshot> snapshots = routingSnapshotMapper.selectList(wrapper);
         if (snapshots.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR,
-                    "未找到物料【" + workOrder.getItemCode() + "】的已发布工艺路线，请手工拆分");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.dispatch.published-routing-found-material-split-manually",
+                          "未找到物料【{0}】的已发布工艺路线，请手工拆分", workOrder.getItemCode());
         }
         return snapshots.get(0);
     }
@@ -456,15 +456,15 @@ public class MesDispatchServiceImpl implements MesDispatchService {
         Map<Integer, BigDecimal> quantityBySeq = new java.util.TreeMap<>();
         for (MesTaskSplitRequest.Item item : items) {
             if (!seqNos.add(item.getSeqNo())) {
-                throw new BizException(ErrorCode.PARAM_ERROR, "工序顺序重复：" + item.getSeqNo());
+                throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.dispatch.operation-sequence-duplicate", "工序顺序重复：{0}", item.getSeqNo());
             }
             quantityBySeq.merge(item.getSeqNo(), item.getPlannedQuantity(), BigDecimal::add);
         }
         BigDecimal planned = workOrder.getPlannedQuantity() == null ? BigDecimal.ZERO : workOrder.getPlannedQuantity();
         quantityBySeq.forEach((seqNo, quantity) -> {
             if (quantity.compareTo(planned) != 0) {
-                throw new BizException(ErrorCode.PARAM_ERROR,
-                        "工序顺序 " + seqNo + " 的计划数量合计应等于工单计划数量 " + planned);
+                throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.dispatch.sum-planned-quantities-at-operation-sequence",
+                              "工序顺序 {0} 的计划数量合计应等于工单计划数量 {1}", seqNo, planned);
             }
         });
     }
@@ -517,7 +517,7 @@ public class MesDispatchServiceImpl implements MesDispatchService {
         wrapper.eq(MesWorkCenter::getStatus, STATUS_ENABLED).last("LIMIT 1");
         MesWorkCenter workCenter = workCenterMapper.selectOne(wrapper);
         if (workCenter == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "工作中心不存在或已停用：" + workCenterCode);
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.dispatch.work-center-found-disabled", "工作中心不存在或已停用：{0}", workCenterCode);
         }
         task.setWorkCenterId(workCenter.getId());
         task.setWorkCenterCode(workCenter.getCode());
@@ -544,7 +544,7 @@ public class MesDispatchServiceImpl implements MesDispatchService {
     private MesWorkOrder requireWorkOrder(Long workOrderId) {
         MesWorkOrder workOrder = workOrderId == null ? null : mesWorkOrderMapper.selectById(workOrderId);
         if (workOrder == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "工单不存在：" + workOrderId);
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.dispatch.work-order-found", "工单不存在：{0}", workOrderId);
         }
         return workOrder;
     }
@@ -559,7 +559,7 @@ public class MesDispatchServiceImpl implements MesDispatchService {
         List<Long> distinctIds = new ArrayList<>(new LinkedHashSet<>(taskIds));
         List<MesWorkOrderTask> tasks = taskMapper.selectBatchIds(distinctIds);
         if (tasks.size() != distinctIds.size()) {
-            throw new BizException(ErrorCode.NOT_FOUND, "部分派工任务不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.dispatch.some-dispatched-tasks-exist", "部分派工任务不存在");
         }
         return tasks;
     }
@@ -573,10 +573,10 @@ public class MesDispatchServiceImpl implements MesDispatchService {
     private MesProductionLine requireLine(Long lineId) {
         MesProductionLine line = lineId == null ? null : lineMapper.selectById(lineId);
         if (line == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "产线不存在：" + lineId);
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.dispatch.production-line-found", "产线不存在：{0}", lineId);
         }
         if (!STATUS_ENABLED.equals(line.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "产线已停用：" + line.getCode());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.dispatch.production-line-disabled", "产线已停用：{0}", line.getCode());
         }
         return line;
     }
@@ -590,10 +590,10 @@ public class MesDispatchServiceImpl implements MesDispatchService {
     private MesTeam requireTeam(Long teamId) {
         MesTeam team = teamMapper.selectById(teamId);
         if (team == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "班组不存在：" + teamId);
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.dispatch.team-found", "班组不存在：{0}", teamId);
         }
         if (!STATUS_ENABLED.equals(team.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "班组已停用：" + team.getCode());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.dispatch.team-disabled", "班组已停用：{0}", team.getCode());
         }
         return team;
     }
@@ -639,7 +639,7 @@ public class MesDispatchServiceImpl implements MesDispatchService {
         BigDecimal dispatched = task.getDispatchedQuantity() == null ? BigDecimal.ZERO : task.getDispatchedQuantity();
         BigDecimal remaining = planned.subtract(dispatched);
         if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "任务" + task.getTaskNo() + "已全部派工");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.dispatch.task-all-dispatch", "任务{0}已全部派工", task.getTaskNo());
         }
         return remaining;
     }
@@ -673,7 +673,7 @@ public class MesDispatchServiceImpl implements MesDispatchService {
             task.setDispatchedQuantity(task.getPlannedQuantity());
             task.setStatus(TASK_DISPATCHED);
             if (taskMapper.updateById(task) == 0) {
-                throw new BizException(ErrorCode.PARAM_ERROR, "任务已被其他用户修改，请刷新后重试");
+                throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.dispatch.task-was-modified-refresh-retry", "任务已被其他用户修改，请刷新后重试");
             }
         }
     }
@@ -701,18 +701,19 @@ public class MesDispatchServiceImpl implements MesDispatchService {
     private void withdrawTask(MesDispatchLine line) {
         MesWorkOrderTask task = line.getTaskId() == null ? null : taskMapper.selectById(line.getTaskId());
         if (task == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "派工任务不存在：" + line.getTaskNo());
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.dispatch.dispatch-task-found", "派工任务不存在：{0}", line.getTaskNo());
         }
         if (!TASK_DISPATCHED.equals(task.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "任务" + task.getTaskNo() + "已开工，不允许撤回");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.dispatch.task-start-work-allowed-withdraw", "任务{0}已开工，不允许撤回", task.getTaskNo());
         }
         if (task.getReportedQuantity() != null && task.getReportedQuantity().compareTo(BigDecimal.ZERO) > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "任务" + task.getTaskNo() + "已有报工，不允许撤回");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.dispatch.task-already-work-reports-cannot-withdrawn", "任务{0}已有报工，不允许撤回",
+                          task.getTaskNo());
         }
         task.setDispatchedQuantity(BigDecimal.ZERO);
         task.setStatus(TASK_PLANNED);
         if (taskMapper.updateById(task) == 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "任务已被其他用户修改，请刷新后重试");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.dispatch.task-was-modified-refresh-retry-2", "任务已被其他用户修改，请刷新后重试");
         }
     }
 

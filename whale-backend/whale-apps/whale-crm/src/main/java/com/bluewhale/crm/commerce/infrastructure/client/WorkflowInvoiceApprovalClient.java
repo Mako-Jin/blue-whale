@@ -141,6 +141,6 @@ public class WorkflowInvoiceApprovalClient implements InvoiceApprovalPort {
      * @return 业务异常
      */
     private BizException failure(String message) {
-        return new BizException(ErrorCode.SYSTEM_ERROR, "发起开票审批失败: " + message);
+        return new BizException(ErrorCode.SYSTEM_ERROR, "biz.crm.commerce.failed-initiator-invoicing-approval", "发起开票审批失败: {0}", message);
     }
 }

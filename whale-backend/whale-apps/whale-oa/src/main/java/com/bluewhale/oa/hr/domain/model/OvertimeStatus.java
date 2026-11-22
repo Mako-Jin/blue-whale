@@ -34,7 +34,7 @@ public enum OvertimeStatus {
         try {
             return OvertimeStatus.valueOf(value);
         } catch (IllegalArgumentException | NullPointerException exception) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "加班状态非法");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.oa.hr.overtime-status-invalid", "加班状态非法");
         }
     }
 }

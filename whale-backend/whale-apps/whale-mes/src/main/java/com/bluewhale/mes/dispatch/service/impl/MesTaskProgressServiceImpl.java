@@ -168,7 +168,7 @@ public class MesTaskProgressServiceImpl implements MesTaskProgressService {
                     "uom", workOrder.getUom() == null ? "" : workOrder.getUom(),
                     "tenantId", tenantId()));
         } catch (JsonProcessingException exception) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "完工回传报文序列化失败");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.dispatch.failed-completion-callback-payload-serialize", "完工回传报文序列化失败");
         }
         outboxService.enqueue("mes:work-order-completed:" + workOrder.getId(),
                 "WorkOrderCompleted", "mes_work_order", String.valueOf(workOrder.getId()), payload);
@@ -222,7 +222,7 @@ public class MesTaskProgressServiceImpl implements MesTaskProgressService {
         try {
             json = OBJECT_MAPPER.writeValueAsString(payload);
         } catch (JsonProcessingException exception) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "进度回传报文序列化失败");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.dispatch.failed-serialize-progress-callback-payload", "进度回传报文序列化失败");
         }
         outboxService.enqueue(key, "WorkOrderProgress", "mes_work_order", String.valueOf(workOrder.getId()), json);
     }

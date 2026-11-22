@@ -180,7 +180,7 @@ public class MesEquipmentServiceImpl implements MesEquipmentService {
                 openDowntime(entity, event, null);
             }
         } else if (equipmentMapper.updateById(entity) < 1) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "设备已被其他用户修改，请刷新后重试");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.equipment.equipment-was-modified-refresh-retry", "设备已被其他用户修改，请刷新后重试");
         }
         return toEquipmentVO(entity);
     }
@@ -284,7 +284,7 @@ public class MesEquipmentServiceImpl implements MesEquipmentService {
 
         equipment.setStatus(request.getToStatus());
         if (equipmentMapper.updateById(equipment) < 1) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "设备已被其他用户修改，请刷新后重试");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.equipment.equipment-was-modified-refresh-retry-2", "设备已被其他用户修改，请刷新后重试");
         }
         if (STATUS_FAULT.equals(request.getToStatus())) {
             openDowntime(equipment, event, request);
@@ -331,7 +331,7 @@ public class MesEquipmentServiceImpl implements MesEquipmentService {
         } else {
             entity = maintenancePlanMapper.selectById(request.getId());
             if (entity == null) {
-                throw new BizException(ErrorCode.NOT_FOUND, "保养计划不存在：" + request.getId());
+                throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.equipment.maintenance-plan-found", "保养计划不存在：{0}", request.getId());
             }
             String planNo = trimToNull(request.getPlanNo());
             if (planNo != null && !planNo.equals(entity.getPlanNo())) {
@@ -355,7 +355,7 @@ public class MesEquipmentServiceImpl implements MesEquipmentService {
         if (entity.getId() == null) {
             maintenancePlanMapper.insert(entity);
         } else if (maintenancePlanMapper.updateById(entity) < 1) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "保养计划已被其他用户修改，请刷新后重试");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.equipment.maintenance-plan-was-modified-refresh-retry", "保养计划已被其他用户修改，请刷新后重试");
         }
         return toMaintenancePlanVO(entity);
     }
@@ -382,17 +382,17 @@ public class MesEquipmentServiceImpl implements MesEquipmentService {
     public MesMaintenanceOrderVO createMaintenanceOrder(MesMaintenanceOrderCreateRequest request) {
         MesMaintenancePlan plan = maintenancePlanMapper.selectById(request.getPlanId());
         if (plan == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "保养计划不存在：" + request.getPlanId());
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.equipment.maintenance-plan-found-2", "保养计划不存在：{0}", request.getPlanId());
         }
         if (!"ENABLED".equals(plan.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "保养计划已停用，不可生成工单");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.equipment.maintenance-plan-disabled-cannot-generate-work", "保养计划已停用，不可生成工单");
         }
         MesEquipment equipment = requireEquipment(plan.getEquipmentId());
         long opened = maintenanceOrderMapper.selectCount(new LambdaQueryWrapper<MesMaintenanceOrder>()
                 .eq(MesMaintenanceOrder::getPlanId, plan.getId())
                 .in(MesMaintenanceOrder::getStatus, Arrays.asList("PLANNED", "DUE", "OVERDUE", "IN_PROGRESS")));
         if (opened > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "该计划存在未完成的保养工单");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.equipment.plan-unfinished-maintenance-work-orders", "该计划存在未完成的保养工单");
         }
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime dueAt = request.getDueAt() == null
@@ -436,7 +436,8 @@ public class MesEquipmentServiceImpl implements MesEquipmentService {
     public MesMaintenanceOrderVO startMaintenanceOrder(Long id, String assignee) {
         MesMaintenanceOrder order = requireMaintenanceOrder(id);
         if (!Arrays.asList("PLANNED", "DUE", "OVERDUE").contains(order.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "当前保养工单状态不可开始：" + order.getStatus());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.equipment.maintenance-work-order-status-cannot-start", "当前保养工单状态不可开始：{0}",
+                          order.getStatus());
         }
         order.setStatus("IN_PROGRESS");
         order.setStartedAt(LocalDateTime.now());
@@ -453,11 +454,12 @@ public class MesEquipmentServiceImpl implements MesEquipmentService {
     public MesMaintenanceOrderVO completeMaintenanceOrder(Long id, MesMaintenanceOrderCompleteRequest request) {
         MesMaintenanceOrder order = requireMaintenanceOrder(id);
         if (!"IN_PROGRESS".equals(order.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "当前保养工单状态不可完工：" + order.getStatus());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.equipment.maintenance-work-order-status-cannot-completion", "当前保养工单状态不可完工：{0}",
+                          order.getStatus());
         }
         List<String> items = splitChecklist(order.getChecklist());
         if (items.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "保养工单未配置保养项，不可完工");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.equipment.maintenance-work-order-configured-maintenance-item", "保养工单未配置保养项，不可完工");
         }
         Map<String, String> provided = new LinkedHashMap<>();
         for (String raw : request.getChecklistResults()) {
@@ -467,25 +469,25 @@ public class MesEquipmentServiceImpl implements MesEquipmentService {
             }
             int index = line.indexOf('=');
             if (index <= 0 || index == line.length() - 1) {
-                throw new BizException(ErrorCode.PARAM_ERROR, "保养项结论格式应为：项名=结论");
+                throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.equipment.maintenance-item-conclusion-format-should-item", "保养项结论格式应为：项名=结论");
             }
             String name = line.substring(0, index).trim();
             String conclusion = line.substring(index + 1).trim();
             if (!StringUtils.hasText(name) || !StringUtils.hasText(conclusion)) {
-                throw new BizException(ErrorCode.PARAM_ERROR, "保养项名称与结论均不能为空");
+                throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.equipment.maintenance-item-name-conclusion-empty", "保养项名称与结论均不能为空");
             }
             if (provided.putIfAbsent(name, conclusion) != null) {
-                throw new BizException(ErrorCode.PARAM_ERROR, "保养项结论重复：" + name);
+                throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.equipment.maintenance-item-conclusion-duplicate", "保养项结论重复：{0}", name);
             }
         }
         for (String item : items) {
             if (!provided.containsKey(item)) {
-                throw new BizException(ErrorCode.PARAM_ERROR, "保养项未给出结论：" + item);
+                throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.equipment.maintenance-item-provide-conclusion", "保养项未给出结论：{0}", item);
             }
         }
         for (String name : provided.keySet()) {
             if (!items.contains(name)) {
-                throw new BizException(ErrorCode.PARAM_ERROR, "保养项不属于该工单：" + name);
+                throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.equipment.maintenance-item-belong-work-order", "保养项不属于该工单：{0}", name);
             }
         }
         String normalized = items.stream()
@@ -508,7 +510,8 @@ public class MesEquipmentServiceImpl implements MesEquipmentService {
     public MesMaintenanceOrderVO acceptMaintenanceOrder(Long id, MesMaintenanceOrderAcceptRequest request) {
         MesMaintenanceOrder order = requireMaintenanceOrder(id);
         if (!"COMPLETED".equals(order.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "当前保养工单状态不可验收：" + order.getStatus());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.equipment.maintenance-work-order-status-cannot-acceptance", "当前保养工单状态不可验收：{0}",
+                          order.getStatus());
         }
         order.setStatus("ACCEPTED");
         order.setAcceptedBy(request.getAcceptedBy());
@@ -569,10 +572,11 @@ public class MesEquipmentServiceImpl implements MesEquipmentService {
     public MesRepairOrderVO assignRepair(Long id, MesRepairActionRequest request) {
         MesRepairOrder order = requireRepairOrder(id);
         if (!"REPORTED".equals(order.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "当前维修工单状态不可派工：" + order.getStatus());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.equipment.maintenance-work-order-status-cannot-dispatch", "当前维修工单状态不可派工：{0}",
+                          order.getStatus());
         }
         if (!StringUtils.hasText(request.getAssignee())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "维修人不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.equipment.maintenance-person-empty", "维修人不能为空");
         }
         order.setStatus("ASSIGNED");
         order.setAssignee(request.getAssignee());
@@ -587,7 +591,8 @@ public class MesEquipmentServiceImpl implements MesEquipmentService {
     public MesRepairOrderVO startRepair(Long id, MesRepairActionRequest request) {
         MesRepairOrder order = requireRepairOrder(id);
         if (!"ASSIGNED".equals(order.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "当前维修工单状态不可开始维修：" + order.getStatus());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.equipment.maintenance-work-order-status-cannot-start-2", "当前维修工单状态不可开始维修：{0}",
+                          order.getStatus());
         }
         order.setStatus("REPAIRING");
         order.setStartedAt(LocalDateTime.now());
@@ -601,13 +606,14 @@ public class MesEquipmentServiceImpl implements MesEquipmentService {
     public MesRepairOrderVO verifyRepair(Long id, MesRepairActionRequest request) {
         MesRepairOrder order = requireRepairOrder(id);
         if (!"REPAIRING".equals(order.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "当前维修工单状态不可验证：" + order.getStatus());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.equipment.maintenance-work-order-status-cannot-verification", "当前维修工单状态不可验证：{0}",
+                          order.getStatus());
         }
         if (!StringUtils.hasText(request.getVerifiedBy())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "验证人不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.equipment.verification-person-empty", "验证人不能为空");
         }
         if (!StringUtils.hasText(request.getVerifyConclusion())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "验证结论不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.equipment.verification-conclusion-empty", "验证结论不能为空");
         }
         order.setStatus("VERIFIED");
         order.setRepairDesc(request.getRepairDesc());
@@ -624,7 +630,8 @@ public class MesEquipmentServiceImpl implements MesEquipmentService {
     public MesRepairOrderVO closeRepair(Long id, MesRepairActionRequest request) {
         MesRepairOrder order = requireRepairOrder(id);
         if (!"VERIFIED".equals(order.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "当前维修工单状态不可关闭：" + order.getStatus());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.equipment.maintenance-work-order-status-cannot-close", "当前维修工单状态不可关闭：{0}",
+                          order.getStatus());
         }
         LocalDateTime now = LocalDateTime.now();
         order.setStatus("CLOSED");
@@ -638,7 +645,7 @@ public class MesEquipmentServiceImpl implements MesEquipmentService {
             downtime.setEndAt(now);
             downtime.setDurationMinutes(minutes);
             if (downtimeMapper.updateById(downtime) < 1) {
-                throw new BizException(ErrorCode.PARAM_ERROR, "停机记录已被其他用户修改，请刷新后重试");
+                throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.equipment.downtime-record-was-modified-refresh-retry", "停机记录已被其他用户修改，请刷新后重试");
             }
             order.setDowntimeMinutes(minutes);
         }
@@ -665,7 +672,7 @@ public class MesEquipmentServiceImpl implements MesEquipmentService {
         } else {
             entity = sparePartMapper.selectById(request.getId());
             if (entity == null) {
-                throw new BizException(ErrorCode.NOT_FOUND, "备件不存在：" + request.getId());
+                throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.equipment.spare-part-found", "备件不存在：{0}", request.getId());
             }
             if (code != null && !code.equals(entity.getPartCode())) {
                 assertPartCodeUnique(entity.getId(), code);
@@ -687,7 +694,7 @@ public class MesEquipmentServiceImpl implements MesEquipmentService {
         if (entity.getId() == null) {
             sparePartMapper.insert(entity);
         } else if (sparePartMapper.updateById(entity) < 1) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "备件已被其他用户修改，请刷新后重试");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.equipment.spare-part-was-modified-refresh-retry", "备件已被其他用户修改，请刷新后重试");
         }
         return toSparePartVO(entity);
     }
@@ -763,14 +770,14 @@ public class MesEquipmentServiceImpl implements MesEquipmentService {
         BigDecimal totalCount = request.getTotalCount();
         BigDecimal goodCount = request.getGoodCount();
         if (goodCount.compareTo(totalCount) > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "合格产量不能大于总产量");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.equipment.qualified-output-greater-than-total-output", "合格产量不能大于总产量");
         }
         BigDecimal availableMinutes = plannedMinutes.subtract(plannedDowntime);
         if (availableMinutes.signum() <= 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "计划停机时间必须小于计划生产时间");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.equipment.planned-downtime-time-less-than-plan", "计划停机时间必须小于计划生产时间");
         }
         if (runMinutes.compareTo(availableMinutes) > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "实际运行时间不得大于可用计划时间");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.equipment.actual-runtime-greater-than-available-planned", "实际运行时间不得大于可用计划时间");
         }
         BigDecimal availability = ratio(runMinutes, availableMinutes);
         BigDecimal theoreticalOutput = totalCount.multiply(request.getIdealCycleSeconds())
@@ -810,7 +817,7 @@ public class MesEquipmentServiceImpl implements MesEquipmentService {
         if (insert) {
             oeeSnapshotMapper.insert(snapshot);
         } else if (oeeSnapshotMapper.updateById(snapshot) < 1) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "OEE 快照已被其他用户修改，请刷新后重试");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.equipment.o-e-e-snapshot-was-modified", "OEE 快照已被其他用户修改，请刷新后重试");
         }
         return toOeeVO(snapshot);
     }
@@ -845,7 +852,7 @@ public class MesEquipmentServiceImpl implements MesEquipmentService {
         MesSparePart part = sparePartMapper.selectOne(new LambdaQueryWrapper<MesSparePart>()
                 .eq(MesSparePart::getPartCode, request.getPartCode()));
         if (part == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "备件不存在：" + request.getPartCode());
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.equipment.spare-part-found-2", "备件不存在：{0}", request.getPartCode());
         }
         String warehouseCode = defaultIfBlank(request.getWarehouseCode(), "DEFAULT");
         MesSparePartStock stock = sparePartStockMapper.selectOne(new LambdaQueryWrapper<MesSparePartStock>()
@@ -863,13 +870,14 @@ public class MesEquipmentServiceImpl implements MesEquipmentService {
                 ? before.subtract(request.getQuantity())
                 : before.add(request.getQuantity());
         if (after.signum() < 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "备件库存不足，当前库存：" + before.toPlainString());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.equipment.spare-part-inventory-insufficient-inventory", "备件库存不足，当前库存：{0}",
+                          before.toPlainString());
         }
         stock.setQuantity(after);
         if (stock.getId() == null) {
             sparePartStockMapper.insert(stock);
         } else if (sparePartStockMapper.updateById(stock) < 1) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "备件库存已被其他用户修改，请刷新后重试");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.equipment.spare-part-inventory-was-modified-refresh", "备件库存已被其他用户修改，请刷新后重试");
         }
         MesSparePartMovement movement = new MesSparePartMovement();
         movement.setMovementNo(MesCodeGenerator.nextNo("EQMV"));
@@ -930,7 +938,7 @@ public class MesEquipmentServiceImpl implements MesEquipmentService {
         downtime.setEndAt(endAt);
         downtime.setDurationMinutes(minutesBetween(downtime.getStartAt(), endAt));
         if (downtimeMapper.updateById(downtime) < 1) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "停机记录已被其他用户修改，请刷新后重试");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.equipment.downtime-record-was-modified-refresh-retry-2", "停机记录已被其他用户修改，请刷新后重试");
         }
     }
 
@@ -957,7 +965,7 @@ public class MesEquipmentServiceImpl implements MesEquipmentService {
     private MesEquipment requireEquipment(Long id) {
         MesEquipment equipment = equipmentMapper.selectById(id);
         if (equipment == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "设备不存在：" + id);
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.equipment.equipment-found", "设备不存在：{0}", id);
         }
         return equipment;
     }
@@ -971,7 +979,7 @@ public class MesEquipmentServiceImpl implements MesEquipmentService {
     private MesMaintenanceOrder requireMaintenanceOrder(Long id) {
         MesMaintenanceOrder order = maintenanceOrderMapper.selectById(id);
         if (order == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "保养工单不存在：" + id);
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.equipment.maintenance-work-order-found", "保养工单不存在：{0}", id);
         }
         return order;
     }
@@ -985,7 +993,7 @@ public class MesEquipmentServiceImpl implements MesEquipmentService {
     private MesRepairOrder requireRepairOrder(Long id) {
         MesRepairOrder order = repairOrderMapper.selectById(id);
         if (order == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "维修工单不存在：" + id);
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.equipment.maintenance-work-order-found-2", "维修工单不存在：{0}", id);
         }
         return order;
     }
@@ -997,7 +1005,7 @@ public class MesEquipmentServiceImpl implements MesEquipmentService {
      */
     private void updateMaintenanceOrder(MesMaintenanceOrder order) {
         if (maintenanceOrderMapper.updateById(order) < 1) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "保养工单已被其他用户修改，请刷新后重试");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.equipment.maintenance-work-order-was-modified-refresh", "保养工单已被其他用户修改，请刷新后重试");
         }
     }
 
@@ -1008,7 +1016,7 @@ public class MesEquipmentServiceImpl implements MesEquipmentService {
      */
     private void updateRepairOrder(MesRepairOrder order) {
         if (repairOrderMapper.updateById(order) < 1) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "维修工单已被其他用户修改，请刷新后重试");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.equipment.maintenance-work-order-was-modified-refresh-2", "维修工单已被其他用户修改，请刷新后重试");
         }
     }
 
@@ -1023,7 +1031,7 @@ public class MesEquipmentServiceImpl implements MesEquipmentService {
                 .eq(MesEquipment::getEquipmentCode, code)
                 .ne(excludeId != null, MesEquipment::getId, excludeId));
         if (count > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "设备编码已存在：" + code);
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.equipment.equipment-code-already-exists", "设备编码已存在：{0}", code);
         }
     }
 
@@ -1038,7 +1046,7 @@ public class MesEquipmentServiceImpl implements MesEquipmentService {
                 .eq(MesMaintenancePlan::getPlanNo, planNo)
                 .ne(excludeId != null, MesMaintenancePlan::getId, excludeId));
         if (count > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "保养计划编号已存在：" + planNo);
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.equipment.maintenance-plan-number-already-exists", "保养计划编号已存在：{0}", planNo);
         }
     }
 
@@ -1053,7 +1061,7 @@ public class MesEquipmentServiceImpl implements MesEquipmentService {
                 .eq(MesSparePart::getPartCode, code)
                 .ne(excludeId != null, MesSparePart::getId, excludeId));
         if (count > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "备件编码已存在：" + code);
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.equipment.spare-part-code-already-exists", "备件编码已存在：{0}", code);
         }
     }
 

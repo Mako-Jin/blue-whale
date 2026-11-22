@@ -111,11 +111,11 @@ public class PdmDocAclServiceImpl implements PdmDocAclService {
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long id, PdmDocViewer viewer) {
         if (id == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "ACL 规则不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.document.c-l-rule-found", "ACL 规则不存在");
         }
         PdmDocAcl rule = aclMapper.selectById(id);
         if (rule == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "ACL 规则不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.document.c-l-rule-found-2", "ACL 规则不存在");
         }
         assertManage(rule.getResourceType(), rule.getResourceId(), viewer);
         aclMapper.deleteById(id);
@@ -130,14 +130,14 @@ public class PdmDocAclServiceImpl implements PdmDocAclService {
      */
     private void assertManage(String resourceType, Long resourceId, PdmDocViewer viewer) {
         if (viewer == null || viewer.userId() == null) {
-            throw new BizException(ErrorCode.UNAUTHORIZED, "缺少用户身份，请通过网关访问");
+            throw new BizException(ErrorCode.UNAUTHORIZED, "biz.pdm.document.identity-missing-access-via-gateway", "缺少用户身份，请通过网关访问");
         }
         PdmDocAclDecision decision;
         PdmDocDocument document = null;
         if (PdmDocAclConstants.RESOURCE_DOCUMENT.equals(resourceType)) {
             document = documentMapper.selectById(resourceId);
             if (document == null) {
-                throw new BizException(ErrorCode.NOT_FOUND, "文档不存在");
+                throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.document.document-found", "文档不存在");
             }
             decision = aclResolver.decideDocument(document.getId(), document.getFolderId(), viewer,
                     PdmDocAclConstants.ACTION_MANAGE);
@@ -145,7 +145,7 @@ public class PdmDocAclServiceImpl implements PdmDocAclService {
             decision = aclResolver.decideFolder(resourceId, viewer, PdmDocAclConstants.ACTION_MANAGE);
         }
         if (decision == PdmDocAclDecision.DENY) {
-            throw new BizException(ErrorCode.FORBIDDEN, "无权管理该资源的权限");
+            throw new BizException(ErrorCode.FORBIDDEN, "biz.pdm.document.permission-manage-resource", "无权管理该资源的权限");
         }
         if (decision == PdmDocAclDecision.ALLOW) {
             return;
@@ -156,7 +156,7 @@ public class PdmDocAclServiceImpl implements PdmDocAclService {
         if (document != null && document.getOwnerId() != null && document.getOwnerId().equals(viewer.userId())) {
             return;
         }
-        throw new BizException(ErrorCode.FORBIDDEN, "无权管理该资源的权限");
+        throw new BizException(ErrorCode.FORBIDDEN, "biz.pdm.document.permission-manage-resource-2", "无权管理该资源的权限");
     }
 
     /**
@@ -167,14 +167,14 @@ public class PdmDocAclServiceImpl implements PdmDocAclService {
      */
     private void assertResourceExists(String resourceType, Long resourceId) {
         if (resourceId == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "资源ID不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.document.resource-id-empty", "资源ID不能为空");
         }
         if (PdmDocAclConstants.RESOURCE_FOLDER.equals(resourceType)) {
             folderService.get(resourceId);
             return;
         }
         if (documentMapper.selectById(resourceId) == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "文档不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.document.document-found-2", "文档不存在");
         }
     }
 
@@ -209,7 +209,7 @@ public class PdmDocAclServiceImpl implements PdmDocAclService {
      */
     private void assertValidResourceType(String resourceType) {
         if (!PdmDocAclConstants.isValidResourceType(resourceType)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "资源类型不合法");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.document.resource-type-invalid", "资源类型不合法");
         }
     }
 
@@ -220,7 +220,7 @@ public class PdmDocAclServiceImpl implements PdmDocAclService {
      */
     private void assertValidSubjectType(String subjectType) {
         if (!PdmDocAclConstants.isValidSubjectType(subjectType)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "主体类型不合法");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.document.main-body-type-invalid", "主体类型不合法");
         }
     }
 
@@ -231,7 +231,7 @@ public class PdmDocAclServiceImpl implements PdmDocAclService {
      */
     private void assertValidAction(String action) {
         if (!PdmDocAclConstants.isValidAction(action)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "动作不合法");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.document.action-invalid", "动作不合法");
         }
     }
 
@@ -242,7 +242,7 @@ public class PdmDocAclServiceImpl implements PdmDocAclService {
      */
     private void assertValidEffect(String effect) {
         if (!PdmDocAclConstants.isValidEffect(effect)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "效果不合法");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.document.effect-invalid", "效果不合法");
         }
     }
 
@@ -258,21 +258,21 @@ public class PdmDocAclServiceImpl implements PdmDocAclService {
             return PdmDocAclConstants.ALL_SUBJECT_ID;
         }
         if (!StringUtils.hasText(subjectId)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "主体标识不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.document.subject-identifier-empty", "主体标识不能为空");
         }
         String normalized = subjectId.trim();
         if (normalized.length() > MAX_SUBJECT_ID_LENGTH) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "主体标识不能超过 64 个字符");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.document.subject-identifier-exceed-64-characters", "主体标识不能超过 64 个字符");
         }
         if (PdmDocAclConstants.SUBJECT_USER.equals(subjectType)) {
             try {
                 long userId = Long.parseLong(normalized);
                 if (userId <= 0) {
-                    throw new BizException(ErrorCode.PARAM_ERROR, "用户ID不合法");
+                    throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.document.id-invalid", "用户ID不合法");
                 }
                 return String.valueOf(userId);
             } catch (NumberFormatException ex) {
-                throw new BizException(ErrorCode.PARAM_ERROR, "用户ID必须为数字");
+                throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.document.id-numeric", "用户ID必须为数字");
             }
         }
         return normalized;

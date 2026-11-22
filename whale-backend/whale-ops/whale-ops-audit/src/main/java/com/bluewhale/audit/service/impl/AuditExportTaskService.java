@@ -92,7 +92,7 @@ public class AuditExportTaskService {
     public AuditExportTaskVO submit(AuditLogQueryRequest request) {
         purgeExpired();
         if (tasks.size() >= MAX_TASKS) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "导出任务过多，请稍后重试");
+            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "biz.audit.service.too-many-export-tasks-retry-later", "导出任务过多，请稍后重试");
         }
         String taskId = UUID.randomUUID().toString().replace("-", "");
         TaskState state = new TaskState();

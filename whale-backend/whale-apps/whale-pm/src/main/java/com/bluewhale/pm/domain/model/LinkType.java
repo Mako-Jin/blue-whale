@@ -35,13 +35,13 @@ public enum LinkType {
      */
     public static LinkType from(String code) {
         if (code == null || code.isBlank()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "关联类型不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.domain.association-type-empty", "关联类型不能为空");
         }
         try {
             return valueOf(code.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException e) {
-            throw new BizException(ErrorCode.PARAM_ERROR,
-                    "关联类型仅支持 BLOCKS / BLOCKED_BY / RELATES / DUPLICATES / DUPLICATED_BY");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.domain.association-type-supports-blocks-blocked-relates",
+                          "关联类型仅支持 BLOCKS / BLOCKED_BY / RELATES / DUPLICATES / DUPLICATED_BY");
         }
     }
 }

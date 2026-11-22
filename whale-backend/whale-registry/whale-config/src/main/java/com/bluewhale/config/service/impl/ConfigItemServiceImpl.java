@@ -125,7 +125,7 @@ public class ConfigItemServiceImpl implements ConfigItemService {
         try {
             configItemMapper.insert(entity);
         } catch (DuplicateKeyException ex) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "配置键已存在: " + configKey);
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.config.service.configuration-key-already-exists", "配置键已存在: {0}", configKey);
         }
         insertHistory(entity, OP_CREATE, null, value, operator);
         return toVo(configItemMapper.selectById(entity.getId()));
@@ -186,16 +186,15 @@ public class ConfigItemServiceImpl implements ConfigItemService {
         Integer targetVersion = request.getTargetVersion();
         if (targetVersion == null || targetVersion < INITIAL_VERSION
                 || targetVersion > existing.getVersion()) {
-            throw new BizException(ErrorCode.PARAM_ERROR,
-                    "目标版本号必须在 1 到 " + existing.getVersion() + " 之间");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.config.service.target-version-number-between-1", "目标版本号必须在 1 到 {0} 之间",
+                          existing.getVersion());
         }
         if (targetVersion.equals(existing.getVersion())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "配置项已处于版本 " + targetVersion);
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.config.service.configuration-item-already-at-version", "配置项已处于版本 {0}", targetVersion);
         }
         ConfigItemHistory history = selectValueHistory(id, targetVersion);
         if (history == null || history.getNewValue() == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR,
-                    "版本 " + targetVersion + " 不存在或无可回滚的值");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.config.service.version-exist-value-roll-back", "版本 {0} 不存在或无可回滚的值", targetVersion);
         }
         validateValue(existing.getValueType(), history.getNewValue());
         String oldValue = existing.getConfigValue();
@@ -232,7 +231,7 @@ public class ConfigItemServiceImpl implements ConfigItemService {
         LambdaQueryWrapper<ConfigItem> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(ConfigItem::getConfigKey, configKey);
         if (configItemMapper.selectCount(wrapper) > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "配置键已存在: " + configKey);
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.config.service.configuration-key-already-exists-2", "配置键已存在: {0}", configKey);
         }
     }
 
@@ -276,13 +275,14 @@ public class ConfigItemServiceImpl implements ConfigItemService {
                 try {
                     new BigDecimal(value.trim());
                 } catch (NumberFormatException e) {
-                    throw new BizException(ErrorCode.PARAM_ERROR, "配置值必须是合法数字: " + value);
+                    throw new BizException(ErrorCode.PARAM_ERROR, "biz.config.service.configuration-value-valid-digits", "配置值必须是合法数字: {0}", value);
                 }
             }
             case TYPE_BOOLEAN -> {
                 String normalized = value.trim().toLowerCase(Locale.ROOT);
                 if (!"true".equals(normalized) && !"false".equals(normalized)) {
-                    throw new BizException(ErrorCode.PARAM_ERROR, "布尔类型配置值只能是 true / false");
+                    throw new BizException(ErrorCode.PARAM_ERROR, "biz.config.service.boolean-configuration-value-can-true-false",
+                                  "布尔类型配置值只能是 true / false");
                 }
             }
             default -> {
@@ -302,7 +302,7 @@ public class ConfigItemServiceImpl implements ConfigItemService {
             return STATUS_ENABLED;
         }
         if (status != STATUS_ENABLED && status != STATUS_DISABLED) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "状态仅支持 1 启用 / 0 停用");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.config.service.status-supports-1-enabled-0-disabled", "状态仅支持 1 启用 / 0 停用");
         }
         return status;
     }
@@ -320,8 +320,8 @@ public class ConfigItemServiceImpl implements ConfigItemService {
         String normalized = valueType.trim().toUpperCase(Locale.ROOT);
         if (!TYPE_STRING.equals(normalized) && !TYPE_NUMBER.equals(normalized)
                 && !TYPE_BOOLEAN.equals(normalized) && !TYPE_JSON.equals(normalized)) {
-            throw new BizException(ErrorCode.PARAM_ERROR,
-                    "值类型仅支持 STRING / NUMBER / BOOLEAN / JSON");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.config.service.value-type-supports-string-number-boolean",
+                          "值类型仅支持 STRING / NUMBER / BOOLEAN / JSON");
         }
         return normalized;
     }

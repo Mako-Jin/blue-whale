@@ -34,7 +34,7 @@ public final class PdmChgObjectType {
     public static String requireValid(String objectType) {
         String normalized = objectType == null ? "" : objectType.trim().toUpperCase();
         if (!DOCUMENT.equals(normalized) && !BOM.equals(normalized) && !PART.equals(normalized)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "影响对象类型仅支持 DOCUMENT/BOM/PART");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.change.affected-object-type-supports-document-bom", "影响对象类型仅支持 DOCUMENT/BOM/PART");
         }
         return normalized;
     }

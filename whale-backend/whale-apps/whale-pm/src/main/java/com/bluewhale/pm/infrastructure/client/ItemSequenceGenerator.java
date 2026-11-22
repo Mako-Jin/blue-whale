@@ -32,7 +32,7 @@ public class ItemSequenceGenerator {
         Long value = redisTemplate.opsForValue().increment(KEY_PREFIX + projectId);
         if (value == null) {
             log.error("工作项序号生成失败: projectId={}", projectId);
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "工作项编号生成失败，请稍后重试");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.pm.infrastructure.failed-generate-work-item-number-retry", "工作项编号生成失败，请稍后重试");
         }
         return value;
     }

@@ -43,7 +43,7 @@ public class MesOutboxServiceImpl implements MesOutboxService {
     public void enqueue(String sourceEventId, String eventType, String aggregateType,
                         String aggregateId, String payload) {
         if (!StringUtils.hasText(sourceEventId) || !StringUtils.hasText(eventType)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "发件箱事件幂等键与事件类型不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.common.outbox-event-idempotency-key-event-type", "发件箱事件幂等键与事件类型不能为空");
         }
         LambdaQueryWrapper<MesOutboxEvent> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(MesOutboxEvent::getSourceEventId, sourceEventId);
@@ -93,7 +93,7 @@ public class MesOutboxServiceImpl implements MesOutboxService {
     private MesOutboxEvent requireEvent(Long id) {
         MesOutboxEvent event = id == null ? null : mesOutboxEventMapper.selectById(id);
         if (event == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "发件箱事件不存在：" + id);
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.common.outbox-event-found", "发件箱事件不存在：{0}", id);
         }
         return event;
     }

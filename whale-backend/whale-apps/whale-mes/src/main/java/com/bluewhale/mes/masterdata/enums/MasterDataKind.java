@@ -68,6 +68,6 @@ public enum MasterDataKind {
         return Arrays.stream(values())
                 .filter(kind -> kind.path.equals(path))
                 .findFirst()
-                .orElseThrow(() -> new BizException(ErrorCode.PARAM_ERROR, "不支持的主数据类型：" + path));
+                .orElseThrow(() -> new BizException(ErrorCode.PARAM_ERROR, "biz.mes.masterdata.unsupported-master-data-type", "不支持的主数据类型：{0}", path));
     }
 }

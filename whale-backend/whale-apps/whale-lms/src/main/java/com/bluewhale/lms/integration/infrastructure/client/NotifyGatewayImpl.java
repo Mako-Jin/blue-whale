@@ -86,7 +86,7 @@ public class NotifyGatewayImpl implements NotifyGateway {
     private String baseUrl() {
         List<ServiceInstance> instances = discoveryClient.getInstances(SERVICE_NAME);
         if (instances.isEmpty()) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "消息服务不可用");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.lms.integration.message-service-unavailable", "消息服务不可用");
         }
         return instances.getFirst().getUri().toString();
     }

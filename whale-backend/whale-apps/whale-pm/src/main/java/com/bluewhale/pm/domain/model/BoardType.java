@@ -26,12 +26,12 @@ public enum BoardType {
      */
     public static BoardType from(String code) {
         if (code == null || code.isBlank()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "看板类型不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.domain.kanban-type-empty", "看板类型不能为空");
         }
         try {
             return valueOf(code.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException e) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "看板类型仅支持 SCRUM / KANBAN");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.domain.kanban-type-supports-scrum-kanban", "看板类型仅支持 SCRUM / KANBAN");
         }
     }
 }

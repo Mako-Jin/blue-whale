@@ -163,7 +163,7 @@ public class SprintAppService {
         Long items = workItemMapper.selectCount(new LambdaQueryWrapper<PmWorkItem>()
                 .eq(PmWorkItem::getSprintId, id));
         if (items != null && items > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "迭代下仍有工作项，请先移出后再删除");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.iteration-still-work-items-move-them", "迭代下仍有工作项，请先移出后再删除");
         }
         sprintMapper.deleteById(id);
         log.info("迭代已删除: sprintId={}", id);
@@ -183,13 +183,13 @@ public class SprintAppService {
         projectGuard.requireActiveProject(sprint.getProjectId());
         requireStatus(sprint, SprintStatus.FUTURE, "仅未启动迭代可启动");
         if (sprint.getStartDate() == null || sprint.getEndDate() == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "启动迭代前需填写开始与结束日期");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.start-iteration-need-fill-in-start", "启动迭代前需填写开始与结束日期");
         }
         Long active = sprintMapper.selectCount(new LambdaQueryWrapper<PmSprint>()
                 .eq(PmSprint::getProjectId, sprint.getProjectId())
                 .eq(PmSprint::getStatus, SprintStatus.ACTIVE.name()));
         if (active != null && active > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "同一项目同时仅允许 1 个进行中的迭代");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.same-project-at-same-time-allow", "同一项目同时仅允许 1 个进行中的迭代");
         }
         sprint.setStatus(SprintStatus.ACTIVE.name());
         sprintMapper.updateById(sprint);
@@ -253,7 +253,7 @@ public class SprintAppService {
         projectAccessGuard.requireWritable(sprint.getProjectId(), operatorId);
         projectGuard.requireActiveProject(sprint.getProjectId());
         if (SprintStatus.CLOSED.name().equals(sprint.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "迭代已关闭，不可再加入工作项");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.iteration-closed-more-work-items-can", "迭代已关闭，不可再加入工作项");
         }
         int added = 0;
         for (Long itemId : request.getItemIds()) {
@@ -267,7 +267,7 @@ public class SprintAppService {
                     .set(PmWorkItem::getSprintId, id)
                     .set(PmWorkItem::getVersion, item.getVersion() + 1));
             if (affected == 0) {
-                throw new BizException(ErrorCode.REPEAT_SUBMIT, "工作项已被他人修改，请刷新后重试");
+                throw new BizException(ErrorCode.REPEAT_SUBMIT, "biz.pm.application.work-item-was-modified-refresh-retry", "工作项已被他人修改，请刷新后重试");
             }
             activityAppService.record(sprint.getProjectId(), item.getId(), operatorId, ActivityAction.UPDATE,
                     FIELD_SPRINT, null, sprint.getName());
@@ -289,11 +289,11 @@ public class SprintAppService {
         projectAccessGuard.requireWritable(sprint.getProjectId(), operatorId);
         projectGuard.requireActiveProject(sprint.getProjectId());
         if (SprintStatus.CLOSED.name().equals(sprint.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "迭代已关闭，不可调整工作项");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.iteration-close-cannot-adjusted-work-item", "迭代已关闭，不可调整工作项");
         }
         PmWorkItem item = workItemGuard.requireInProject(itemId, sprint.getProjectId());
         if (!id.equals(item.getSprintId())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "工作项不属于当前迭代");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.work-item-belong-iteration", "工作项不属于当前迭代");
         }
         int affected = workItemMapper.update(null, new LambdaUpdateWrapper<PmWorkItem>()
                 .eq(PmWorkItem::getId, item.getId())
@@ -301,7 +301,7 @@ public class SprintAppService {
                 .set(PmWorkItem::getSprintId, null)
                 .set(PmWorkItem::getVersion, item.getVersion() + 1));
         if (affected == 0) {
-            throw new BizException(ErrorCode.REPEAT_SUBMIT, "工作项已被他人修改，请刷新后重试");
+            throw new BizException(ErrorCode.REPEAT_SUBMIT, "biz.pm.application.work-item-was-modified-refresh-retry-2", "工作项已被他人修改，请刷新后重试");
         }
         activityAppService.record(sprint.getProjectId(), item.getId(), operatorId, ActivityAction.UPDATE,
                 FIELD_SPRINT, sprint.getName(), null);
@@ -316,7 +316,7 @@ public class SprintAppService {
     private PmSprint requireSprint(Long id) {
         PmSprint sprint = id == null ? null : sprintMapper.selectById(id);
         if (sprint == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "迭代不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pm.application.iteration-found", "迭代不存在");
         }
         return sprint;
     }
@@ -347,7 +347,7 @@ public class SprintAppService {
                 .eq(PmSprint::getName, name)
                 .ne(excludeId != null, PmSprint::getId, excludeId));
         if (count != null && count > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "迭代名称已存在");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.iteration-name-already-exists", "迭代名称已存在");
         }
     }
 
@@ -359,7 +359,7 @@ public class SprintAppService {
     private void validateDateRange(SprintSaveRequest request) {
         if (request.getStartDate() != null && request.getEndDate() != null
                 && request.getEndDate().isBefore(request.getStartDate())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "结束日期不能早于开始日期");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.end-date-earlier-than-start-date", "结束日期不能早于开始日期");
         }
     }
 }

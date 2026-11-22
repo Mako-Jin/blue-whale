@@ -73,7 +73,7 @@ public class MesSpcServiceImpl implements MesSpcService {
     public MesSpcRuleVO saveRule(MesSpcRuleSaveRequest request) {
         MesInspectionPlanItem planItem = planItemMapper.selectById(request.getPlanItemId());
         if (planItem == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "检验计划项不存在：" + request.getPlanItemId());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.inspection-plan-item-found", "检验计划项不存在：{0}", request.getPlanItemId());
         }
         MesSpcRule rule;
         if (request.getId() == null) {
@@ -83,7 +83,7 @@ public class MesSpcServiceImpl implements MesSpcService {
         } else {
             rule = ruleMapper.selectById(request.getId());
             if (rule == null) {
-                throw new BizException(ErrorCode.NOT_FOUND, "SPC 规则不存在：" + request.getId());
+                throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.quality.s-p-c-rule-found", "SPC 规则不存在：{0}", request.getId());
             }
             if (StringUtils.hasText(request.getRuleCode())) {
                 rule.setRuleCode(request.getRuleCode());
@@ -108,7 +108,7 @@ public class MesSpcServiceImpl implements MesSpcService {
         if (rule.getId() == null) {
             ruleMapper.insert(rule);
         } else if (ruleMapper.updateById(rule) == 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "SPC 规则已被其他用户修改，请刷新后重试");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.s-p-c-rule-was-modified", "SPC 规则已被其他用户修改，请刷新后重试");
         }
         log.info("SPC 规则保存: ruleCode={}, planItemId={}", rule.getRuleCode(), rule.getPlanItemId());
         return toRuleVo(rule);
@@ -131,27 +131,27 @@ public class MesSpcServiceImpl implements MesSpcService {
     public MesSpcSampleVO submitSample(MesSpcSampleRequest request) {
         MesSpcRule rule = ruleMapper.selectById(request.getRuleId());
         if (rule == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "SPC 规则不存在：" + request.getRuleId());
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.quality.s-p-c-rule-found-2", "SPC 规则不存在：{0}", request.getRuleId());
         }
         if (!RULE_ENABLED.equals(rule.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "SPC 规则未启用：" + rule.getRuleCode());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.s-p-c-rule-enabled", "SPC 规则未启用：{0}", rule.getRuleCode());
         }
         if (!rule.getPlanItemId().equals(request.getPlanItemId())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "SPC 规则与检验计划项不匹配");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.s-p-c-rule-match-inspection", "SPC 规则与检验计划项不匹配");
         }
         MesInspectionPlanItem planItem = planItemMapper.selectById(request.getPlanItemId());
         if (planItem == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "检验计划项不存在：" + request.getPlanItemId());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.inspection-plan-item-found-2", "检验计划项不存在：{0}", request.getPlanItemId());
         }
         List<MesSpcSample> subgroup = new ArrayList<>(listSubgroup(rule.getId(), request.getSubgroupNo()));
         int subgroupSize = rule.getSubgroupSize() == null ? DEFAULT_SUBGROUP_SIZE : rule.getSubgroupSize();
         if (subgroup.size() >= subgroupSize) {
-            throw new BizException(ErrorCode.PARAM_ERROR,
-                    "子组样本数已满：" + request.getSubgroupNo() + "，应开启新子组");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.subgroup-sample-count-full-new-subgroup", "子组样本数已满：{0}，应开启新子组",
+                          request.getSubgroupNo());
         }
         int sampleSeq = request.getSampleSeq() == null ? subgroup.size() + 1 : request.getSampleSeq();
         if (subgroup.stream().anyMatch(sample -> Integer.valueOf(sampleSeq).equals(sample.getSampleSeq()))) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "子组内样本序号重复：" + sampleSeq);
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.duplicate-sample-number-within-subgroup", "子组内样本序号重复：{0}", sampleSeq);
         }
         MesSpcSample sample = new MesSpcSample();
         sample.setSampleNo(MesCodeGenerator.nextNo("QSP"));
@@ -294,7 +294,7 @@ public class MesSpcServiceImpl implements MesSpcService {
                 .eq(MesSpcRule::getRuleCode, ruleCode)
                 .ne(id != null, MesSpcRule::getId, id);
         if (ruleMapper.selectCount(wrapper) > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "SPC 规则编码已存在：" + ruleCode);
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.quality.s-p-c-rule-code-already", "SPC 规则编码已存在：{0}", ruleCode);
         }
     }
 

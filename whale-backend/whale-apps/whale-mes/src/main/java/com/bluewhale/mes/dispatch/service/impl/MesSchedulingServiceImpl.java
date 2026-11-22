@@ -103,7 +103,7 @@ public class MesSchedulingServiceImpl implements MesSchedulingService {
                 .orderByAsc(MesShift::getId)
                 .last("LIMIT 1"));
         if (shift == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "未配置可用班次，无法生成排程");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.dispatch.configured-available-shift-cannot-generate-scheduling", "未配置可用班次，无法生成排程");
         }
         LambdaQueryWrapper<MesWorkCenter> centerWrapper = new LambdaQueryWrapper<MesWorkCenter>()
                 .eq(MesWorkCenter::getStatus, DATA_ENABLED);
@@ -112,7 +112,7 @@ public class MesSchedulingServiceImpl implements MesSchedulingService {
         }
         List<MesWorkCenter> centers = workCenterMapper.selectList(centerWrapper);
         if (centers.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "未配置可用工作中心，无法生成排程");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.dispatch.configured-available-work-center-cannot-generate", "未配置可用工作中心，无法生成排程");
         }
         Set<Long> reservedTaskIds = slotMapper.selectList(new LambdaQueryWrapper<MesScheduleSlot>()
                         .eq(MesScheduleSlot::getStatus, SLOT_RESERVED)
@@ -280,14 +280,14 @@ public class MesSchedulingServiceImpl implements MesSchedulingService {
             return toPlanVo(plan);
         }
         if (!PLAN_DRAFT.equals(plan.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "仅草稿排程可锁定：" + plan.getPlanNo());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.dispatch.draft-scheduling-can-locked", "仅草稿排程可锁定：{0}", plan.getPlanNo());
         }
         plan.setStatus(PLAN_LOCKED);
         if (request != null && StringUtils.hasText(request.getRemark())) {
             plan.setRemark(request.getRemark());
         }
         if (planMapper.updateById(plan) == 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "排程计划已被其他用户修改，请刷新后重试");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.dispatch.scheduling-plan-was-modified-refresh-retry", "排程计划已被其他用户修改，请刷新后重试");
         }
         return toPlanVo(plan);
     }
@@ -301,14 +301,15 @@ public class MesSchedulingServiceImpl implements MesSchedulingService {
             return toPlanVo(plan);
         }
         if (!PLAN_DRAFT.equals(plan.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "仅草稿排程可取消，已锁定排程不可回滚：" + plan.getPlanNo());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.dispatch.draft-scheduling-can-cancel-locked-scheduling", "仅草稿排程可取消，已锁定排程不可回滚：{0}",
+                          plan.getPlanNo());
         }
         plan.setStatus(PLAN_CANCELLED);
         if (request != null && StringUtils.hasText(request.getRemark())) {
             plan.setRemark(request.getRemark());
         }
         if (planMapper.updateById(plan) == 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "排程计划已被其他用户修改，请刷新后重试");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.dispatch.scheduling-plan-was-modified-refresh-retry-2", "排程计划已被其他用户修改，请刷新后重试");
         }
         List<MesScheduleSlot> slots = slotMapper.selectList(new LambdaQueryWrapper<MesScheduleSlot>()
                 .eq(MesScheduleSlot::getPlanId, id)
@@ -375,7 +376,7 @@ public class MesSchedulingServiceImpl implements MesSchedulingService {
     private MesSchedulePlan requirePlan(Long id) {
         MesSchedulePlan plan = planMapper.selectById(id);
         if (plan == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "排程计划不存在：" + id);
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.dispatch.scheduling-plan-found", "排程计划不存在：{0}", id);
         }
         return plan;
     }

@@ -90,7 +90,7 @@ public class HubOverviewController {
     public Result<HubHallDetailVO> hall(@PathVariable String nodeKey, HttpServletRequest request) {
         HubHallDetailVO detail = aggregator.aggregate(contextOf(request)).detail(nodeKey);
         if (detail == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "未知殿：" + nodeKey);
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.monitor.overview.unknown-hall", "未知殿：{0}", nodeKey);
         }
         return Result.ok(detail);
     }

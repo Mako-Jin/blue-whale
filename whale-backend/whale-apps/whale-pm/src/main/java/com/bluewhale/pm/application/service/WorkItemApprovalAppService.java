@@ -55,10 +55,10 @@ public class WorkItemApprovalAppService {
     @Transactional(rollbackFor = Exception.class)
     public String submit(Long id, Long operatorId, String username, String permissionCodes) {
         if (!properties.isEnabled()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "审批功能未开启");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.approval-feature-enabled", "审批功能未开启");
         }
         if (properties.getDefinitionId() == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "未配置审批流程定义");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.configured-approval-workflow-definition", "未配置审批流程定义");
         }
         PmWorkItem item = workItemGuard.requireWritable(id, operatorId);
         projectGuard.requireActiveProject(item.getProjectId());

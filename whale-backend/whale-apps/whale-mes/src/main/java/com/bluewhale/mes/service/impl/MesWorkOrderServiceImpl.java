@@ -140,7 +140,7 @@ public class MesWorkOrderServiceImpl implements MesWorkOrderService {
         workOrder.setErpOrderNo(trimToNull(workOrder.getErpOrderNo()));
         assertPlanTimeValid(workOrder);
         if (mesWorkOrderMapper.updateById(workOrder) == 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "工单已被其他用户修改，请刷新后重试");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.service.work-order-was-modified-refresh-retry", "工单已被其他用户修改，请刷新后重试");
         }
         log.info("工单已更新: id={}, code={}, status={}", id, workOrder.getCode(), workOrder.getStatus());
         return toVo(workOrder);
@@ -151,7 +151,7 @@ public class MesWorkOrderServiceImpl implements MesWorkOrderService {
     public void delete(Long id) {
         MesWorkOrder workOrder = requireWorkOrder(id);
         if (!DELETABLE_STATUSES.contains(workOrder.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "只有已接收或已取消的工单允许删除");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.service.recipient-cancelled-work-order-can-deleted", "只有已接收或已取消的工单允许删除");
         }
         mesWorkOrderMapper.deleteById(id);
         log.info("工单已删除: id={}", id);
@@ -166,7 +166,7 @@ public class MesWorkOrderServiceImpl implements MesWorkOrderService {
     private MesWorkOrder requireWorkOrder(Long id) {
         MesWorkOrder workOrder = id == null ? null : mesWorkOrderMapper.selectById(id);
         if (workOrder == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "工单不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.service.work-order-found", "工单不存在");
         }
         return workOrder;
     }
@@ -184,7 +184,7 @@ public class MesWorkOrderServiceImpl implements MesWorkOrderService {
             wrapper.ne(MesWorkOrder::getId, excludeId);
         }
         if (mesWorkOrderMapper.selectCount(wrapper) > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "工单编码已存在");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.service.work-order-code-already-exists", "工单编码已存在");
         }
     }
 
@@ -204,7 +204,7 @@ public class MesWorkOrderServiceImpl implements MesWorkOrderService {
             wrapper.ne(MesWorkOrder::getId, excludeId);
         }
         if (mesWorkOrderMapper.selectCount(wrapper) > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "ERP 生产订单号已存在：" + erpOrderNo.trim());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.service.e-r-p-production-order-number", "ERP 生产订单号已存在：{0}", erpOrderNo.trim());
         }
     }
 
@@ -220,7 +220,7 @@ public class MesWorkOrderServiceImpl implements MesWorkOrderService {
         }
         Set<String> allowed = STATUS_TRANSITIONS.getOrDefault(from, Set.of());
         if (!allowed.contains(to)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "工单状态不能从 " + from + " 变更为 " + to);
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.service.work-order-status-cannot-change-from", "工单状态不能从 {0} 变更为 {1}", from, to);
         }
     }
 
@@ -232,7 +232,7 @@ public class MesWorkOrderServiceImpl implements MesWorkOrderService {
     private void assertPlanTimeValid(MesWorkOrder workOrder) {
         if (workOrder.getPlannedStart() != null && workOrder.getPlannedEnd() != null
                 && workOrder.getPlannedEnd().isBefore(workOrder.getPlannedStart())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "计划完工时间不能早于计划开工时间");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.service.plan-completion-time-earlier-than-plan", "计划完工时间不能早于计划开工时间");
         }
     }
 

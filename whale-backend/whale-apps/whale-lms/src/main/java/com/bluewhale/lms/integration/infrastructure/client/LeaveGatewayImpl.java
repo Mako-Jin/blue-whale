@@ -168,7 +168,7 @@ public class LeaveGatewayImpl implements LeaveGateway {
     private String baseUrl() {
         List<ServiceInstance> instances = discoveryClient.getInstances(SERVICE_NAME);
         if (instances.isEmpty()) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "OA 服务不可用");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.lms.integration.o-service-unavailable", "OA 服务不可用");
         }
         return instances.getFirst().getUri().toString();
     }

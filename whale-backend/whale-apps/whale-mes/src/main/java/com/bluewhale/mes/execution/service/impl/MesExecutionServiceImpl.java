@@ -146,8 +146,7 @@ public class MesExecutionServiceImpl implements MesExecutionService {
         if (request != null && StringUtils.hasText(request.getEquipmentCode())) {
             MesEquipmentGateVO gate = equipmentService.gate(request.getEquipmentCode());
             if (!Boolean.TRUE.equals(gate.getPassed())) {
-                throw new BizException(ErrorCode.PARAM_ERROR,
-                        "开工门禁未通过：" + gate.getMessage());
+                throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.execution.start-gate-pass", "开工门禁未通过：{0}", gate.getMessage());
             }
         }
         task.setStatus(TASK_IN_PROGRESS);
@@ -185,7 +184,7 @@ public class MesExecutionServiceImpl implements MesExecutionService {
         assertStatus(task, Set.of(TASK_IN_PROGRESS, TASK_PAUSED), "完工");
         BigDecimal reported = zeroIfNull(task.getReportedQuantity());
         if (reported.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "任务尚未报工，不能完工");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.execution.task-yet-work-report-cannot-completion", "任务尚未报工，不能完工");
         }
         task.setCompletedQuantity(zeroIfNull(task.getQualifiedQuantity()));
         task.setStatus(TASK_COMPLETED);
@@ -201,17 +200,17 @@ public class MesExecutionServiceImpl implements MesExecutionService {
         MesWorkOrderTask task = requireTask(taskId);
         assertStatus(task, Set.of(TASK_DISPATCHED, TASK_IN_PROGRESS, TASK_PAUSED), "报废");
         if (request.getQuantity() == null || request.getQuantity().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "报废数量必须大于 0");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.execution.scrap-quantity-greater-than-0", "报废数量必须大于 0");
         }
         if (!StringUtils.hasText(request.getRemark())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "报废必须填写原因");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.execution.scrap-fill-in-reason", "报废必须填写原因");
         }
         BigDecimal dispatched = zeroIfNull(task.getDispatchedQuantity());
         BigDecimal used = zeroIfNull(task.getCompletedQuantity())
                 .add(zeroIfNull(task.getScrappedQuantity()))
                 .add(request.getQuantity());
         if (used.compareTo(dispatched) > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "报废数量超过任务剩余可执行数量");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.execution.scrap-quantity-exceed-task-remaining-executable", "报废数量超过任务剩余可执行数量");
         }
         task.setScrappedQuantity(zeroIfNull(task.getScrappedQuantity()).add(request.getQuantity()));
         if (zeroIfNull(task.getCompletedQuantity()).add(task.getScrappedQuantity()).compareTo(dispatched) >= 0) {
@@ -230,11 +229,12 @@ public class MesExecutionServiceImpl implements MesExecutionService {
         assertStatus(task, Set.of(TASK_IN_PROGRESS, TASK_PAUSED), "报工");
         BigDecimal total = request.getQualifiedQuantity().add(request.getDefectQuantity());
         if (total.compareTo(request.getReportQuantity()) != 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "合格数量 + 不良数量必须等于报工数量");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.execution.qualified-quantity-defect-quantity-equal-work", "合格数量 + 不良数量必须等于报工数量");
         }
         BigDecimal reported = zeroIfNull(task.getReportedQuantity()).add(request.getReportQuantity());
         if (reported.compareTo(zeroIfNull(task.getDispatchedQuantity())) > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "累计报工数量超过已派工数量");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.execution.cumulative-reported-quantity-exceed-dispatched-quantity",
+                          "累计报工数量超过已派工数量");
         }
         validateDefects(request);
         MesProductionReport report = buildReport(task, request);
@@ -279,7 +279,7 @@ public class MesExecutionServiceImpl implements MesExecutionService {
         MesWorkOrderTask task = request.getTaskId() == null ? null : requireTask(request.getTaskId());
         Long workOrderId = task != null ? task.getWorkOrderId() : request.getWorkOrderId();
         if (workOrderId == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "异常必须关联工单或任务");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.execution.exception-association-work-order-task", "异常必须关联工单或任务");
         }
         requireWorkOrder(workOrderId);
         MesExceptionEvent event = buildException(workOrderId, request);
@@ -301,7 +301,7 @@ public class MesExecutionServiceImpl implements MesExecutionService {
             event.setResolvedAt(LocalDateTime.now());
         }
         if (exceptionMapper.updateById(event) == 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "异常单已被其他用户修改，请刷新后重试");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.execution.exception-single-was-modified-refresh-retry", "异常单已被其他用户修改，请刷新后重试");
         }
         recordAction(event.getId(), request.getActionType(), from, to, request.getRemark());
         return toExceptionVo(event);
@@ -315,7 +315,7 @@ public class MesExecutionServiceImpl implements MesExecutionService {
         assertLineBinding(request.getLineId(), request.getLineCode());
         String issueType = request.getIssueType() == null ? ISSUE_TYPE_ISSUE : request.getIssueType();
         if (ISSUE_TYPE_SUPPLEMENT.equals(issueType) && !StringUtils.hasText(request.getReason())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "补料必须填写补料原因");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.execution.material-replenishment-fill-in-material-replenishment", "补料必须填写补料原因");
         }
         MesMaterialIssue issue = new MesMaterialIssue();
         issue.setIssueNo(MesCodeGenerator.nextNo("MIS"));
@@ -355,7 +355,7 @@ public class MesExecutionServiceImpl implements MesExecutionService {
             return;
         }
         if (lineId == null || !StringUtils.hasText(lineCode)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "产线 ID 与产线编码必须同时填写");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.execution.production-line-id-code-provided-together", "产线 ID 与产线编码必须同时填写");
         }
     }
 
@@ -391,10 +391,11 @@ public class MesExecutionServiceImpl implements MesExecutionService {
         if (request.getIssueId() != null) {
             MesMaterialIssue issue = materialIssueMapper.selectById(request.getIssueId());
             if (issue == null) {
-                throw new BizException(ErrorCode.NOT_FOUND, "原领料单不存在：" + request.getIssueId());
+                throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.execution.original-material-requisition-found", "原领料单不存在：{0}",
+                              request.getIssueId());
             }
             if (!issue.getWorkOrderId().equals(request.getWorkOrderId())) {
-                throw new BizException(ErrorCode.PARAM_ERROR, "原领料单不属于当前工单");
+                throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.execution.original-material-requisition-belong-work-order", "原领料单不属于当前工单");
             }
         }
         MesMaterialReturn entity = new MesMaterialReturn();
@@ -428,7 +429,7 @@ public class MesExecutionServiceImpl implements MesExecutionService {
                 .map(MesReportRequest.DefectItem::getQuantity)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         if (total.compareTo(request.getDefectQuantity()) != 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "不良明细合计必须等于不良数量");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.execution.defect-detail-total-equal-defect-quantity", "不良明细合计必须等于不良数量");
         }
     }
 
@@ -580,26 +581,26 @@ public class MesExecutionServiceImpl implements MesExecutionService {
         String current = event.getStatus();
         if ("ACKNOWLEDGE".equals(action)) {
             if (!EXCEPTION_OPEN.equals(current)) {
-                throw new BizException(ErrorCode.PARAM_ERROR, "仅待处理异常可以确认");
+                throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.execution.pending-exceptions-can-confirmed", "仅待处理异常可以确认");
             }
             event.setStatus(EXCEPTION_ACKNOWLEDGED);
             return EXCEPTION_ACKNOWLEDGED;
         }
         if ("RESOLVE".equals(action)) {
             if (!EXCEPTION_OPEN.equals(current) && !EXCEPTION_ACKNOWLEDGED.equals(current)) {
-                throw new BizException(ErrorCode.PARAM_ERROR, "当前异常状态不允许解决");
+                throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.execution.exception-status-allowed-resolve", "当前异常状态不允许解决");
             }
             if (!StringUtils.hasText(request.getResolution()) && !StringUtils.hasText(event.getResolution())) {
-                throw new BizException(ErrorCode.PARAM_ERROR, "解决异常必须填写处理结论");
+                throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.execution.resolve-exception-fill-in-handling-conclusion", "解决异常必须填写处理结论");
             }
             event.setStatus(EXCEPTION_RESOLVED);
             return EXCEPTION_RESOLVED;
         }
         if (!EXCEPTION_RESOLVED.equals(current)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "仅已解决异常可以关闭");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.execution.resolved-exceptions-can-closed", "仅已解决异常可以关闭");
         }
         if (!StringUtils.hasText(request.getResolution()) && !StringUtils.hasText(event.getResolution())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "关闭异常必须填写处理结论");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.execution.close-exception-fill-in-handling-conclusion", "关闭异常必须填写处理结论");
         }
         event.setStatus(EXCEPTION_CLOSED);
         return EXCEPTION_CLOSED;
@@ -637,7 +638,7 @@ public class MesExecutionServiceImpl implements MesExecutionService {
         }
         MesWorkOrderTask task = requireTask(taskId);
         if (!task.getWorkOrderId().equals(workOrderId)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "任务不属于当前工单");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.execution.task-belong-work-order", "任务不属于当前工单");
         }
     }
 
@@ -650,7 +651,7 @@ public class MesExecutionServiceImpl implements MesExecutionService {
     private MesWorkOrderTask requireTask(Long taskId) {
         MesWorkOrderTask task = taskId == null ? null : taskMapper.selectById(taskId);
         if (task == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "任务不存在：" + taskId);
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.execution.task-found", "任务不存在：{0}", taskId);
         }
         return task;
     }
@@ -664,7 +665,7 @@ public class MesExecutionServiceImpl implements MesExecutionService {
     private MesWorkOrder requireWorkOrder(Long workOrderId) {
         MesWorkOrder workOrder = workOrderId == null ? null : mesWorkOrderMapper.selectById(workOrderId);
         if (workOrder == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "工单不存在：" + workOrderId);
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.execution.work-order-found", "工单不存在：{0}", workOrderId);
         }
         return workOrder;
     }
@@ -678,7 +679,7 @@ public class MesExecutionServiceImpl implements MesExecutionService {
     private MesExceptionEvent requireException(Long id) {
         MesExceptionEvent event = id == null ? null : exceptionMapper.selectById(id);
         if (event == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "异常单不存在：" + id);
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.execution.exception-single-found", "异常单不存在：{0}", id);
         }
         return event;
     }
@@ -692,8 +693,7 @@ public class MesExecutionServiceImpl implements MesExecutionService {
      */
     private void assertStatus(MesWorkOrderTask task, Set<String> allowed, String action) {
         if (!allowed.contains(task.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR,
-                    "任务当前状态【" + task.getStatus() + "】不允许" + action);
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.execution.task-status-allowed", "任务当前状态【{0}】不允许{1}", task.getStatus(), action);
         }
     }
 
@@ -704,7 +704,7 @@ public class MesExecutionServiceImpl implements MesExecutionService {
      */
     private void updateTask(MesWorkOrderTask task) {
         if (taskMapper.updateById(task) == 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "任务已被其他用户修改，请刷新后重试");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.execution.task-was-modified-refresh-retry", "任务已被其他用户修改，请刷新后重试");
         }
     }
 

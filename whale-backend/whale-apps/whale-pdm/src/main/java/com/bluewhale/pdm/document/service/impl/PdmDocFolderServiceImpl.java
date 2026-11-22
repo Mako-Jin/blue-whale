@@ -130,12 +130,12 @@ public class PdmDocFolderServiceImpl implements PdmDocFolderService {
         long childCount = folderMapper.selectCount(new LambdaQueryWrapper<PdmDocFolder>()
                 .eq(PdmDocFolder::getParentId, id));
         if (childCount > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "目录下存在子目录，不能删除");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.document.there-sub-directory-under-directory-cannot", "目录下存在子目录，不能删除");
         }
         long documentCount = documentMapper.selectCount(new LambdaQueryWrapper<PdmDocDocument>()
                 .eq(PdmDocDocument::getFolderId, id));
         if (documentCount > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "目录下存在文档，不能删除");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.document.there-document-under-directory-cannot-delete", "目录下存在文档，不能删除");
         }
         folderMapper.deleteById(folder.getId());
     }
@@ -276,11 +276,11 @@ public class PdmDocFolderServiceImpl implements PdmDocFolderService {
      */
     private PdmDocFolder requireFolder(Long id) {
         if (id == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "目录不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.document.directory-found", "目录不存在");
         }
         PdmDocFolder folder = folderMapper.selectById(id);
         if (folder == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "目录不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.document.directory-found-2", "目录不存在");
         }
         return folder;
     }
@@ -300,7 +300,7 @@ public class PdmDocFolderServiceImpl implements PdmDocFolderService {
             wrapper.ne(PdmDocFolder::getId, exclude);
         }
         if (folderMapper.selectCount(wrapper) > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "同级目录名称已存在");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.document.same-level-directory-name-already-exists", "同级目录名称已存在");
         }
     }
 
@@ -315,7 +315,7 @@ public class PdmDocFolderServiceImpl implements PdmDocFolderService {
             return;
         }
         if (parent.getId().equals(folder.getId()) || parent.getPath().startsWith(folder.getPath())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "不能把目录移动到自身或子目录下");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.document.cannot-move-directory-under-itself-sub", "不能把目录移动到自身或子目录下");
         }
     }
 

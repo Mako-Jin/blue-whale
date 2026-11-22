@@ -69,14 +69,14 @@ public class ErpPayableGatewayImpl implements ErpPayableGateway {
         Map<String, Object> response = post(body);
         Object data = requireSuccess(response);
         if (!(data instanceof Map<?, ?> map)) {
-            throw new BizException(OaErrorCode.EXPENSE_ERP_UNAVAILABLE, "ERP 应付单返回数据格式异常");
+            throw new BizException(OaErrorCode.EXPENSE_ERP_UNAVAILABLE, "biz.oa.expense.e-r-p-payable-single-returned", "ERP 应付单返回数据格式异常");
         }
         Object payableNo = map.get(FIELD_PAYABLE_NO);
         if (payableNo == null) {
             payableNo = map.get(FIELD_CODE);
         }
         if (!StringUtils.hasText(payableNo == null ? null : String.valueOf(payableNo))) {
-            throw new BizException(OaErrorCode.EXPENSE_ERP_UNAVAILABLE, "ERP 应付单未返回单号");
+            throw new BizException(OaErrorCode.EXPENSE_ERP_UNAVAILABLE, "biz.oa.expense.e-r-p-payable-single-return", "ERP 应付单未返回单号");
         }
         return String.valueOf(payableNo);
     }

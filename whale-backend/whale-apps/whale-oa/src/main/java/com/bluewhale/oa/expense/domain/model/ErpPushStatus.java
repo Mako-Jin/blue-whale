@@ -34,7 +34,7 @@ public enum ErpPushStatus {
         try {
             return ErpPushStatus.valueOf(value);
         } catch (IllegalArgumentException | NullPointerException exception) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "ERP 推送状态非法");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.oa.expense.e-r-p-push-status-invalid", "ERP 推送状态非法");
         }
     }
 }

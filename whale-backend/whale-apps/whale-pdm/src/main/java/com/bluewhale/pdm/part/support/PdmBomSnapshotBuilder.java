@@ -98,8 +98,8 @@ public final class PdmBomSnapshotBuilder {
             return;
         }
         if (!pathSet.add(parentId)) {
-            throw new BizException(ErrorCode.PARAM_ERROR,
-                    "BOM_CYCLE_DETECTED: 零件 " + parentId + " 在结构树中形成环");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.part.bom-cycle-detected-part-forms-cycle", "BOM_CYCLE_DETECTED: 零件 {0} 在结构树中形成环",
+                          parentId);
         }
         List<PdmBomLine> edges = byParent.getOrDefault(parentId, List.of());
         for (int index = 0; index < edges.size(); index++) {
@@ -161,7 +161,7 @@ public final class PdmBomSnapshotBuilder {
         try {
             return MAPPER.writeValueAsString(root);
         } catch (JsonProcessingException ex) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "BOM 快照序列化失败");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.pdm.part.failed-b-o-m-snapshot-serialize", "BOM 快照序列化失败");
         }
     }
 
@@ -181,7 +181,7 @@ public final class PdmBomSnapshotBuilder {
             }
             return builder.toString();
         } catch (NoSuchAlgorithmException ex) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "SHA-256 不可用");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.pdm.part.sha-256-unavailable", "SHA-256 不可用");
         }
     }
 
@@ -195,7 +195,7 @@ public final class PdmBomSnapshotBuilder {
         try {
             return MAPPER.readValue(payload, PdmBomSnapshotVO.class);
         } catch (JsonProcessingException ex) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "BOM 快照解析失败");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.pdm.part.failed-b-o-m-snapshot-parse", "BOM 快照解析失败");
         }
     }
 

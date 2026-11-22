@@ -82,7 +82,7 @@ public class ImAgentRunService {
         }
         guard.requireMember(run.getConversationId(), userId);
         if (!STATUS_WAITING_CONFIRM.equals(run.getStatus())) {
-            throw new BizException(ErrorCode.REPEAT_SUBMIT.getCode(), "该运行不在待确认状态");
+            throw new BizException(ErrorCode.REPEAT_SUBMIT.getCode(), "biz.im.service.run-in-pending-confirmation-status", "该运行不在待确认状态");
         }
         JsonNode card = readCard(run.getConfirmationJson());
         String confirmationId = card.path("confirmationId").asText("");

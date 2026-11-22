@@ -158,7 +158,7 @@ public class PdmChgOrderServiceImpl implements PdmChgOrderService {
     public PdmChgOrderVO assess(Long id, PdmChgOrderAssessRequest request) {
         PdmChgOrder entity = requireStatus(id, PdmChgOrderStatus.DRAFT);
         if (!StringUtils.hasText(request.getImpactAssessment())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "影响评估不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.change.impact-assessment-empty", "影响评估不能为空");
         }
         entity.setImpactAssessment(request.getImpactAssessment().trim());
         entity.setExecutePlan(blankToNull(request.getExecutePlan()));
@@ -205,12 +205,12 @@ public class PdmChgOrderServiceImpl implements PdmChgOrderService {
     public PdmChgOrderVO submit(Long id) {
         PdmChgOrder entity = requireStatus(id, PdmChgOrderStatus.ASSESSING);
         if (!StringUtils.hasText(entity.getImpactAssessment())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "影响评估不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.change.impact-assessment-empty-2", "影响评估不能为空");
         }
         long taskCount = chgTaskMapper.selectCount(
                 new LambdaQueryWrapper<PdmChgTask>().eq(PdmChgTask::getEcoId, entity.getId()));
         if (taskCount == 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "变更任务不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.change.change-task-empty", "变更任务不能为空");
         }
         entity.setStatus(PdmChgOrderStatus.APPROVING);
         entity.setSubmitTime(LocalDateTime.now());
@@ -239,7 +239,7 @@ public class PdmChgOrderServiceImpl implements PdmChgOrderService {
     @Transactional(rollbackFor = Exception.class)
     public PdmChgOrderVO reject(Long id, String comment, Long userId) {
         if (!StringUtils.hasText(comment)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "驳回必须填写审批意见");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.change.reject-fill-in-approval-comment", "驳回必须填写审批意见");
         }
         PdmChgOrder entity = requireStatus(id, PdmChgOrderStatus.APPROVING);
         entity.setStatus(PdmChgOrderStatus.REJECTED);
@@ -273,7 +273,7 @@ public class PdmChgOrderServiceImpl implements PdmChgOrderService {
         PdmChgOrder entity = requireStatus(id, PdmChgOrderStatus.EXECUTING);
         PdmChgTask task = requireTask(entity.getId(), taskId);
         if (PdmChgTaskStatus.COMPLETED.equals(task.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "变更任务已完成，不可重复完成");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.change.change-task-complete-cannot-duplicate-complete", "变更任务已完成，不可重复完成");
         }
         task.setStatus(PdmChgTaskStatus.COMPLETED);
         task.setResultVersionNo(PdmVersionNo.parse(resultVersionNo).value());
@@ -294,7 +294,7 @@ public class PdmChgOrderServiceImpl implements PdmChgOrderService {
                 .eq(PdmChgTask::getEcoId, entity.getId())
                 .ne(PdmChgTask::getStatus, PdmChgTaskStatus.COMPLETED));
         if (unfinished > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "存在未完成的变更任务，不能完成变更单");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.change.exist-complete-change-task-cannot-complete", "存在未完成的变更任务，不能完成变更单");
         }
         entity.setStatus(PdmChgOrderStatus.COMPLETED);
         entity.setCompleteTime(LocalDateTime.now());
@@ -361,14 +361,14 @@ public class PdmChgOrderServiceImpl implements PdmChgOrderService {
      */
     private PdmChgRequest requireApprovedRequest(Long ecrId) {
         if (ecrId == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "来源变更申请不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.change.source-change-application-empty", "来源变更申请不能为空");
         }
         PdmChgRequest ecr = chgRequestMapper.selectById(ecrId);
         if (ecr == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "来源变更申请不存在");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.change.source-change-application-found", "来源变更申请不存在");
         }
         if (!PdmChgRequestStatus.APPROVED.equals(ecr.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "仅审批通过的变更申请可创建变更单");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.change.approval-pass-change-application-can-creation", "仅审批通过的变更申请可创建变更单");
         }
         return ecr;
     }
@@ -382,7 +382,7 @@ public class PdmChgOrderServiceImpl implements PdmChgOrderService {
     private PdmChgOrder requireOrder(Long id) {
         PdmChgOrder entity = chgOrderMapper.selectById(id);
         if (entity == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "变更单不存在");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.change.change-order-found", "变更单不存在");
         }
         return entity;
     }
@@ -401,7 +401,7 @@ public class PdmChgOrderServiceImpl implements PdmChgOrderService {
                 return entity;
             }
         }
-        throw new BizException(ErrorCode.PARAM_ERROR, "变更单当前状态不允许该操作：" + entity.getStatus());
+        throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.change.status-change-order-allow-operation", "变更单当前状态不允许该操作：{0}", entity.getStatus());
     }
 
     /**
@@ -424,7 +424,7 @@ public class PdmChgOrderServiceImpl implements PdmChgOrderService {
     private PdmChgTask requireTask(Long ecoId, Long taskId) {
         PdmChgTask task = chgTaskMapper.selectById(taskId);
         if (task == null || !ecoId.equals(task.getEcoId())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "变更任务不存在");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.change.change-task-found", "变更任务不存在");
         }
         return task;
     }

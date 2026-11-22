@@ -170,7 +170,7 @@ public class ErpReturnInternalClient implements ErpReturnPort {
      * @return 业务异常
      */
     private BizException failure(String message) {
-        return new BizException(ErrorCode.SYSTEM_ERROR, "ERP 退货下发失败: " + message);
+        return new BizException(ErrorCode.SYSTEM_ERROR, "biz.crm.service.failed-dispatch-erp-return", "ERP 退货下发失败: {0}", message);
     }
 
     /**

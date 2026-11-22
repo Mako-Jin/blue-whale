@@ -76,17 +76,18 @@ public class MesBarcodeServiceImpl implements MesBarcodeService {
     public List<MesBarcodeVO> generate(MesBarcodeGenerateRequest request) {
         MesBarcodeRule rule = ruleMapper.selectById(request.getRuleId());
         if (rule == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "条码规则不存在：" + request.getRuleId());
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.trace.barcode-rule-found", "条码规则不存在：{0}", request.getRuleId());
         }
         if (!STATUS_ENABLED.equals(rule.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "条码规则已停用：" + rule.getRuleCode());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.trace.barcode-rule-disabled", "条码规则已停用：{0}", rule.getRuleCode());
         }
         MesMaterialBatch batch = batchMapper.selectById(request.getBatchId());
         if (batch == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "批次不存在：" + request.getBatchId());
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.trace.batch-found", "批次不存在：{0}", request.getBatchId());
         }
         if (BATCH_CLOSED.equals(batch.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "批次已封批，不能生成条码：" + batch.getBatchNo());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.trace.batch-batch-closure-cannot-generate-barcode", "批次已封批，不能生成条码：{0}",
+                          batch.getBatchNo());
         }
         long existed = barcodeMapper.selectCount(new LambdaQueryWrapper<MesBarcode>()
                 .eq(MesBarcode::getRuleId, rule.getId()));
@@ -120,7 +121,7 @@ public class MesBarcodeServiceImpl implements MesBarcodeService {
     public void voidBarcode(Long id) {
         MesBarcode barcode = barcodeMapper.selectById(id);
         if (barcode == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "条码不存在：" + id);
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.trace.barcode-found", "条码不存在：{0}", id);
         }
         if (BARCODE_VOID.equals(barcode.getStatus())) {
             return;
@@ -154,11 +155,11 @@ public class MesBarcodeServiceImpl implements MesBarcodeService {
         duplicate.eq(MesBarcodeRule::getRuleCode, request.getRuleCode());
         duplicate.ne(request.getId() != null, MesBarcodeRule::getId, request.getId());
         if (ruleMapper.selectCount(duplicate) > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "条码规则编码已存在：" + request.getRuleCode());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.trace.barcode-rule-code-already-exists", "条码规则编码已存在：{0}", request.getRuleCode());
         }
         MesBarcodeRule rule = request.getId() == null ? new MesBarcodeRule() : ruleMapper.selectById(request.getId());
         if (rule == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "条码规则不存在：" + request.getId());
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.trace.barcode-rule-found-2", "条码规则不存在：{0}", request.getId());
         }
         rule.setRuleCode(request.getRuleCode());
         rule.setRuleName(request.getRuleName());
@@ -170,7 +171,7 @@ public class MesBarcodeServiceImpl implements MesBarcodeService {
         if (rule.getId() == null) {
             ruleMapper.insert(rule);
         } else if (ruleMapper.updateById(rule) == 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "条码规则已被其他用户修改，请刷新后重试");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.trace.barcode-rule-was-modified-refresh-retry", "条码规则已被其他用户修改，请刷新后重试");
         }
         return toRuleVo(rule);
     }

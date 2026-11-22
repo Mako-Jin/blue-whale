@@ -55,12 +55,12 @@ public class PdmChgMessageClientImpl implements PdmChgMessageClient {
                 .retrieve()
                 .body(Map.class);
         if (response == null) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "消息服务响应为空");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.pdm.change.message-service-returned-empty-response", "消息服务响应为空");
         }
         Object code = response.get("code");
         if (!(code instanceof Number number) || number.intValue() != CODE_SUCCESS) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR,
-                    "消息服务返回失败: " + response.get("message"));
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.pdm.change.failed-message-service-return-message",
+                    "消息服务返回失败: {0}", response.get("message"));
         }
     }
 
@@ -72,7 +72,7 @@ public class PdmChgMessageClientImpl implements PdmChgMessageClient {
     private String baseUrl() {
         List<ServiceInstance> instances = discoveryClient.getInstances(SERVICE_NAME);
         if (instances.isEmpty()) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "消息服务不可用");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.pdm.change.message-service-unavailable", "消息服务不可用");
         }
         return instances.get(0).getUri().toString();
     }

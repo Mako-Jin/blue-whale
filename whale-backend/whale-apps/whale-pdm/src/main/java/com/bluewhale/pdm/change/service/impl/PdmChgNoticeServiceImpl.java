@@ -166,7 +166,7 @@ public class PdmChgNoticeServiceImpl implements PdmChgNoticeService {
         long exists = noticeMapper.selectCount(new LambdaQueryWrapper<PdmChgNotice>()
                 .eq(PdmChgNotice::getEcoId, order.getId()));
         if (exists > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "该变更单已存在变更通知");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.change.change-notification-already-exists-change-order", "该变更单已存在变更通知");
         }
         PdmChgNotice entity = new PdmChgNotice();
         entity.setNoticeNo(newNoticeNo());
@@ -185,7 +185,7 @@ public class PdmChgNoticeServiceImpl implements PdmChgNoticeService {
     public PdmChgNoticeVO update(Long id, PdmChgNoticeSaveRequest request, Long userId) {
         PdmChgNotice entity = requireStatus(id, PdmChgNoticeStatus.DRAFT);
         if (!entity.getEcoId().equals(request.getEcoId())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "不允许更换来源变更单");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.change.allowed-replace-source-change-order", "不允许更换来源变更单");
         }
         PdmChgOrder order = requireEcoReady(entity.getEcoId());
         requireEffectiveFrom(request.getEffectiveFrom(), order);
@@ -224,11 +224,11 @@ public class PdmChgNoticeServiceImpl implements PdmChgNoticeService {
             return detail(id);
         }
         if (!PdmChgNoticeStatus.NOTIFIED.equals(entity.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "仅已通知的变更通知可生效");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.change.notification-change-notification-can-take-effect", "仅已通知的变更通知可生效");
         }
         LocalDateTime now = LocalDateTime.now();
         if (entity.getEffectiveFrom().isAfter(now)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "生效日期未到，不能提前生效");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.change.effective-date-reach-cannot-in-advance", "生效日期未到，不能提前生效");
         }
         PdmChgOrder order = requireEcoReady(entity.getEcoId());
         applyObsolete(entity, order, userId);
@@ -269,7 +269,7 @@ public class PdmChgNoticeServiceImpl implements PdmChgNoticeService {
         requireNotice(id);
         PdmChgNotifyLog failed = latestFailedLog(id);
         if (failed == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "没有可重试的失败通知");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.change.failed-notification-available-retry", "没有可重试的失败通知");
         }
         PdmChgNotice notice = requireNotice(id);
         failed.setRetryCount(failed.getRetryCount() == null ? 1 : failed.getRetryCount() + 1);
@@ -284,7 +284,8 @@ public class PdmChgNoticeServiceImpl implements PdmChgNoticeService {
             failed.setStatus(NOTIFY_FAILED);
             failed.setLastError(truncate(ex.getMessage()));
             notifyLogMapper.updateById(failed);
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "变更通知重试失败：" + truncate(ex.getMessage()));
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.pdm.change.failed-change-notification-retry", "变更通知重试失败：{0}",
+                          truncate(ex.getMessage()));
         }
         return detail(id);
     }
@@ -292,7 +293,7 @@ public class PdmChgNoticeServiceImpl implements PdmChgNoticeService {
     @Override
     public PageResult<PdmChgNotifyLogVO> notifyLogPage(Long noticeId, Long current, Long size) {
         if (noticeId == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "变更通知ID不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.change.change-notification-id-empty", "变更通知ID不能为空");
         }
         long limit = Math.min(Math.max(size == null ? 20L : size, 1L), MAX_PAGE_SIZE);
         long pageNo = current == null || current < 1L ? 1L : current;
@@ -461,7 +462,7 @@ public class PdmChgNoticeServiceImpl implements PdmChgNoticeService {
     private PdmChgNotice requireNotice(Long id) {
         PdmChgNotice entity = noticeMapper.selectById(id);
         if (entity == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "变更通知不存在");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.change.change-notification-found", "变更通知不存在");
         }
         return entity;
     }
@@ -476,7 +477,8 @@ public class PdmChgNoticeServiceImpl implements PdmChgNoticeService {
                 return entity;
             }
         }
-        throw new BizException(ErrorCode.PARAM_ERROR, "变更通知当前状态不允许该操作：" + entity.getStatus());
+        throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.change.status-change-notification-allow-operation", "变更通知当前状态不允许该操作：{0}",
+                      entity.getStatus());
     }
 
     /**
@@ -484,14 +486,14 @@ public class PdmChgNoticeServiceImpl implements PdmChgNoticeService {
      */
     private PdmChgOrder requireEcoReady(Long ecoId) {
         if (ecoId == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "来源变更单不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.change.source-change-order-empty", "来源变更单不能为空");
         }
         PdmChgOrder order = chgOrderMapper.selectById(ecoId);
         if (order == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "来源变更单不存在");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.change.source-change-order-found", "来源变更单不存在");
         }
         if (!ECO_READY_STATUSES.contains(order.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "变更单未审批通过，不能创建变更通知");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.change.change-order-approval-pass-cannot-creation", "变更单未审批通过，不能创建变更通知");
         }
         return order;
     }
@@ -501,10 +503,10 @@ public class PdmChgNoticeServiceImpl implements PdmChgNoticeService {
      */
     private static void requireEffectiveFrom(LocalDateTime effectiveFrom, PdmChgOrder order) {
         if (effectiveFrom == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "生效日期不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.change.effective-date-empty", "生效日期不能为空");
         }
         if (order.getApproveTime() != null && effectiveFrom.isBefore(order.getApproveTime())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "生效日期不能早于审批通过日");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.change.effective-date-earlier-than-approval-pass", "生效日期不能早于审批通过日");
         }
     }
 
@@ -526,7 +528,7 @@ public class PdmChgNoticeServiceImpl implements PdmChgNoticeService {
         try {
             return OBJECT_MAPPER.writeValueAsString(targets == null ? List.of() : targets);
         } catch (Exception ex) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "接收人格式不正确");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.change.recipient-invalid-format", "接收人格式不正确");
         }
     }
 

@@ -32,7 +32,7 @@ public enum TripTransportType {
         try {
             return TripTransportType.valueOf(value);
         } catch (IllegalArgumentException | NullPointerException exception) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "出差交通方式非法");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.oa.hr.business-trip-transport-mode-invalid", "出差交通方式非法");
         }
     }
 }

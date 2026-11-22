@@ -34,7 +34,7 @@ public enum ExpenseStatus {
         try {
             return ExpenseStatus.valueOf(value);
         } catch (IllegalArgumentException | NullPointerException exception) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "报销状态非法");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.oa.expense.reimbursement-status-invalid", "报销状态非法");
         }
     }
 }

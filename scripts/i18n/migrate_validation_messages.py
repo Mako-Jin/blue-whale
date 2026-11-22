@@ -822,6 +822,9 @@ def check_all():
                 if key.endswith(".xxx") or "example" in key or "*" in key:
                     continue  # 文档/代码中的示例占位符
                 refs[key].add(str(p))
+            # 业务异常 messageKey：new BizException(..., "biz.xxx", ...)
+            for key in re.findall(r'"(biz\.[A-Za-z0-9_.-]+)"', txt):
+                refs[key].add(str(p))
     # 收集三份 properties 的 key（按所在目录分组；只看 i18n/<module>/ 结构）
     bundles = defaultdict(dict)
     for p in BACKEND.rglob("messages*.properties"):

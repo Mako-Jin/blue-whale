@@ -85,13 +85,14 @@ public class PdmClbDeliverableServiceImpl implements PdmClbDeliverableService {
     public PdmClbDeliverableVO archive(PdmClbDeliverableSaveRequest request, Long userId) {
         String objectType = request.getObjectType().trim().toUpperCase();
         if (!PdmClbObjectType.isValidDeliverable(objectType)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "交付物对象类型仅支持 DOCUMENT/BOM/ROUTE");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.collab.deliverable-object-type-supports-document-bom",
+                          "交付物对象类型仅支持 DOCUMENT/BOM/ROUTE");
         }
         String deliverableType = StringUtils.hasText(request.getDeliverableType())
                 ? request.getDeliverableType().trim().toUpperCase()
                 : PdmClbDeliverableStatus.TYPE_OTHER;
         if (!PdmClbDeliverableStatus.isValidType(deliverableType)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "交付物类型不合法");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.collab.deliverable-type-invalid", "交付物类型不合法");
         }
         PdmClbDeliverable entity = new PdmClbDeliverable();
         entity.setProjectId(request.getProjectId());
@@ -117,7 +118,7 @@ public class PdmClbDeliverableServiceImpl implements PdmClbDeliverableService {
     public void delete(Long id) {
         PdmClbDeliverable entity = deliverableMapper.selectById(id);
         if (entity == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "交付物不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.collab.deliverable-found", "交付物不存在");
         }
         deliverableMapper.deleteById(id);
     }
@@ -132,7 +133,8 @@ public class PdmClbDeliverableServiceImpl implements PdmClbDeliverableService {
             case PdmClbObjectType.DOCUMENT -> fillDocumentSnapshot(entity);
             case PdmClbObjectType.BOM -> fillBomSnapshot(entity);
             case PdmClbObjectType.ROUTE -> fillRouteSnapshot(entity);
-            default -> throw new BizException(ErrorCode.PARAM_ERROR, "交付物对象类型仅支持 DOCUMENT/BOM/ROUTE");
+            default -> throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.collab.deliverable-object-type-supports-document-bom-2",
+                                     "交付物对象类型仅支持 DOCUMENT/BOM/ROUTE");
         }
     }
 
@@ -144,16 +146,16 @@ public class PdmClbDeliverableServiceImpl implements PdmClbDeliverableService {
     private void fillDocumentSnapshot(PdmClbDeliverable entity) {
         PdmDocDocument document = documentMapper.selectById(entity.getObjectId());
         if (document == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "归档文档不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.collab.archive-document-found", "归档文档不存在");
         }
         PdmDocVersion version = versionMapper.selectOne(new LambdaQueryWrapper<PdmDocVersion>()
                 .eq(PdmDocVersion::getDocumentId, entity.getObjectId())
                 .eq(PdmDocVersion::getVersionNo, entity.getObjectVersionNo()));
         if (version == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "归档文档版本不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.collab.archive-document-version-found", "归档文档版本不存在");
         }
         if (!DOC_RELEASED.equals(version.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "只能归档已发布文档版本");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.collab.can-archive-published-document-version", "只能归档已发布文档版本");
         }
         if (!StringUtils.hasText(entity.getObjectNo())) {
             entity.setObjectNo(document.getDocNo());
@@ -171,11 +173,11 @@ public class PdmClbDeliverableServiceImpl implements PdmClbDeliverableService {
     private void fillBomSnapshot(PdmClbDeliverable entity) {
         PdmBom bom = bomMapper.selectById(entity.getObjectId());
         if (bom == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "归档 BOM 不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.collab.archive-b-o-m-found", "归档 BOM 不存在");
         }
         if (!PdmPrcStatus.RELEASED.equals(bom.getStatus())
                 || !entity.getObjectVersionNo().equals(bom.getVersionNo())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "只能归档已发布 BOM 版本");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.collab.can-archive-published-b-o-m", "只能归档已发布 BOM 版本");
         }
         if (!StringUtils.hasText(entity.getObjectNo())) {
             entity.setObjectNo(bom.getBomNo());
@@ -193,11 +195,11 @@ public class PdmClbDeliverableServiceImpl implements PdmClbDeliverableService {
     private void fillRouteSnapshot(PdmClbDeliverable entity) {
         PdmPrcRoute route = routeMapper.selectById(entity.getObjectId());
         if (route == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "归档工艺路线不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.collab.archive-routing-found", "归档工艺路线不存在");
         }
         if (!PdmPrcStatus.RELEASED.equals(route.getStatus())
                 || !entity.getObjectVersionNo().equals(route.getVersionNo())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "只能归档已发布工艺路线版本");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.collab.can-archive-published-routing-version", "只能归档已发布工艺路线版本");
         }
         if (!StringUtils.hasText(entity.getObjectNo())) {
             entity.setObjectNo(route.getRouteNo());
@@ -219,7 +221,7 @@ public class PdmClbDeliverableServiceImpl implements PdmClbDeliverableService {
                 .eq(PdmClbDeliverable::getObjectId, entity.getObjectId())
                 .eq(PdmClbDeliverable::getObjectVersionNo, entity.getObjectVersionNo()));
         if (count != null && count > 0) {
-            throw new BizException(ErrorCode.REPEAT_SUBMIT, "该交付物已归档");
+            throw new BizException(ErrorCode.REPEAT_SUBMIT, "biz.pdm.collab.deliverable-been-archived", "该交付物已归档");
         }
     }
 

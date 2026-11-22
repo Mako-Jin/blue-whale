@@ -124,16 +124,16 @@ public class PdmBomServiceImpl implements PdmBomService {
     public PdmBomVO create(PdmBomSaveRequest request) {
         PdmProduct product = requirePart(request.getProductId());
         if (!PdmPartTypes.isAssembly(product.getPartType())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "仅成品/部件可创建 BOM");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.part.finished-product-component-can-creation-b", "仅成品/部件可创建 BOM");
         }
         if (!"ENABLED".equals(product.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "停用零件不能创建 BOM");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.part.disabled-part-cannot-creation-b-o", "停用零件不能创建 BOM");
         }
         String view = StringUtils.hasText(request.getView())
                 ? request.getView().trim()
                 : PdmBomViews.EBOM;
         if (!PdmBomViews.isValid(view)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "视图仅支持 EBOM/PBOM/MBOM");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.part.view-supports-ebom-pbom-mbom", "视图仅支持 EBOM/PBOM/MBOM");
         }
         String bomNo = resolveBomNo(request.getBomNo(), product.getCode(), view);
         List<PdmBom> existing = bomMapper.selectList(new LambdaQueryWrapper<PdmBom>()
@@ -162,12 +162,12 @@ public class PdmBomServiceImpl implements PdmBomService {
     public void delete(Long id) {
         PdmBom bom = requireBom(id);
         if (!PdmBomStatus.DRAFT.equals(bom.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "仅草稿 BOM 可删除");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.part.draft-b-o-m-can-delete", "仅草稿 BOM 可删除");
         }
         long releaseCount = bomReleaseMapper.selectCount(new LambdaQueryWrapper<PdmBomRelease>()
                 .eq(PdmBomRelease::getBomId, id));
         if (releaseCount > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "BOM 已存在发布记录，不能删除");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.part.b-o-m-already-exists-publish", "BOM 已存在发布记录，不能删除");
         }
         bomLineMapper.delete(new LambdaQueryWrapper<PdmBomLine>().eq(PdmBomLine::getBomId, id));
         bomMapper.deleteById(id);
@@ -181,10 +181,10 @@ public class PdmBomServiceImpl implements PdmBomService {
         PdmProduct child = requirePart(request.getChildPartId());
         validateAssembly(parent);
         if (!"ENABLED".equals(child.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "停用零件不能加入 BOM");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.part.disabled-part-cannot-added-bom", "停用零件不能加入 BOM");
         }
         if (!bom.getProductId().equals(parent.getId()) && !isPartInBom(bomId, parent.getId())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "父件不在当前 BOM 结构中");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.part.parent-part-in-bom-structure", "父件不在当前 BOM 结构中");
         }
         assertNoCycle(bomId, parent.getId(), child.getId());
         assertChildUnique(bomId, parent.getId(), child.getId(), null);
@@ -193,7 +193,7 @@ public class PdmBomServiceImpl implements PdmBomService {
                 ? nextLineNo(bomId, parent.getId())
                 : request.getLineNo();
         if (lineNo == null || lineNo <= 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "行序号必须大于 0");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.part.line-sequence-number-greater-than-0", "行序号必须大于 0");
         }
         assertLineNoUnique(bomId, parent.getId(), lineNo, null);
 
@@ -219,11 +219,11 @@ public class PdmBomServiceImpl implements PdmBomService {
         PdmBomLine line = requireLine(bomId, lineId);
         if (!Objects.equals(line.getParentPartId(), request.getParentPartId())
                 || !Objects.equals(line.getChildPartId(), request.getChildPartId())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "BOM 行的父件/子件不可修改");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.part.b-o-m-line-parent-part", "BOM 行的父件/子件不可修改");
         }
         Integer lineNo = request.getLineNo() == null ? line.getLineNo() : request.getLineNo();
         if (lineNo == null || lineNo <= 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "行序号必须大于 0");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.part.line-sequence-number-greater-than-0-2", "行序号必须大于 0");
         }
         assertLineNoUnique(bomId, line.getParentPartId(), lineNo, line.getId());
         line.setLineNo(lineNo);
@@ -246,7 +246,7 @@ public class PdmBomServiceImpl implements PdmBomService {
                 .eq(PdmBomLine::getBomId, bomId)
                 .eq(PdmBomLine::getParentPartId, line.getChildPartId()));
         if (childCount > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "该行仍有下级零件，不能删除");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.part.line-still-child-parts-cannot-deleted", "该行仍有下级零件，不能删除");
         }
         bomLineMapper.deleteById(lineId);
         return detail(bomId);
@@ -261,11 +261,11 @@ public class PdmBomServiceImpl implements PdmBomService {
             return toReleaseVo(existing);
         }
         if (!PdmBomStatus.DRAFT.equals(bom.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "仅草稿 BOM 可发布");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.part.draft-b-o-m-can-publish", "仅草稿 BOM 可发布");
         }
         List<PdmBomLine> lines = linesOf(bomId);
         if (lines.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "BOM 至少需要一行子件才能发布");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.part.bom-requires-at-least-one-component", "BOM 至少需要一行子件才能发布");
         }
         Map<Long, PdmProduct> parts = partsOf(bom, lines);
         PdmBomSnapshotVO snapshot = PdmBomSnapshotBuilder.build(bom, lines, parts);
@@ -312,7 +312,7 @@ public class PdmBomServiceImpl implements PdmBomService {
     public PdmBomSnapshotVO snapshot(String bomNo, String versionNo) {
         PdmBomRelease release = findRelease(bomNo, PdmBomVersionNo.requireValid(versionNo));
         if (release == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "BOM 发布快照不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.part.b-o-m-publish-snapshot-found", "BOM 发布快照不存在");
         }
         PdmBomSnapshotVO snapshot = PdmBomSnapshotBuilder.parse(release.getPayload());
         snapshot.setChecksum(release.getChecksum());
@@ -322,7 +322,7 @@ public class PdmBomServiceImpl implements PdmBomService {
     @Override
     public List<PdmPartWhereUsedVO> whereUsed(Long partId) {
         if (partId == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "零件不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.part.part-found", "零件不存在");
         }
         List<PdmBomLine> lines = bomLineMapper.selectList(new LambdaQueryWrapper<PdmBomLine>()
                 .eq(PdmBomLine::getChildPartId, partId));
@@ -368,11 +368,11 @@ public class PdmBomServiceImpl implements PdmBomService {
     public PdmBomVO derive(Long sourceId, PdmBomDeriveRequest request) {
         PdmBom source = requireBom(sourceId);
         if (!PdmBomViews.EBOM.equals(source.getView())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "仅 EBOM 可派生 PBOM/MBOM");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.part.ebom-can-derive-p-b-o", "仅 EBOM 可派生 PBOM/MBOM");
         }
         String targetView = request.getView() == null ? "" : request.getView().trim();
         if (!PdmBomViews.isDerivable(targetView)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "仅支持派生 PBOM 或 MBOM");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.part.pbom-mbom-can-derived", "仅支持派生 PBOM 或 MBOM");
         }
         List<PdmBom> derived = bomMapper.selectList(new LambdaQueryWrapper<PdmBom>()
                 .eq(PdmBom::getSourceBomId, sourceId)
@@ -432,7 +432,7 @@ public class PdmBomServiceImpl implements PdmBomService {
         PdmBom base = requireBom(baseId);
         PdmBom target = requireBom(targetId);
         if (!Objects.equals(base.getProductId(), target.getProductId())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "仅同一产品的 BOM 可对比");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.part.same-product-b-o-m-can", "仅同一产品的 BOM 可对比");
         }
         assertDiffSize(baseId);
         assertDiffSize(targetId);
@@ -444,7 +444,7 @@ public class PdmBomServiceImpl implements PdmBomService {
         PdmBom base = requireBom(baseId);
         PdmBom target = requireBom(targetId);
         if (!Objects.equals(base.getProductId(), target.getProductId())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "仅同一产品的 BOM 可对比");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.part.same-product-b-o-m-can-2", "仅同一产品的 BOM 可对比");
         }
         PdmBomDiffTask task = new PdmBomDiffTask();
         task.setBaseBomId(baseId);
@@ -465,7 +465,7 @@ public class PdmBomServiceImpl implements PdmBomService {
     public PdmBomDiffTaskVO getDiffTask(Long taskId) {
         PdmBomDiffTask task = bomDiffTaskMapper.selectById(taskId);
         if (task == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "对比任务不存在");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.part.compare-task-found", "对比任务不存在");
         }
         PdmBomDiffTaskVO vo = new PdmBomDiffTaskVO();
         vo.setId(task.getId());
@@ -480,7 +480,7 @@ public class PdmBomServiceImpl implements PdmBomService {
                 vo.setDiff(OBJECT_MAPPER.readValue(task.getResultJson(), PdmBomDiffVO.class));
             } catch (Exception ex) {
                 log.warn("BOM 对比结果解析失败: taskId={}", taskId, ex);
-                throw new BizException(ErrorCode.PARAM_ERROR, "对比结果不可用");
+                throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.part.compare-result-unavailable", "对比结果不可用");
             }
         }
         return vo;
@@ -778,7 +778,7 @@ public class PdmBomServiceImpl implements PdmBomService {
         long count = bomLineMapper.selectCount(new LambdaQueryWrapper<PdmBomLine>()
                 .eq(PdmBomLine::getBomId, bomId));
         if (count > MAX_DIFF_LINES) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "BOM 行数超过 2000，暂不支持在线对比");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.part.bom-more-than-2000-lines-online", "BOM 行数超过 2000，暂不支持在线对比");
         }
     }
 
@@ -935,7 +935,7 @@ public class PdmBomServiceImpl implements PdmBomService {
      */
     private void validateAssembly(PdmProduct parent) {
         if (!PdmPartTypes.isAssembly(parent.getPartType())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "仅成品/部件可作为 BOM 父件");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.part.finished-product-component-can-as-b", "仅成品/部件可作为 BOM 父件");
         }
     }
 
@@ -997,8 +997,7 @@ public class PdmBomServiceImpl implements PdmBomService {
      * @return 异常
      */
     private BizException cycleException(Long childId) {
-        return new BizException(ErrorCode.PARAM_ERROR,
-                CYCLE_PREFIX + " 零件 " + childId + " 会形成环");
+        return new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.part.part-in-would-form-cycle", "{0} 零件 {1} 会形成环", CYCLE_PREFIX, childId);
     }
 
     /**
@@ -1018,7 +1017,7 @@ public class PdmBomServiceImpl implements PdmBomService {
             wrapper.ne(PdmBomLine::getId, exclude);
         }
         if (bomLineMapper.selectCount(wrapper) > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "同一父件下子件已存在");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.part.same-parent-part-under-component-already", "同一父件下子件已存在");
         }
     }
 
@@ -1039,7 +1038,7 @@ public class PdmBomServiceImpl implements PdmBomService {
             wrapper.ne(PdmBomLine::getId, exclude);
         }
         if (bomLineMapper.selectCount(wrapper) > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "同级行序号已存在");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.part.same-level-line-sequence-number-already", "同级行序号已存在");
         }
     }
 
@@ -1070,7 +1069,7 @@ public class PdmBomServiceImpl implements PdmBomService {
      */
     private BigDecimal normalizeQty(BigDecimal qty) {
         if (qty == null || qty.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "用量必须大于 0");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.part.usage-greater-than-0", "用量必须大于 0");
         }
         return qty;
     }
@@ -1084,7 +1083,7 @@ public class PdmBomServiceImpl implements PdmBomService {
     private BigDecimal normalizeLoss(BigDecimal lossRate) {
         BigDecimal effective = lossRate == null ? BigDecimal.ZERO : lossRate;
         if (effective.compareTo(BigDecimal.ZERO) < 0 || effective.compareTo(BigDecimal.valueOf(100)) > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "损耗率必须在 0-100 之间");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.part.loss-rate-between-0-100", "损耗率必须在 0-100 之间");
         }
         return effective;
     }
@@ -1144,11 +1143,11 @@ public class PdmBomServiceImpl implements PdmBomService {
      */
     private PdmBom requireBom(Long id) {
         if (id == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "BOM 不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.part.bom-found", "BOM 不存在");
         }
         PdmBom bom = bomMapper.selectById(id);
         if (bom == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "BOM 不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.part.bom-found-2", "BOM 不存在");
         }
         return bom;
     }
@@ -1162,7 +1161,7 @@ public class PdmBomServiceImpl implements PdmBomService {
     private PdmBom requireDraftBom(Long id) {
         PdmBom bom = requireBom(id);
         if (!PdmBomStatus.DRAFT.equals(bom.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "BOM 已发布或已作废，不能修改");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.part.b-o-m-published-void-cannot", "BOM 已发布或已作废，不能修改");
         }
         return bom;
     }
@@ -1175,11 +1174,11 @@ public class PdmBomServiceImpl implements PdmBomService {
      */
     private PdmProduct requirePart(Long id) {
         if (id == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "零件不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.part.part-found-2", "零件不存在");
         }
         PdmProduct part = productMapper.selectById(id);
         if (part == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "零件不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.part.part-found-3", "零件不存在");
         }
         return part;
     }
@@ -1193,11 +1192,11 @@ public class PdmBomServiceImpl implements PdmBomService {
      */
     private PdmBomLine requireLine(Long bomId, Long lineId) {
         if (lineId == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "BOM 行不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.part.b-o-m-line-found", "BOM 行不存在");
         }
         PdmBomLine line = bomLineMapper.selectById(lineId);
         if (line == null || !Objects.equals(line.getBomId(), bomId)) {
-            throw new BizException(ErrorCode.NOT_FOUND, "BOM 行不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.part.b-o-m-line-found-2", "BOM 行不存在");
         }
         return line;
     }

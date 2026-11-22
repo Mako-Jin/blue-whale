@@ -435,7 +435,7 @@ public class MovieCollectionAppServiceImpl implements MovieCollectionAppService 
         try {
             return PublishState.valueOf(value.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException ex) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "片单发布状态非法");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "biz.video.application.piece-list-publish-status-invalid", "片单发布状态非法");
         }
     }
 

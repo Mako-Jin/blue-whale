@@ -120,7 +120,7 @@ public class MesProcessRouteServiceImpl implements MesProcessRouteService {
         try {
             return OBJECT_MAPPER.writeValueAsString(request);
         } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "工艺路线内容序列化失败");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.mes.process.failed-routing-content-serialize", "工艺路线内容序列化失败");
         }
     }
 

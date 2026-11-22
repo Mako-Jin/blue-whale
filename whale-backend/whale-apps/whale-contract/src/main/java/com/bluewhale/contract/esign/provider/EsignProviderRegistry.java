@@ -57,8 +57,8 @@ public class EsignProviderRegistry {
         String key = name == null ? "" : name.trim().toLowerCase(Locale.ROOT);
         EsignProvider provider = providers.get(key);
         if (provider == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR,
-                    "不支持的电子签渠道: " + name + "，可选: " + names());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.contract.esign.unsupported-e-sign-channel-available", "不支持的电子签渠道: {0}，可选: {1}", name,
+                          names());
         }
         return provider;
     }

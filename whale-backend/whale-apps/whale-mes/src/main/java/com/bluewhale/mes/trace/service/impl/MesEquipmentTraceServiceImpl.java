@@ -47,13 +47,13 @@ public class MesEquipmentTraceServiceImpl implements MesEquipmentTraceService {
     @Override
     public MesEquipmentTraceVO trace(String equipmentCode, Integer limit) {
         if (!StringUtils.hasText(equipmentCode)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "设备编码不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.mes.trace.equipment-code-empty", "设备编码不能为空");
         }
         MesEquipment equipment = equipmentMapper.selectOne(new LambdaQueryWrapper<MesEquipment>()
                 .eq(MesEquipment::getEquipmentCode, equipmentCode)
                 .last("LIMIT 1"));
         if (equipment == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "设备不存在：" + equipmentCode);
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.mes.trace.equipment-found", "设备不存在：{0}", equipmentCode);
         }
         MesEquipmentTraceVO vo = new MesEquipmentTraceVO();
         vo.setEquipmentCode(equipment.getEquipmentCode());

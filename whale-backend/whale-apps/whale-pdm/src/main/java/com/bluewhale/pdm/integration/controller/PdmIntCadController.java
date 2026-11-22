@@ -64,7 +64,7 @@ public class PdmIntCadController {
                                            @RequestPart("file") MultipartFile file,
                                            HttpServletRequest servletRequest) {
         if (file == null || file.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "检入文件不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.integration.check-in-file-empty", "检入文件不能为空");
         }
         return Result.ok(cadService.checkin(documentId, changeNote, externalKey, toUploadFile(file),
                 PdmDocViewer.of(servletRequest), PdmIntRequestContext.requireUserId(servletRequest)));
@@ -98,7 +98,7 @@ public class PdmIntCadController {
             return new PdmDocUploadFile(file.getBytes(), file.getOriginalFilename(),
                     file.getContentType(), file.getSize());
         } catch (IOException ex) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "读取检入文件失败");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.integration.failed-read-check-in-file", "读取检入文件失败");
         }
     }
 }

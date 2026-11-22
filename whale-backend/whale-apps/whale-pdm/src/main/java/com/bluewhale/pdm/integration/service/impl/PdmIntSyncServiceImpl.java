@@ -164,7 +164,7 @@ public class PdmIntSyncServiceImpl implements PdmIntSyncService {
     public PdmIntSyncLogVO retry(Long id, Long operatorId) {
         PdmIntSyncLog entity = id == null ? null : syncLogMapper.selectById(id);
         if (entity == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "同步记录不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.integration.sync-record-found", "同步记录不存在");
         }
         entity.setRetryCount((entity.getRetryCount() == null ? 0 : entity.getRetryCount()) + 1);
         entity.setOperatorId(operatorId);
@@ -193,7 +193,7 @@ public class PdmIntSyncServiceImpl implements PdmIntSyncService {
             syncLogMapper.updateById(entity);
             return toVo(entity);
         }
-        throw new BizException(ErrorCode.PARAM_ERROR, "该同步动作不支持手动重试");
+        throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.integration.sync-action-support-manual-retry", "该同步动作不支持手动重试");
     }
 
     @Override

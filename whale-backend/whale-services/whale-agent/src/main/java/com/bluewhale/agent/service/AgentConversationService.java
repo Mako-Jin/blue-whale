@@ -220,11 +220,11 @@ public class AgentConversationService {
     public void feedback(Long userId, FeedbackRequest request) {
         Integer rating = request.getRating();
         if (rating == null || (rating != 1 && rating != -1)) {
-            throw new BizException("评价取值非法，仅支持 1 或 -1");
+            throw new BizException("biz.agent.service.rating-value-invalid-supports-1-1", "评价取值非法，仅支持 1 或 -1");
         }
         AgentMessage message = messageMapper.selectById(request.getMessageId());
         if (message == null || !ROLE_ASSISTANT.equals(message.getRole())) {
-            throw new BizException("被评价的消息不存在");
+            throw new BizException("biz.agent.service.evaluated-message-found", "被评价的消息不存在");
         }
         requireOwned(message.getConversationId(), userId);
         LambdaQueryWrapper<AgentFeedback> wrapper = new LambdaQueryWrapper<>();
@@ -255,7 +255,7 @@ public class AgentConversationService {
     private AgentConversation requireOwned(Long conversationId, Long userId) {
         AgentConversation conversation = conversationMapper.selectById(conversationId);
         if (conversation == null || !userId.equals(conversation.getUserId())) {
-            throw new BizException("会话不存在或无权访问");
+            throw new BizException("biz.agent.service.conversation-found-permission-access", "会话不存在或无权访问");
         }
         return conversation;
     }

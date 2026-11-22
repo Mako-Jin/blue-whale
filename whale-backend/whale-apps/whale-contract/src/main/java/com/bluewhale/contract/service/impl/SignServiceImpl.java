@@ -141,11 +141,13 @@ public class SignServiceImpl implements SignService {
         CtContract contract = requireContract(contractId);
         String status = contract.getStatus();
         if (!CONTRACT_APPROVED.equals(status) && !CONTRACT_SIGNING.equals(status)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "仅审批通过或签署中的合同可发起签署，当前状态: " + status);
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.contract.service.approved-signing-contracts-can-start-signing",
+                          "仅审批通过或签署中的合同可发起签署，当前状态: {0}", status);
         }
         List<SignTaskCreateRequest> specs = resolveSpecs(contract, request);
         if (specs.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "未找到可签署的相对方，请在合同中登记签署人");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.contract.service.signable-counterparty-found-register-signer-in",
+                          "未找到可签署的相对方，请在合同中登记签署人");
         }
         List<CtSignTask> existing = listTasks(contractId);
         int maxSeq = existing.stream()
@@ -256,21 +258,22 @@ public class SignServiceImpl implements SignService {
             }
         }
         if (!Boolean.TRUE.equals(request.getConfirmWillingness())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "请确认签署意愿后再提交");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.contract.service.confirm-signing-intent-submitting", "请确认签署意愿后再提交");
         }
         if (TASK_REFUSED.equals(task.getStatus()) || TASK_EXPIRED.equals(task.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "签署任务状态不可签署: " + task.getStatus());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.contract.service.signing-task-status-cannot-sign", "签署任务状态不可签署: {0}",
+                          task.getStatus());
         }
         CtContract contract = requireContract(task.getContractId());
         if (!CONTRACT_SIGNING.equals(contract.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "合同当前状态不可签署: " + contract.getStatus());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.contract.service.status-contract-allow-sign", "合同当前状态不可签署: {0}", contract.getStatus());
         }
         if (task.getSignerUserId() != null && !task.getSignerUserId().equals(operatorId)) {
-            throw new BizException(ErrorCode.FORBIDDEN, "仅签署人本人可执行签署");
+            throw new BizException(ErrorCode.FORBIDDEN, "biz.contract.service.signer-self-can-execute-sign", "仅签署人本人可执行签署");
         }
         CtSeal seal = sealMapper.selectById(request.getSealId());
         if (seal == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "印章不存在: " + request.getSealId());
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.contract.service.seal-found", "印章不存在: {0}", request.getSealId());
         }
         assertSealUsable(seal);
         assertGranted(seal, contract, operatorId);
@@ -373,10 +376,11 @@ public class SignServiceImpl implements SignService {
         CtSignTask task = requireTask(taskId);
         Long operatorId = requireOperatorId(operator);
         if (task.getSignerUserId() != null && !task.getSignerUserId().equals(operatorId)) {
-            throw new BizException(ErrorCode.FORBIDDEN, "仅签署人本人可执行拒签");
+            throw new BizException(ErrorCode.FORBIDDEN, "biz.contract.service.signer-self-can-execute-refuse-signing", "仅签署人本人可执行拒签");
         }
         if (!TASK_PENDING.equals(task.getStatus()) && !"SIGNING".equals(task.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "签署任务状态不可拒签: " + task.getStatus());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.contract.service.signing-task-status-cannot-refuse-signing", "签署任务状态不可拒签: {0}",
+                          task.getStatus());
         }
         task.setStatus(TASK_REFUSED);
         task.setRefuseReason(request.getReason());
@@ -451,7 +455,7 @@ public class SignServiceImpl implements SignService {
         if (!CONTRACT_SIGNING.equals(contract.getStatus())
                 && !CONTRACT_SIGNED.equals(contract.getStatus())
                 && !CONTRACT_EFFECTIVE.equals(contract.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "合同当前状态不可作废: " + contract.getStatus());
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.contract.service.status-contract-allow-void", "合同当前状态不可作废: {0}", contract.getStatus());
         }
         contract.setStatus(CONTRACT_VOID);
         contractMapper.updateById(contract);
@@ -523,14 +527,14 @@ public class SignServiceImpl implements SignService {
      */
     private void assertSealUsable(CtSeal seal) {
         if (!STATUS_ENABLED.equals(seal.getStatus())) {
-            throw new BizException(ErrorCode.FORBIDDEN, "印章已停用: " + seal.getName());
+            throw new BizException(ErrorCode.FORBIDDEN, "biz.contract.service.seal-disabled", "印章已停用: {0}", seal.getName());
         }
         LocalDate today = LocalDate.now();
         if (seal.getValidFrom() != null && today.isBefore(seal.getValidFrom())) {
-            throw new BizException(ErrorCode.FORBIDDEN, "印章未到生效日期: " + seal.getName());
+            throw new BizException(ErrorCode.FORBIDDEN, "biz.contract.service.seal-reach-effective-date", "印章未到生效日期: {0}", seal.getName());
         }
         if (seal.getValidTo() != null && today.isAfter(seal.getValidTo())) {
-            throw new BizException(ErrorCode.FORBIDDEN, "印章已过有效期: " + seal.getName());
+            throw new BizException(ErrorCode.FORBIDDEN, "biz.contract.service.seal-past-validity", "印章已过有效期: {0}", seal.getName());
         }
     }
 
@@ -549,8 +553,8 @@ public class SignServiceImpl implements SignService {
         LocalDate today = LocalDate.now();
         boolean matched = grants.stream().anyMatch(grant -> matchGrant(grant, contract, today));
         if (!matched) {
-            throw new BizException(ErrorCode.FORBIDDEN,
-                    "未获用章授权：印章[" + seal.getName() + "] 不可由当前用户用于该合同");
+            throw new BizException(ErrorCode.FORBIDDEN, "biz.contract.service.seal-authorization-seal-cannot-used-contract",
+                          "未获用章授权：印章[{0}] 不可由当前用户用于该合同", seal.getName());
         }
     }
 
@@ -688,7 +692,7 @@ public class SignServiceImpl implements SignService {
     private CtContract requireContract(Long id) {
         CtContract contract = contractMapper.selectById(id);
         if (contract == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "合同不存在: " + id);
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.contract.service.contract-found", "合同不存在: {0}", id);
         }
         return contract;
     }
@@ -702,7 +706,7 @@ public class SignServiceImpl implements SignService {
     private CtSignTask requireTask(Long id) {
         CtSignTask task = signTaskMapper.selectById(id);
         if (task == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "签署任务不存在: " + id);
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.contract.service.signing-task-found", "签署任务不存在: {0}", id);
         }
         return task;
     }
@@ -716,7 +720,7 @@ public class SignServiceImpl implements SignService {
     private Long requireOperatorId(OperatorContext operator) {
         Long userId = parseUserId(operator);
         if (userId == null) {
-            throw new BizException(ErrorCode.FORBIDDEN, "无法识别当前操作人");
+            throw new BizException(ErrorCode.FORBIDDEN, "biz.contract.service.cannot-identify-operator", "无法识别当前操作人");
         }
         return userId;
     }

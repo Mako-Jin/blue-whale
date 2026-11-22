@@ -197,7 +197,7 @@ public class QuoteAppServiceImpl implements QuoteAppService {
                     variables, actor);
         } catch (Exception exception) {
             log.warn("报价审批发起失败 quoteId={}", quote.getId(), exception);
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "报价审批发起失败，请稍后重试");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.crm.commerce.failed-start-quotation-approval-retry-later", "报价审批发起失败，请稍后重试");
         }
         LocalDateTime now = LocalDateTime.now();
         quote.submit(instanceId, rate, now);

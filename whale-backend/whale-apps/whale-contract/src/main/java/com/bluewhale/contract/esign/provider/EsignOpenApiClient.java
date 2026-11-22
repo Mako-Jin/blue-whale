@@ -415,7 +415,7 @@ public class EsignOpenApiClient {
      * @return 业务异常
      */
     private BizException callFailed(String detail) {
-        return new BizException(ErrorCode.SYSTEM_ERROR, "电子签渠道[" + providerName + "] " + detail);
+        return new BizException(ErrorCode.SYSTEM_ERROR, "biz.contract.esign.e-sign-channel", "电子签渠道[{0}] {1}", providerName, detail);
     }
 
     /**

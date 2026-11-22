@@ -209,10 +209,10 @@ public class WorkItemAppService {
         PmWorkItem item = workItemGuard.requireWritable(id, operatorId);
         projectGuard.requireActiveProject(item.getProjectId());
         if (request.getVersion() != null && !request.getVersion().equals(item.getVersion())) {
-            throw new BizException(ErrorCode.REPEAT_SUBMIT, "工作项已被他人修改，请刷新后重试");
+            throw new BizException(ErrorCode.REPEAT_SUBMIT, "biz.pm.application.work-item-was-modified-refresh-retry", "工作项已被他人修改，请刷新后重试");
         }
         if (request.getStatusId() != null && !request.getStatusId().equals(item.getStatusId())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "状态变更请使用流转接口");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.use-transition-api-change-status", "状态变更请使用流转接口");
         }
         WorkItemType type = WorkItemType.from(request.getType());
         Priority priority = resolvePriority(request.getPriority());
@@ -234,7 +234,7 @@ public class WorkItemAppService {
                 .set(PmWorkItem::getExtensionJson, request.getExtensionJson())
                 .set(PmWorkItem::getVersion, item.getVersion() + 1));
         if (affected == 0) {
-            throw new BizException(ErrorCode.REPEAT_SUBMIT, "工作项已被他人修改，请刷新后重试");
+            throw new BizException(ErrorCode.REPEAT_SUBMIT, "biz.pm.application.work-item-was-modified-refresh-retry-2", "工作项已被他人修改，请刷新后重试");
         }
         recordUpdateActivities(item, request, priority, operatorId);
         item.setType(type.name());
@@ -270,7 +270,7 @@ public class WorkItemAppService {
                 .eq(PmWorkItem::getProjectId, item.getProjectId())
                 .eq(PmWorkItem::getParentId, id));
         if (children > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "存在子工作项，请先删除或迁移子项");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.delete-migrate-child-item-exist-child", "存在子工作项，请先删除或迁移子项");
         }
         commentMapper.delete(new LambdaQueryWrapper<PmComment>().eq(PmComment::getWorkItemId, id));
         attachmentMapper.delete(new LambdaQueryWrapper<com.bluewhale.pm.infrastructure.entity.PmAttachment>()
@@ -302,11 +302,11 @@ public class WorkItemAppService {
                 .eq(PmTransition::getFromStatusId, item.getStatusId())
                 .eq(PmTransition::getToStatusId, target.getId()));
         if (transition == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "未配置该状态流转");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.status-transition-configured", "未配置该状态流转");
         }
         if (Integer.valueOf(FLAG_TRUE).equals(transition.getRequireComment())
                 && !StringUtils.hasText(request.getComment())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "该流转要求填写评论");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.transition-requires-comment", "该流转要求填写评论");
         }
         PmStatus from = statusMapper.selectById(item.getStatusId());
         int affected = workItemMapper.update(null, new LambdaUpdateWrapper<PmWorkItem>()
@@ -315,7 +315,7 @@ public class WorkItemAppService {
                 .set(PmWorkItem::getStatusId, target.getId())
                 .set(PmWorkItem::getVersion, item.getVersion() + 1));
         if (affected == 0) {
-            throw new BizException(ErrorCode.REPEAT_SUBMIT, "工作项已被他人修改，请刷新后重试");
+            throw new BizException(ErrorCode.REPEAT_SUBMIT, "biz.pm.application.work-item-was-modified-refresh-retry-3", "工作项已被他人修改，请刷新后重试");
         }
         if (StringUtils.hasText(request.getComment())) {
             PmComment comment = new PmComment();
@@ -348,14 +348,14 @@ public class WorkItemAppService {
         PmWorkItem item = workItemGuard.requireWritable(id, operatorId);
         projectGuard.requireActiveProject(item.getProjectId());
         if (request.getBeforeItemId() == null && request.getAfterItemId() == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "排序锚点不能同时为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.sort-anchors-both-empty", "排序锚点不能同时为空");
         }
         PmWorkItem before = anchor(request.getBeforeItemId(), item.getProjectId(), id);
         PmWorkItem after = anchor(request.getAfterItemId(), item.getProjectId(), id);
         long lower = before == null ? 0L : RankPolicy.parse(before.getRankValue());
         Long upper = after == null ? null : RankPolicy.parse(after.getRankValue());
         if (upper != null && lower >= upper) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "排序锚点顺序不正确");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.sort-anchor-order-incorrect", "排序锚点顺序不正确");
         }
         String newRank = RankPolicy.between(lower, upper);
         if (newRank == null) {
@@ -365,7 +365,7 @@ public class WorkItemAppService {
             newRank = RankPolicy.between(lower, upper);
         }
         if (newRank == null) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "排序空间不足，请重试");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.pm.application.insufficient-sort-space-retry", "排序空间不足，请重试");
         }
         int affected = workItemMapper.update(null, new LambdaUpdateWrapper<PmWorkItem>()
                 .eq(PmWorkItem::getId, id)
@@ -373,7 +373,7 @@ public class WorkItemAppService {
                 .set(PmWorkItem::getRankValue, newRank)
                 .set(PmWorkItem::getVersion, item.getVersion() + 1));
         if (affected == 0) {
-            throw new BizException(ErrorCode.REPEAT_SUBMIT, "工作项已被他人修改，请刷新后重试");
+            throw new BizException(ErrorCode.REPEAT_SUBMIT, "biz.pm.application.work-item-was-modified-refresh-retry-4", "工作项已被他人修改，请刷新后重试");
         }
         activityAppService.record(item.getProjectId(), id, operatorId, ActivityAction.UPDATE,
                 "rank", item.getRankValue(), newRank);
@@ -462,7 +462,8 @@ public class WorkItemAppService {
                 .eq(PmStatus::getIsDefault, FLAG_TRUE)
                 .last("LIMIT 1"));
         if (defaultStatus == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "项目未配置默认状态，请先完善状态配置");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.project-default-status-configured-complete-status",
+                          "项目未配置默认状态，请先完善状态配置");
         }
         return defaultStatus;
     }
@@ -477,7 +478,7 @@ public class WorkItemAppService {
     private PmStatus requireStatusInProject(Long projectId, Long statusId) {
         PmStatus status = statusId == null ? null : statusMapper.selectById(statusId);
         if (status == null || !projectId.equals(status.getProjectId())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "状态不存在或不属于当前项目");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.status-exist-belong-project", "状态不存在或不属于当前项目");
         }
         return status;
     }
@@ -492,23 +493,23 @@ public class WorkItemAppService {
      */
     private void validateParent(Long projectId, WorkItemType type, Long parentId, Long selfId) {
         if (type == WorkItemType.SUBTASK && parentId == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "子任务必须指定父工作项");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.sub-task-specify-parent-work-item", "子任务必须指定父工作项");
         }
         if (parentId == null) {
             return;
         }
         if (parentId.equals(selfId)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "父工作项不能是自身");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.parent-work-item-cannot-itself", "父工作项不能是自身");
         }
         PmWorkItem parent = workItemMapper.selectById(parentId);
         if (parent == null || !projectId.equals(parent.getProjectId())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "父工作项不存在或不属于当前项目");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.parent-work-item-exist-belong-project", "父工作项不存在或不属于当前项目");
         }
         PmWorkItem cursor = parent;
         int depth = 0;
         while (cursor.getParentId() != null && depth < MAX_PARENT_DEPTH) {
             if (cursor.getParentId().equals(selfId)) {
-                throw new BizException(ErrorCode.PARAM_ERROR, "父子关系存在环");
+                throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.parent-child-relationship-exist-cycle", "父子关系存在环");
             }
             cursor = workItemMapper.selectById(cursor.getParentId());
             if (cursor == null) {
@@ -570,7 +571,7 @@ public class WorkItemAppService {
             return null;
         }
         if (anchorId.equals(selfId)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "排序锚点不能是自身");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.sort-anchor-cannot-itself", "排序锚点不能是自身");
         }
         return workItemGuard.requireInProject(anchorId, projectId);
     }

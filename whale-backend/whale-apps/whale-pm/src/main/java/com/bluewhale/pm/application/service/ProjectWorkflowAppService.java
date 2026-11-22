@@ -166,14 +166,15 @@ public class ProjectWorkflowAppService {
         PmStatus status = requireStatus(statusId);
         projectGuard.requireActiveProject(status.getProjectId());
         if (Integer.valueOf(FLAG_TRUE).equals(status.getIsDefault())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "默认状态不可删除，请先指定其他默认状态");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.specify-other-default-status-default-status", "默认状态不可删除，请先指定其他默认状态");
         }
         long referenced = transitionMapper.selectCount(new LambdaQueryWrapper<PmTransition>()
                 .eq(PmTransition::getProjectId, status.getProjectId())
                 .and(w -> w.eq(PmTransition::getFromStatusId, statusId)
                         .or().eq(PmTransition::getToStatusId, statusId)));
         if (referenced > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "状态仍被流转配置引用，请先删除相关流转");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.delete-related-transition-status-still-transition",
+                          "状态仍被流转配置引用，请先删除相关流转");
         }
         statusMapper.deleteById(statusId);
         log.info("项目状态已删除: statusId={}", statusId);
@@ -206,14 +207,14 @@ public class ProjectWorkflowAppService {
         PmStatus from = requireStatusInProject(request.getFromStatusId(), projectId);
         PmStatus to = requireStatusInProject(request.getToStatusId(), projectId);
         if (from.getId().equals(to.getId())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "源状态与目标状态不能相同");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.source-target-statuses-same", "源状态与目标状态不能相同");
         }
         long duplicated = transitionMapper.selectCount(new LambdaQueryWrapper<PmTransition>()
                 .eq(PmTransition::getProjectId, projectId)
                 .eq(PmTransition::getFromStatusId, from.getId())
                 .eq(PmTransition::getToStatusId, to.getId()));
         if (duplicated > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "该状态流转已存在");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.status-transition-already-exists", "该状态流转已存在");
         }
         PmTransition transition = new PmTransition();
         transition.setProjectId(projectId);
@@ -236,7 +237,7 @@ public class ProjectWorkflowAppService {
     public void deleteTransition(Long transitionId) {
         PmTransition transition = transitionId == null ? null : transitionMapper.selectById(transitionId);
         if (transition == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "状态流转不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pm.application.status-transition-found", "状态流转不存在");
         }
         projectGuard.requireActiveProject(transition.getProjectId());
         transitionMapper.deleteById(transitionId);
@@ -252,7 +253,7 @@ public class ProjectWorkflowAppService {
     private PmStatus requireStatus(Long statusId) {
         PmStatus status = statusId == null ? null : statusMapper.selectById(statusId);
         if (status == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "项目状态不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pm.application.project-status-found", "项目状态不存在");
         }
         return status;
     }
@@ -267,7 +268,7 @@ public class ProjectWorkflowAppService {
     private PmStatus requireStatusInProject(Long statusId, Long projectId) {
         PmStatus status = requireStatus(statusId);
         if (!projectId.equals(status.getProjectId())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "状态不属于当前项目");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.status-belong-project", "状态不属于当前项目");
         }
         return status;
     }
@@ -283,7 +284,7 @@ public class ProjectWorkflowAppService {
                 .eq(PmStatus::getProjectId, projectId)
                 .eq(PmStatus::getCode, code));
         if (count > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "状态编码已存在");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pm.application.status-code-already-exists", "状态编码已存在");
         }
     }
 

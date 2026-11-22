@@ -34,7 +34,7 @@ public enum LeaveStatus {
         try {
             return LeaveStatus.valueOf(value);
         } catch (IllegalArgumentException | NullPointerException exception) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "请假状态非法");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.oa.hr.leave-status-invalid", "请假状态非法");
         }
     }
 }

@@ -46,7 +46,8 @@ public class PdmChgWorkflowClientImpl implements PdmChgWorkflowClient {
     @Override
     public Long start(Long tenantId, String bizType, Long bizId, String bizNo, String title, Long userId) {
         if (definitionId <= 0) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "未配置变更审批流程定义，降级人工审批");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "biz.pdm.change.configured-change-approval-workflow-definition-degrade",
+                          "未配置变更审批流程定义，降级人工审批");
         }
         Map<String, Object> variables = new LinkedHashMap<>();
         variables.put("bizType", bizType);
@@ -116,6 +117,6 @@ public class PdmChgWorkflowClientImpl implements PdmChgWorkflowClient {
      */
     private BizException failure(String message) {
         String safe = StringUtils.hasText(message) ? message : "未知错误";
-        return new BizException(ErrorCode.SYSTEM_ERROR, "变更审批调用失败: " + safe);
+        return new BizException(ErrorCode.SYSTEM_ERROR, "biz.pdm.change.change-approval-call-failed", "变更审批调用失败: {0}", safe);
     }
 }

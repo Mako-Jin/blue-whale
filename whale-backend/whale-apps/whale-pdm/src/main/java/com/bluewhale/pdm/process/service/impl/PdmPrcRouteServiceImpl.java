@@ -248,7 +248,7 @@ public class PdmPrcRouteServiceImpl implements PdmPrcRouteService {
         PdmPrcRoute route = requireDraftRoute(id);
         PdmPrcTooling tooling = toolingMapper.selectById(toolingId);
         if (tooling == null || !tooling.getRouteId().equals(id)) {
-            throw new BizException(ErrorCode.NOT_FOUND, "工装记录不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.process.tooling-record-found", "工装记录不存在");
         }
         toolingMapper.deleteById(toolingId);
         return assemble(route);
@@ -286,7 +286,7 @@ public class PdmPrcRouteServiceImpl implements PdmPrcRouteService {
         PdmPrcRoute route = requireDraftRoute(id);
         PdmPrcSop sop = sopMapper.selectById(sopId);
         if (sop == null || !sop.getRouteId().equals(id)) {
-            throw new BizException(ErrorCode.NOT_FOUND, "SOP 记录不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.process.s-o-p-record-found", "SOP 记录不存在");
         }
         sopMapper.deleteById(sopId);
         return assemble(route);
@@ -301,11 +301,11 @@ public class PdmPrcRouteServiceImpl implements PdmPrcRouteService {
             return assemble(route);
         }
         if (!PdmPrcStatus.DRAFT.equals(route.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "仅草稿工艺路线可发布");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.process.draft-routing-can-publish", "仅草稿工艺路线可发布");
         }
         List<PdmPrcStep> steps = stepsOf(id);
         if (steps.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "工艺路线至少需要一道工序才能发布");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.process.routing-requires-at-least-one-operation", "工艺路线至少需要一道工序才能发布");
         }
         assertSopsReleased(id, steps);
         LocalDateTime now = LocalDateTime.now();
@@ -335,17 +335,17 @@ public class PdmPrcRouteServiceImpl implements PdmPrcRouteService {
     public PdmPrcRouteVO retryPublish(Long id) {
         PdmPrcRoute route = requireRoute(id);
         if (!PdmPrcStatus.RELEASED.equals(route.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "仅已发布工艺路线可重试下发");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.process.published-routing-can-retry-dispatch", "仅已发布工艺路线可重试下发");
         }
         PdmPrcPublish publish = findPublish(id);
         if (publish == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "工艺路线下发记录不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.process.routing-dispatch-record-found", "工艺路线下发记录不存在");
         }
         if (PdmPrcPublishStatus.SUCCESS.equals(publish.getStatus())) {
             return assemble(route);
         }
         if (PdmPrcPublishStatus.WITHDRAWN.equals(publish.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "工艺路线已撤回，不能重试下发");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.process.routing-withdraw-cannot-retry-dispatch", "工艺路线已撤回，不能重试下发");
         }
         publish.setRetryCount(publish.getRetryCount() == null ? 1 : publish.getRetryCount() + 1);
         attemptPush(route, stepsOf(id), publish);
@@ -357,7 +357,7 @@ public class PdmPrcRouteServiceImpl implements PdmPrcRouteService {
     public PdmPrcRouteVO withdraw(Long id) {
         PdmPrcRoute route = requireRoute(id);
         if (!PdmPrcStatus.RELEASED.equals(route.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "仅已发布工艺路线可撤回");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.process.published-routing-can-withdraw", "仅已发布工艺路线可撤回");
         }
         route.setStatus(PdmPrcStatus.OBSOLETE);
         routeMapper.updateById(route);
@@ -386,7 +386,7 @@ public class PdmPrcRouteServiceImpl implements PdmPrcRouteService {
                         .eq(PdmPrcRoute::getVersionNo, versionNo)
                         .last("limit 1"))
                 .stream().findFirst()
-                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND, "工艺路线不存在或未发布"));
+                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND, "biz.pdm.process.routing-exist-been-published", "工艺路线不存在或未发布"));
         return toSnapshot(requireReleased(route));
     }
 
@@ -399,8 +399,7 @@ public class PdmPrcRouteServiceImpl implements PdmPrcRouteService {
                         .orderByDesc(PdmPrcRoute::getId)
                         .last("limit 1"))
                 .stream().findFirst()
-                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND,
-                        "零件 " + partCode + " 没有已发布工艺路线"));
+                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND, "biz.pdm.process.part-published-routing", "零件 {0} 没有已发布工艺路线", partCode));
         return toSnapshot(requireReleased(route));
     }
 
@@ -412,7 +411,7 @@ public class PdmPrcRouteServiceImpl implements PdmPrcRouteService {
      */
     private PdmPrcRoute requireReleased(PdmPrcRoute route) {
         if (!PdmPrcStatus.RELEASED.equals(route.getStatus())) {
-            throw new BizException(ErrorCode.NOT_FOUND, "工艺路线不存在或未发布");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.process.routing-exist-been-published-2", "工艺路线不存在或未发布");
         }
         return route;
     }
@@ -536,7 +535,7 @@ public class PdmPrcRouteServiceImpl implements PdmPrcRouteService {
         for (PdmPrcSop sop : sops) {
             PdmDocVersion version = requireReleasedVersion(sop.getDocumentId(), sop.getDocumentVersionNo());
             if (!Objects.equals(version.getVersionNo(), sop.getDocumentVersionNo())) {
-                throw new BizException(ErrorCode.PARAM_ERROR, "SOP 文档版本不存在");
+                throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.process.s-o-p-document-version-found", "SOP 文档版本不存在");
             }
         }
     }
@@ -554,11 +553,11 @@ public class PdmPrcRouteServiceImpl implements PdmPrcRouteService {
                 .eq(PdmDocVersion::getVersionNo, versionNo)
                 .last("LIMIT 1"));
         if (versions.isEmpty()) {
-            throw new BizException(ErrorCode.NOT_FOUND, "SOP 引用的文档版本不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.process.s-o-p-reference-document-version", "SOP 引用的文档版本不存在");
         }
         PdmDocVersion version = versions.get(0);
         if (!DOC_RELEASED.equals(version.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "SOP 只能引用已发布文档版本");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.process.s-o-p-can-reference-published", "SOP 只能引用已发布文档版本");
         }
         return version;
     }
@@ -573,13 +572,13 @@ public class PdmPrcRouteServiceImpl implements PdmPrcRouteService {
      */
     private void validateStep(Integer stepNo, PdmPrcStepSaveRequest request, Long excludeId, Long routeId) {
         if (stepNo == null || stepNo <= 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "工序序号必须大于 0");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.process.operation-sequence-number-greater-than-0", "工序序号必须大于 0");
         }
         if (request.getStandardHours() != null && request.getStandardHours().signum() < 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "标准工时不能为负");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.process.standard-hours-negative", "标准工时不能为负");
         }
         if (request.getSetupHours() != null && request.getSetupHours().signum() < 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "准备工时不能为负");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.process.setup-work-hours-negative", "准备工时不能为负");
         }
         LambdaQueryWrapper<PdmPrcStep> wrapper = new LambdaQueryWrapper<PdmPrcStep>()
                 .eq(PdmPrcStep::getRouteId, routeId)
@@ -588,7 +587,7 @@ public class PdmPrcRouteServiceImpl implements PdmPrcRouteService {
             wrapper.ne(PdmPrcStep::getId, excludeId);
         }
         if (stepMapper.selectCount(wrapper) > 0) {
-            throw new BizException(ErrorCode.REPEAT_SUBMIT, "工序序号已存在");
+            throw new BizException(ErrorCode.REPEAT_SUBMIT, "biz.pdm.process.operation-sequence-number-already-exists", "工序序号已存在");
         }
     }
 
@@ -617,7 +616,7 @@ public class PdmPrcRouteServiceImpl implements PdmPrcRouteService {
                 .eq(PdmPrcRoute::getPartId, partId)
                 .eq(PdmPrcRoute::getVersionNo, versionNo));
         if (count > 0) {
-            throw new BizException(ErrorCode.REPEAT_SUBMIT, "同零件同版本工艺路线已存在");
+            throw new BizException(ErrorCode.REPEAT_SUBMIT, "biz.pdm.process.routing-same-part-version-already-exists", "同零件同版本工艺路线已存在");
         }
     }
 
@@ -630,7 +629,7 @@ public class PdmPrcRouteServiceImpl implements PdmPrcRouteService {
     private PdmPrcRoute requireRoute(Long id) {
         PdmPrcRoute route = id == null ? null : routeMapper.selectById(id);
         if (route == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "工艺路线不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.process.routing-found", "工艺路线不存在");
         }
         return route;
     }
@@ -644,7 +643,7 @@ public class PdmPrcRouteServiceImpl implements PdmPrcRouteService {
     private PdmPrcRoute requireDraftRoute(Long id) {
         PdmPrcRoute route = requireRoute(id);
         if (!PdmPrcStatus.DRAFT.equals(route.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "工艺路线已发布，不能再修改");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.process.routing-published-cannot-modify", "工艺路线已发布，不能再修改");
         }
         return route;
     }
@@ -658,10 +657,10 @@ public class PdmPrcRouteServiceImpl implements PdmPrcRouteService {
     private PdmProduct requirePart(Long partId) {
         PdmProduct part = partId == null ? null : productMapper.selectById(partId);
         if (part == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "零件不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.process.part-found", "零件不存在");
         }
         if (!PART_ENABLED.equals(part.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "停用零件不能创建工艺路线");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.process.disabled-part-cannot-creation-routing", "停用零件不能创建工艺路线");
         }
         return part;
     }
@@ -676,7 +675,7 @@ public class PdmPrcRouteServiceImpl implements PdmPrcRouteService {
     private PdmPrcStep requireStep(Long routeId, Long stepId) {
         PdmPrcStep step = stepId == null ? null : stepMapper.selectById(stepId);
         if (step == null || !step.getRouteId().equals(routeId)) {
-            throw new BizException(ErrorCode.NOT_FOUND, "工序不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.process.operation-found", "工序不存在");
         }
         return step;
     }
@@ -865,7 +864,7 @@ public class PdmPrcRouteServiceImpl implements PdmPrcRouteService {
             return BigDecimal.ZERO;
         }
         if (hours.signum() < 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "工时不能为负");
+            throw new BizException(ErrorCode.PARAM_ERROR, "biz.pdm.process.work-hours-negative", "工时不能为负");
         }
         return hours;
     }

@@ -47,7 +47,7 @@ public class ProjectAccessGuard {
     public PmProjectMember requireWritable(Long projectId, Long userId) {
         PmProjectMember member = requireMember(projectId, userId);
         if (ProjectRole.VIEWER.name().equals(member.getProjectRole())) {
-            throw new BizException(ErrorCode.FORBIDDEN, "只读成员不可执行该操作");
+            throw new BizException(ErrorCode.FORBIDDEN, "biz.pm.application.read-members-cannot-perform-operation", "只读成员不可执行该操作");
         }
         return member;
     }
@@ -62,7 +62,7 @@ public class ProjectAccessGuard {
     public PmProjectMember requireAdmin(Long projectId, Long userId) {
         PmProjectMember member = requireMember(projectId, userId);
         if (!ProjectRole.ADMIN.name().equals(member.getProjectRole())) {
-            throw new BizException(ErrorCode.FORBIDDEN, "仅项目管理员可执行该操作");
+            throw new BizException(ErrorCode.FORBIDDEN, "biz.pm.application.project-administrators-can-perform-operation", "仅项目管理员可执行该操作");
         }
         return member;
     }
@@ -76,13 +76,13 @@ public class ProjectAccessGuard {
      */
     private PmProjectMember requireMember(Long projectId, Long userId) {
         if (userId == null) {
-            throw new BizException(ErrorCode.UNAUTHORIZED, "缺少用户上下文");
+            throw new BizException(ErrorCode.UNAUTHORIZED, "biz.pm.application.context-missing", "缺少用户上下文");
         }
         PmProjectMember member = memberMapper.selectOne(new LambdaQueryWrapper<PmProjectMember>()
                 .eq(PmProjectMember::getProjectId, projectId)
                 .eq(PmProjectMember::getUserId, userId));
         if (member == null) {
-            throw new BizException(ErrorCode.FORBIDDEN, "非项目成员，无权访问");
+            throw new BizException(ErrorCode.FORBIDDEN, "biz.pm.application.project-member-permission-access", "非项目成员，无权访问");
         }
         return member;
     }

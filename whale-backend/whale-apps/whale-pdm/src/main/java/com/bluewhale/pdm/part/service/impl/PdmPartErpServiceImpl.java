@@ -43,7 +43,7 @@ public class PdmPartErpServiceImpl implements PdmPartErpService {
     public PdmPartErpStockVO getStock(Long partId) {
         PdmProduct part = partId == null ? null : productMapper.selectById(partId);
         if (part == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "零件不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "biz.pdm.part.part-found", "零件不存在");
         }
         String erpItemCode = StringUtils.hasText(part.getErpItemCode())
                 ? part.getErpItemCode() : part.getCode();
