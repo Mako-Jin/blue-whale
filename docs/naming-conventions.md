@@ -180,12 +180,12 @@ Maven 模块目录名 == artifactId == spring.application.name == Nacos 服务�
 | sdk | whale-i18n-sdk | — | — | `com.bluewhale.i18n.sdk`（目标，现为 `com.bluewhale.i18n`） | — |
 | services | whale-service-gateway | whale-service-gateway | 无 | `com.bluewhale.gateway` | 8080 |
 | services | whale-service-auth | whale-service-auth | `bluewhale_auth` ✔ | `com.bluewhale.auth` | 8081 |
-| services | whale-job | whale-job | `bluewhale_job`（规划） | `com.bluewhale.job` | 8082 |
-| services | whale-workflow | whale-workflow | `bluewhale_workflow`（规划） | `com.bluewhale.workflow` | 8083 |
-| services | whale-form | whale-form | `bluewhale_form`（规划） | `com.bluewhale.form` | 8084 |
-| services | whale-service-file | whale-file | `bluewhale_file`（规划） | `com.bluewhale.file` | 8085 |
-| services | whale-service-pay | whale-pay | `bluewhale_pay`（规划） | `com.bluewhale.pay` | 8086 |
-| services | whale-message | whale-message | `bluewhale_message` ✔ | `com.bluewhale.message` | 8094 |
+| services | whale-service-job | whale-service-job | `bluewhale_job`（规划） | `com.bluewhale.job` | 8082 |
+| services | whale-service-workflow | whale-service-workflow | `bluewhale_workflow`（规划） | `com.bluewhale.workflow` | 8083 |
+| services | whale-service-form | whale-service-form | `bluewhale_form`（规划） | `com.bluewhale.form` | 8084 |
+| services | whale-service-file | whale-service-file | `bluewhale_file`（规划） | `com.bluewhale.file` | 8085 |
+| services | whale-service-pay | whale-service-pay | `bluewhale_pay`（规划） | `com.bluewhale.pay` | 8086 |
+| services | whale-service-message | whale-service-message | `bluewhale_message` ✔ | `com.bluewhale.message` | 8094 |
 | services | **whale-doc**（Wave 5.74 M1 骨架） | `whale-doc` | `bluewhale_doc` | `com.bluewhale.doc` | 8095 |
 | services | **whale-music**（Wave 5.75 M1 已落地） | `whale-music` | `bluewhale_music`（DDL 就绪，待执行） | `com.bluewhale.music` | 8096 |
 | services | **whale-scene**（Wave 5.77 M1/M2 2D 已落地） | `whale-scene` | `bluewhale_scene` | `com.bluewhale.scene` | 8097 |
@@ -200,9 +200,9 @@ Maven 模块目录名 == artifactId == spring.application.name == Nacos 服务�
 | services | **whale-mail**（Wave 5.89） | `whale-mail` | `bluewhale_mail` | `com.bluewhale.mail` | 8099 |
 | services | **whale-map**（Wave 5.91） | `whale-map` | `bluewhale_map` | `com.bluewhale.map` | 8100 |
 | registry | ~~whale-config~~（**冻结**，F-05 结案：不部署/不路由） | — | 无 | `com.bluewhale.config` | 9201 |
-| ops | whale-audit | whale-audit | `bluewhale_audit` ✔ | `com.bluewhale.audit` | 9101 |
+| ops | whale-ops-audit | whale-ops-audit | `bluewhale_audit` ✔ | `com.bluewhale.audit` | 9101 |
 | ops | whale-monitor | whale-monitor | 无（只读聚合 Nacos 实例，不落库） | `com.bluewhale.monitor` | 9102 |
-| ops | whale-alert | whale-alert | `bluewhale_alert`（规划） | `com.bluewhale.alert` | 9103 |
+| ops | whale-ops-alert | whale-ops-alert | `bluewhale_alert`（规划） | `com.bluewhale.alert` | 9103 |
 | apps | whale-erp | whale-erp | `bluewhale_erp`（规划） | `com.bluewhale.erp` | 9001 |
 | apps | whale-mes | whale-mes | `bluewhale_mes`（规划） | `com.bluewhale.mes` | 9002 |
 | apps | whale-pdm | whale-pdm | `bluewhale_pdm`（规划） | `com.bluewhale.pdm` | 9003 |
