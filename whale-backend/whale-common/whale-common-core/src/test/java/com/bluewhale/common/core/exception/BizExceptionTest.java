@@ -4,6 +4,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 /**
  * 通用错误码与业务异常构造语义测试。
@@ -98,6 +99,13 @@ class BizExceptionTest {
     }
 
     @Test
+    @DisplayName("兜底文案为 null 或占位参数为 null：原样返回，不抛异常")
+    void shouldTolerateNullMessageOrArgs() {
+        assertNull(new BizException(40901, "biz.x.d", null, "arg").getMessage());
+        assertEquals("缺少 {0}", new BizException(40901, "biz.x.e", "缺少 {0}", (Object[]) null).getMessage());
+    }
+
+    @Test
     @DisplayName("仅以文案构造：错误码缺省为系统错误")
     void shouldDefaultToSystemError() {
         BizException ex = new BizException("服务内部错误");
@@ -116,5 +124,23 @@ class BizExceptionTest {
             assertEquals(true, errorCode.getMessageKey() != null && !errorCode.getMessageKey().isBlank(),
                     errorCode.name() + " 的国际化键不应为空");
         }
+    }
+
+    @Test
+    @DisplayName("空占位 {} 与有效占位共存：空占位原样保留，其余照常展开")
+    void shouldKeepEmptyBracesWhileRenderingOthers() {
+        BizException ex = new BizException(40901, "biz.x.f", "空 {} 与 有 {0}", "值");
+
+        assertEquals("空 {} 与 有 值", ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("以国际化键 + 中文兜底构造：错误码缺省为系统错误并按参数渲染")
+    void shouldBuildFromKeyAndMessageWithSystemError() {
+        BizException ex = new BizException("biz.common.x", "缺少 {0}", "租户");
+
+        assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), ex.getCode());
+        assertEquals("缺少 租户", ex.getMessage());
+        assertEquals("biz.common.x", ex.getMessageKey());
     }
 }
