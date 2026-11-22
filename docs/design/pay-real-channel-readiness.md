@@ -152,7 +152,7 @@ public interface PaySettlementService {
 | 受理中（`ACCEPTED`） | 保持 `PAYING` | 等回调或对账 |
 | 明确失败 | `PAYING → CREATED` | 允许重试 |
 
-这要求把 `PayChannelResult` 扩展为 `PayChannelResult(status, providerTradeNo, amount, currency, rawStatus)`，保留原 `providerTradeNo` 访问器以免影响现有调用方；`ACCEPTED` 为新增枚举值。
+这要求把 `PayChannelResult` 扩展为携带 `status` 的结果（当前已落 `SUCCESS` / `ACCEPTED`，金额、币种与渠道原始状态在回调阶段补充），保留原 `providerTradeNo` 访问器以免影响现有调用方。
 
 ---
 
@@ -383,7 +383,7 @@ public interface PayChannelAdapter {
 | `Money` 值对象 | 骨架一、二施工前 | `pay_order`/`pay_reconcile_diff` 的金额比较统一走 `Money`，封装 compare/相加与精度校验；统计 SQL 在多币种上线前必须 `GROUP BY currency`，当前单币种可先加注释约束 |
 | 状态机显式化 | 骨架一 | `PayOrderStatus.allowedTransitions()`，`markPaid`/`cancel`/`markRefunded` 从状态机取合法目标，非法转换统一报错 |
 | 配置校验 | 骨架一、三 | `PayNotifyProperties` 加 `@Min/@Max`；`mock=false` 且白名单含无适配器渠道时拒绝启动（网关已有校验，补 `@PostConstruct` 显式守卫） |
-| `PayChannelResult` 扩展 | 骨架一 | 增加 `status`（`SUCCESS`/`ACCEPTED`/`FAILED`）与金额、币种；保留 `providerTradeNo()` |
+| `PayChannelResult` 扩展 | 骨架一 | 已增加 `status`（`SUCCESS`/`ACCEPTED`）；金额、币种与渠道原始状态待回调入站时补充，避免先落无用字段 |
 | 数据生命周期 | 骨架二之后 | `pay_transaction`、`pay_notify_task` 按 `create_time` 归档到 `*_history`；`SUCCESS` 通知保留 30 天，`DEAD` 永久保留；补 `idx_tenant_create_time` |
 | 测试补齐 | 每块骨架 | 见第六节 |
 
@@ -415,7 +415,7 @@ public interface PayChannelAdapter {
 
 ```text
 阶段 0  文档定稿（本文） ✅
-阶段 1  统一状态推进 PaySettlementService + PayChannelResult 扩展 + 状态机
+阶段 1  统一状态推进 PaySettlementService + PayChannelResult 扩展 + 状态机 ✅
 阶段 2  回调入站（表 + 控制器 + 适配器 parseCallback + 幂等 + 日志）
 阶段 3  批量对账（表 + 任务 + 差异处置接口 + 概览告警）
 阶段 4  内网鉴权部署侧切换 + whale-pay-client SDK
@@ -424,6 +424,19 @@ public interface PayChannelAdapter {
 ```
 
 **依赖**：阶段 2、3 都依赖阶段 1，否则状态推进会重复实现三份；阶段 4 可与 2、3 并行（改动面不重叠）。
+
+### 7.1 阶段 1 落地记录（2026-11-22）
+
+| 改动 | 内容 |
+|---|---|
+| `PayChannelStatus` | 新增，取值 `SUCCESS` / `ACCEPTED`；渠道失败仍由适配器抛异常表达 |
+| `PayChannelResult` | 增加 `status`，保留 `providerTradeNo` 与单参构造，既有适配器无需改动 |
+| `PayOrderStatus` | 新增 `allowedTransitions()` / `canTransitionTo()`；`CREATED → PAID` 供回调直达 |
+| `PaySettlementService` | 新增统一下账入口 `markPaid` / `markRefunded`，收敛原 `settlePayment`、`settleReconciledPayment`、退款记账三份逻辑 |
+| `PayOrderServiceImpl` | 同步支付与停留单对账改为调用 `markPaid`；`claimTransition` 接入状态机校验；受理中（`ACCEPTED`）保持 `PAYING` |
+| `PayRefundServiceImpl` | 退款记账改为调用 `markRefunded`，移除自带的流水与通知写入 |
+
+验证：`mvn test` 70 项通过（新增状态机 4 项、落账服务 4 项、受理中 1 项），`mvn checkstyle:check` 通过。
 
 ---
 
@@ -447,21 +460,23 @@ public interface PayChannelAdapter {
 | `PAYING` 停留单定时对账 | 已完成 |
 | 单笔手工对账接口 | 已完成 |
 | 内网令牌 starter 按服务签发 + 租户白名单 | 已完成（代码侧） |
+| 阶段 1：统一状态推进 + 状态机 + 渠道结果状态 | 已完成（2026-11-22，见 7.1） |
 | 本设计文档 | 已完成 |
 
 ### 待做项
 
-1. 阶段 1～6 全部实现（按第 7 节顺序）。
+1. 阶段 2～6 实现（按第 7 节顺序）。
 2. 部署侧下发 `issuer-id`/`issuer-secret` 与租户白名单，配置 NetworkPolicy。
 3. 并发/幂等/故障注入集成测试（需 MySQL 环境）。
 4. `queryStatus` 扩展为可返回渠道流水号的 `queryResult`，补齐自动收敛时 `channel_trade_no` 为空的问题。
+5. `Money` 值对象与统计 SQL 按币种分组，最迟在批量对账（阶段 3）施工前完成。
 
 ### 已修正问题项
 
-1. 设计中发现 `settlePayment`、`settleReconciledPayment`、退款记账三处状态推进逻辑重复，若直接加回调会变成四份；已决定先抽 `PaySettlementService`（阶段 1）。
-2. 设计中发现概览统计 SQL `SUM(amount)` 未按币种分组，多币种上线会算错；已纳入骨架二施工前约束。
-3. 设计中发现 `PayChannelResult` 只有流水号、无法表达「受理中」，无法支撑真实渠道；已列入阶段 1 扩展项。
-4. 设计中发现回调路径若复用 `X-Internal-Token` 会与渠道验签冲突，已明确回调独立鉴权、网关剥离权限头。
+1. ~~`settlePayment`、`settleReconciledPayment`、退款记账三处状态推进逻辑重复~~ → 已由 `PaySettlementService` 收敛（阶段 1）。
+2. 概览统计 SQL `SUM(amount)` 未按币种分组，多币种上线会算错；已纳入骨架二施工前约束。
+3. ~~`PayChannelResult` 只有流水号、无法表达「受理中」~~ → 已增加 `PayChannelStatus`（阶段 1）。
+4. 回调路径若复用 `X-Internal-Token` 会与渠道验签冲突，已明确回调独立鉴权、网关剥离权限头。
 
 ---
 
@@ -473,4 +488,4 @@ public interface PayChannelAdapter {
 | 回调路径暴露公网 | 伪造回调刷库 | 验签 + 网关限流 + 幂等表唯一键；异常回调只记日志不改状态 |
 | 差异自动补偿误操作 | 把错误数据写正 | 仅 `STATUS_MISMATCH` 允许自动补偿，其余强制人工 + 审计 |
 | ShedLock 依赖 | 新增中间件表 | 复用现有 MySQL，不引入 Redis 锁，避免与 `whale-auth` 的 Redisson 混用 |
-| 阶段 1 改动面大 | 影响现有支付/退款 | 先补单测锁定现状行为，再替换内部实现，对外接口不变 |
+| 阶段 1 改动面大 | 影响现有支付/退款 | 已用单测锁定行为后替换内部实现，对外接口不变（阶段 1 已完成） |
