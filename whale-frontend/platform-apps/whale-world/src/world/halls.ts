@@ -95,6 +95,12 @@ export const OVERVIEW_HALLS: OverviewHallSpec[] = [
      sys:im:chat（会话与消息同权），不臆造 browse/manage；会话列表入口在 provider
      link 里带同一个码。 */
   { nodeKey: 'chuanxin-stage', path: '/im/overview', permission: 'sys:im:chat' },
+  /* 舆图司（S7/T7.6）——外城九处第六处：舆图与疆界。本屏的两张欠账牌是
+     配额与调用量（运维口径），所以走 sys:map:provider:view——只有租户管理员有；
+     围栏台账页读的是边界本身，入口在 provider link 里带 sys:map:fence:query。
+     **map 是外呼型服务**：配额打满时地址解析与路径规划会一起报错，而它们各自的
+     报错都长得像"自己的 bug"，这一屏就是提前把那句话说明白的地方。 */
+  { nodeKey: 'yutu-stage', path: '/map/overview', permission: 'sys:map:provider:view' },
   /* 数枢殿总控（S5/T5.1）：服务端把在册各殿的概览汇成一屏。
      **不设权限码**——总控的可见范围就是"你在各殿能看到的范围"，
      缺凭据的殿在总控里显示为「无凭据」行，而不是整块 403。

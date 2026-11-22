@@ -85,8 +85,16 @@ import {
   THREAD_PAGE,
   MAIL_PAGE,
   IM_PAGE,
+  MAP_FENCE_PAGE,
 } from './screenpages';
 import { createStageScreen, type StageScreenHandle } from './stagescreen';
+import {
+  createMapGround,
+  fetchFenceShapes,
+  MAP_GROUND_D,
+  MAP_GROUND_W,
+  type MapGroundHandle,
+} from './mapground';
 import { createSceneEnv, type SceneEnv } from './env';
 import { createPostFx, type PostFx } from './postfx';
 import { createSky, type SkyState } from './env-sky';
@@ -4035,6 +4043,14 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   let chuanxinScreen: ScreenHandle | null = null;
   let chuanxinPage: ScreenPageHandle | null = null;
 
+  /** 舆图司（S7/T7.6）屏风与其业务页句柄（同上） */
+  let yutuScreen: ScreenHandle | null = null;
+  let yutuPage: ScreenPageHandle | null = null;
+
+  /** 舆图司殿前的地面舆图（围栏按真实经纬度缩绘）与它的重试计时器 */
+  let yutuGround: MapGroundHandle | null = null;
+  let yutuGroundTimer: number | null = null;
+
   /**
    * 坊的屏风落位：从布局数据现算，不手抄坐标。
    *
@@ -4887,6 +4903,109 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
         });
       }
 
+      /* 舆图司（S7/T7.6，外城九处第六处）：围栏台账 + 殿前的地面舆图。
+
+       选址在正西偏南的外城（x/z = -81.41/-47.0，θ=240°、rotationDeg=60），
+       与清议堂（105°）关于东西中轴大致对称。θ 取 240 是排出来的：外城环上
+       225° / 255° 两坊的屏风落点会落进坊墙（屏风立在别人院里），而 240° 恰在
+       两坊之间的空档，离将作监的坊墙足迹还有 9 米；本殿的碰撞盒 halfZ 仍是 5.0，
+       屏风落点才不会被圈进台基。
+
+       屏风上排的是围栏台账（人划的边界，划错了打卡与配送一起错且没有声音），
+       屏风前的地面上另铺一张舆图：围栏按真实经纬度缩绘，圆形是圈、多边形是
+       闭合折线、停用的画虚线。两块看的是同一份数据的两面——表能读名字与状态，
+       图能看出"谁圈住了谁"。 */
+      const yutuPose = districtScreenPose('yutu-stage');
+      if (yutuPose) {
+        yutuScreen = screens.add({
+          id: 'yutu',
+          position: [yutuPose.x, 1.55, yutuPose.z],
+          facing: yutuPose.facing,
+          size: 'large',
+          title: '舆图司 · 围栏台账',
+          subtitle: 'MAP / 舆图与疆界',
+          tone: 'idle',
+          mount: (body) => {
+            yutuPage = mountScreenPage(body, {
+              nodeKey: 'yutu-stage',
+              overviewPath: '/map/overview',
+              overviewPermission: 'sys:map:provider:view',
+              pages: [MAP_FENCE_PAGE],
+              getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+              getPermissions: opts.getPermissions,
+              // 题头灯跟业务页状态走：概览陈旧/失败（服务未起、无凭据）时不该还亮绿灯
+              onTone: (tone) => yutuScreen?.setTone(tone),
+              onTitle: (title, subtitle) => {
+                yutuScreen?.setTitle(
+                  title ? `${title} · 围栏台账` : '舆图司 · 围栏台账',
+                  subtitle ?? 'MAP / 舆图与疆界',
+                );
+              },
+            });
+            return () => {
+              yutuPage?.dispose();
+              yutuPage = null;
+            };
+          },
+        });
+      }
+
+      /* 地面舆图：铺在殿前净空里（台基含台阶到前 7.3 米、传送门环在 14 米，
+         取 10.5 米为中心，8×5.6 正好落在 7.7~13.3 米之间）。
+         取数失败不抛：地面改写一张带说明的空图，探针里写明是哪一档失败。 */
+      const yutuPalace = PALACES.find((item) => item.nodeKey === 'yutu-stage');
+      if (yutuPalace) {
+        const yutuFrontX = Math.sin(yutuPalace.yaw);
+        const yutuFrontZ = Math.cos(yutuPalace.yaw);
+        const ground = createMapGround(MAP_GROUND_W, MAP_GROUND_D);
+        const groundGroup = new THREE.Group();
+        groundGroup.add(ground.mesh);
+        groundGroup.position.set(yutuPalace.x + 10.5 * yutuFrontX, 0, yutuPalace.z + 10.5 * yutuFrontZ);
+        groundGroup.rotation.y = yutuPalace.yaw;
+        scene.add(groundGroup);
+        yutuGround = ground;
+        void loadYutuGround(0);
+      }
+
+      /**
+       * 取围栏并画到地面舆图上。
+       *
+       * <p><b>失败留重试。</b>"先进城逛一圈再登录"是常态：首屏那一次取数多半是
+       * 401。所以 401/超时都只写一张带说明的空图，再隔 4 秒重试，最多三次；
+       * 403（真没凭据）不重试——权限不会自己长出来，反复问只是浪费请求。
+       * 重试走计时器而不是循环等待：主循环一帧都不能卡。</p>
+       *
+       * @param attempt 第几次尝试（0 起）
+       */
+      function loadYutuGround(attempt: number): void {
+        const handle = yutuGround;
+        if (!handle) {
+          return;
+        }
+        void fetchFenceShapes({
+          token: debugToken() ?? opts.getToken?.() ?? null,
+          permission: 'sys:map:fence:query',
+          permissions: typeof opts.getPermissions === 'function' ? opts.getPermissions : undefined,
+          listPath: '/map/v1/fence/page',
+        }).then((result) => {
+          /* 期间退出过城或换了句柄：这次结果作废，别往已销毁的纹理上画 */
+          if (!yutuGround || yutuGround !== handle) {
+            return;
+          }
+          if (result.ok) {
+            handle.setFences(result.fences);
+            return;
+          }
+          handle.setMode(result.status === 403 ? 'denied' : 'error', result.error);
+          if (result.status !== 403 && attempt < 2) {
+            yutuGroundTimer = window.setTimeout(() => {
+              yutuGroundTimer = null;
+              loadYutuGround(attempt + 1);
+            }, 4000);
+          }
+        });
+      }
+
       /* 枢密殿（AUTH）屏风页（S5 / T5.2）：屏风里是登录历史 ——
        谁、什么时候、用什么方式登录，失败了多少次。
 
@@ -5499,6 +5618,8 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
           return youyiPage;
         case 'chuanxin':
           return chuanxinPage;
+        case 'yutu':
+          return yutuPage;
         default:
           return hubuPage;
       }
@@ -5524,6 +5645,18 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
       return { ...stageScreen.probe(), x: stageScreen.group.position.x, z: stageScreen.group.position.z };
     };
     window.__bwwSound = () => toggleSound();
+    /* 舆图司地面舆图探针：e2e 无法"看"，读模式（live/empty/denied/error）、
+       围栏与形状数、画布亮度标准差（纯纸底约 2~3，画了围栏明显更高）。 */
+    window.__bwwMapGround = () => {
+      if (!yutuGround) {
+        return null;
+      }
+      /* 世界坐标要从父组取：mesh 自己被摆平（rotation.x = -90°），位置留在组上；
+         直接读 mesh.position 永远是 (0,0,0)，e2e 会以为舆图铺在皇城正中。 */
+      const world = new THREE.Vector3();
+      yutuGround.mesh.getWorldPosition(world);
+      return { ...yutuGround.probe(), x: Number(world.x.toFixed(2)), z: Number(world.z.toFixed(2)) };
+    };
     /* 天象探针：e2e 无法"看"，只能读强度与可见性——真好不好看仍需人眼 */
     window.__bwwWeather = () => ({
       weather: world.weather,
@@ -5690,6 +5823,14 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
        scene.traverse 回收不到——漏了就是 qiankun 卸载后还在放、还在解码。 */
     stageScreen?.dispose();
     stageScreen = null;
+    /* 地面舆图先停重试再销毁：重试的回调会往画布上画，画布销毁后再画就是
+       "往一块没有上下文的内存里写字"——要么抛错，要么在卸载后继续占着内存。 */
+    if (yutuGroundTimer !== null) {
+      window.clearTimeout(yutuGroundTimer);
+      yutuGroundTimer = null;
+    }
+    yutuGround?.dispose();
+    yutuGround = null;
     playerRig.dispose();
     npcs.dispose();
     channel.dispose();

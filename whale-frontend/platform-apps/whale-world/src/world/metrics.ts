@@ -384,6 +384,23 @@ const PROBES: ProbeSpec[] = [
       },
     ],
   },
+  {
+    // 舆图司 = MAP：S7/T7.6 起读契约 /map/overview，与屏风上半部四张牌同一份快照。
+    // 牌坊放"图籍 + 今日调用"两格：打点与围栏是存量，加起来当一格（免得牌坊上
+    // 排四个数）；今日调用是流量，也是唯一会让自己变黄的那一格——配额打满之后，
+    // 所有用地图的功能都会开始报错，而它们的报错都长得像"自己的 bug"。
+    nodeKey: 'yutu-stage',
+    permission: 'sys:map:provider:view',
+    url: '/map/overview',
+    extract: (d) => [
+      { label: '图籍', value: formatCount(num(kpiOf(d, 'locations')) + num(kpiOf(d, 'fences'))) },
+      {
+        label: '调用',
+        value: formatCount(kpiOf(d, 'calls')),
+        tone: num(kpiOf(d, 'calls')) > 0 ? 'good' : 'warn',
+      },
+    ],
+  },
 ];
 
 /* ---------------------------------------------------------------- 持久化 */

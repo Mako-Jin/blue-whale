@@ -922,6 +922,41 @@
         "label": "传信司",
         "subLabel": "IM · 即时传信"
       }
+    },
+    {
+      "nodeKey": "yutu-stage",
+      "parentKey": "outer-city",
+      "nodeType": "BUILDING",
+      "name": "舆图司",
+      "sub": "MAP · 舆图与疆界",
+      "icon": "map",
+      "x": -81.41,
+      "z": -47.0,
+      "y": 0,
+      "w": 9,
+      "d": 7,
+      "scale": 0.75,
+      "rotationDeg": 60.0,
+      "roofColor": "#4a6f63",
+      "bodyColor": "#33504a",
+      "modelKey": "palace-hall",
+      "collider": {
+        "halfX": 6.5,
+        "halfZ": 5.0
+      },
+      "sortNo": 32,
+      "entry": {
+        "type": "SYSTEM",
+        "path": "/map",
+        "permission": "sys:map:fence:query"
+      },
+      "portal": {
+        "x": -69.29,
+        "z": -40.0,
+        "color": "#9fd0b8",
+        "label": "舆图司",
+        "subLabel": "MAP · 舆图与疆界"
+      }
     }
   ]
 }

@@ -94,6 +94,17 @@ export interface ScreenListPageSpec {
    * 请求不再带 `current/size`，翻页只切本地数组。</p>
    */
   clientPaged?: boolean;
+  /**
+   * 页码参数名，缺省 `current`。
+   *
+   * <p><b>为什么要能改。</b>多数分页接口读 {@code current/size}（平台统一的
+   * {@code PageQuery}），但舆图司的围栏接口读 {@code page/size}。字段名对不上时
+   * 服务端<b>不报错</b>，直接按默认值返回第 1 页——屏风上的页码从 1 变到 3，
+   * 表格却一直是同样的行。这类"看着在翻页、其实没翻"的坑只能靠配置对齐。</p>
+   */
+  pageParam?: string;
+  /** 每页条数参数名，缺省 `size` */
+  sizeParam?: string;
   /** 列表列 */
   columns: ScreenColumn[];
   /** 详情页的字段（键值对） */
@@ -2043,6 +2054,87 @@ export const IM_PAGE: ScreenListPageSpec = {
     { key: 'lastActiveAt', label: '最后活跃', format: 'datetime' },
   ],
   titleKey: 'title',
+};
+
+/**
+ * 围栏类型：与后端 {@code MapFence.fenceType} 一一对应。
+ *
+ * <p>圆形围栏多半是"以某个点为中心的一片"（门店辐射范围），多边形是"按街区划的
+ * 一片"（配送区、考勤组）。两者在判定逻辑上没有区别，但运维看图时的直觉不同，
+ * 所以用两种灯色分开。</p>
+ */
+export const MAP_FENCE_TYPE: Record<string, ScreenStatusStyle> = {
+  CIRCLE: { label: '圆形', tone: 'good' },
+  POLYGON: { label: '多边形', tone: 'flat' },
+};
+
+/**
+ * 启用状态：键必须是字符串。
+ *
+ * <p>渲染层按 {@code String(value)} 查表，后端给的是数字 {@code 1}。
+ * 键写成数字字面量（`1: {...}`）在 TS 里会静默变成字符串键，但在别的序列化
+ * 路径上就不是了——统一写字符串是最省事的纪律（邮驿的已读/附件踩过这一脚）。</p>
+ */
+export const MAP_ENABLED_STATE: Record<string, ScreenStatusStyle> = {
+  '1': { label: '启用', tone: 'good' },
+  '0': { label: '停用', tone: 'flat' },
+};
+
+/**
+ * 舆图司（MAP）围栏台账页（S7 / T7.6）。
+ *
+ * <p><b>选它当屏风页的理由。</b>舆图司的家底有三层：打点、围栏、解析缓存。
+ * 打点跟着业务对象走（一张订单一个点，没有"点位列表"这种页面），解析缓存是
+ * 内部加速用的中间表，都不该摆到屏风上；只有围栏是<b>人来划、人来改</b>的东西——
+ * 划错了范围，打卡与配送会一起错，而且错得没有声音。</p>
+ *
+ * <p><b>两个坑写在配置里。</b>① 分页参数是 {@code page/size} 不是
+ * {@code current/size}（见 {@link ScreenListPageSpec#pageParam}）——发错了服务端
+ * 不报错，只是永远返回第 1 页；② 详情不配 {@code detailPath}：围栏详情里
+ * 顶点是一串坐标，屏风上排不下，而且台账这一屏要回答的是"哪些围栏停了、
+ * 谁在管哪片"，不是"这个多边形的第 7 个顶点在哪"。</p>
+ */
+export const MAP_FENCE_PAGE: ScreenListPageSpec = {
+  key: 'fences',
+  title: '围栏台账',
+  listPath: '/map/v1/fence/page',
+  permission: 'sys:map:fence:query',
+  idKey: 'id',
+  keywordParam: 'name',
+  searchPlaceholder: '搜索围栏名…',
+  statusParam: 'enabled',
+  statuses: [
+    { value: '', label: '全部状态' },
+    { value: '1', label: '启用' },
+    { value: '0', label: '停用' },
+  ],
+  statusMap: MAP_ENABLED_STATE,
+  pageParam: 'page',
+  sizeParam: 'size',
+  /* 3 行/页：近七日调用量是横向柱图，七根柱子吃掉两行高度（与传信司同一笔账） */
+  pageSize: 3,
+  columns: [
+    { key: 'name', label: '围栏', width: '27%' },
+    { key: 'fenceType', label: '类型', width: '11%', format: 'status', statusMap: MAP_FENCE_TYPE },
+    { key: 'bizType', label: '业务', width: '16%', emptyText: '通用' },
+    { key: 'radiusMeters', label: '半径/米', width: '13%', align: 'right', emptyText: '多边形' },
+    { key: 'enabled', label: '状态', width: '11%', format: 'status' },
+    { key: 'updateTime', label: '更新时间', width: '22%', format: 'datetime' },
+  ],
+  detailFields: [
+    { key: 'name', label: '围栏' },
+    { key: 'fenceType', label: '类型', format: 'status', statusMap: MAP_FENCE_TYPE },
+    { key: 'bizType', label: '业务类型', emptyText: '通用' },
+    { key: 'bizId', label: '业务对象', emptyText: '—' },
+    { key: 'centerLng', label: '圆心经度', emptyText: '多边形' },
+    { key: 'centerLat', label: '圆心纬度', emptyText: '多边形' },
+    { key: 'radiusMeters', label: '半径/米', emptyText: '多边形' },
+    { key: 'coordType', label: '坐标系' },
+    { key: 'enabled', label: '状态', format: 'status' },
+    { key: 'remark', label: '备注' },
+    { key: 'updateTime', label: '更新时间', format: 'datetime' },
+  ],
+  titleKey: 'name',
 };
 
 /**

@@ -926,10 +926,16 @@ export function mountScreenPage(body: HTMLElement, options: ScreenPageOptions): 
     paintTool();
     paintMain();
     /* 本地分页的接口（IM 会话列表）不认 current/size，带上只会让网关日志里
-       多两个没人读的参数；取回整份后由 slicePage 切。 */
+       多两个没人读的参数；取回整份后由 slicePage 切。
+       分页参数名可覆盖（舆图司的围栏接口读 page/size）：字段名对不上时服务端
+       会忽略参数、永远返回第 1 页，页码照样从 1 变到 3 且不报错——这类"看着
+       在翻页、其实没翻"的坑只能靠配置对齐，不能靠猜。 */
     const params: Record<string, string> = spec.clientPaged
       ? {}
-      : { current: String(page), size: String(pageSize()) };
+      : {
+          [spec.pageParam ?? 'current']: String(page),
+          [spec.sizeParam ?? 'size']: String(pageSize()),
+        };
     if (spec.keywordParam && keyword) params[spec.keywordParam] = keyword;
     if (spec.statusParam && status) params[spec.statusParam] = status;
     const result = await getJson(spec.listPath, params);
