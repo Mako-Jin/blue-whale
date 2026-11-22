@@ -788,7 +788,8 @@
 | T6.22 | 营造坊 overview（`/pm/overview`） | pm | [x] |
 | T6.23 | 营造坊 屏风页（项目台账） | pm | [x] |
 | T6.24 | 营造坊 厅配置 + 数枢殿总控在册 | pm | [x] |
-| T6.25–T6.36 | 其余四坊（盟府 / 宣抚 / 翰林 / 市舶） | contract / party / doc / mall | [ ] |
+| T6.25–T6.27 | 盟府（contract） | contract | [x] |
+| T6.28–T6.36 | 其余三坊（宣抚 / 翰林 / 市舶） | party / doc / mall | [ ] |
 
 **S6 第一批交付说明（2026-11-21，T6.4–T6.6 工部坊 / mes）**
 
@@ -1050,6 +1051,33 @@
   八项门禁 rc=0；tsc --noEmit 通过。
 - **已知遗留**：`/pm/overview` 的真实 HTTP 未验（本机 Docker / Nacos 未起），同前几批口径；
   改了 whale-pm 与 whale-monitor 的 yml，**部署时两座容器都要重建镜像**（restart 不带新配置）。
+
+**S6 第八批交付说明（2026-11-22，T6.25–T6.27 盟府 / contract）**
+
+- **接口**：`GET /contract/overview`（`whale.overview.base-path=/contract/overview`，TTL 30s、
+  超时 2s）：四张 KPI（生效中 / 在途 / 本月到期 / 已过期仍生效）+ 一张五类**金额柱图**
+  （采购 / 销售 / 服务 / 租赁 / 其他，format=MONEY）+ 五条告警（过期 CRITICAL、到期 WARNING、
+  外币 / 起草 / 驳回撤回 INFO）+ 合同台账入口。CONTRACT 没有现成看板，新写
+  `CtOverviewStatsService` + `CtOverviewStats` record，provider 只排版。
+  权限码复用 `sys:contract:list`，屏风页复用 `/contract/page`，无新接口、无新权限点、无新迁移。
+- **到期双窗口**：「本月到期」与 2D 台账 expiringSoon 同为 30 天窗口
+  （`EXPIRING_DAYS` 同值）；「已过期仍生效」单独一张牌——到期日过了但状态还在 EFFECTIVE，
+  不会出现在任何向后看的窗口里，这正是要单摆的原因。过期是唯一 CRITICAL。
+- **金额只合计 CNY**：合同带 currency 字段，人民币与美元直接相加是把两种东西当一个数；
+  外币合同数量单独统计，INFO 告警交代「未计入金额图」，不悄悄丢数。
+- **屏风页**：`CONTRACT_PAGE`（`/contract/page`，六列：编号 / 标题 / 类别 / 金额 / 状态 / 到期日）。
+  **不配搜索框**——code 与 title 是两个独立条件（后端无合并 keyword），硬拼要么只匹配
+  编号要么只匹配标题，看起来像「搜不到」其实是没发对参数。类别列用**列级 statusMap**
+  （PURCHASE/SALES/SERVICE/LEASE/OTHER），页面级字典留给状态列（十一态全覆盖：
+  生效绿 / 审批签署黄 / 归档草稿撤回灰 / 驳回终止作废红）。金额走 `money` 口径
+  （¥ + 万折算）。**不配 `detailPath`**：`ContractVO` 行内已带回 parties/versions/flows。
+- **e2e**：`world-mengfu-smoke.mjs` **54 项全绿**（仿营造坊走位姿势：CSS3D 变换矩阵解位姿
+  → WalkTo + Look → dispatchEvent click）；回归 world-city-smoke 全通过；
+  八项门禁 rc=0；tsc --noEmit 通过；whale-contract 全量 **117 例**通过。
+- **数枢殿总控在册**：`aggregate.targets` 加 `http://bw-contract:9006/contract/overview`，
+  已接入 **17 处**。
+- **已知遗留**：`/contract/overview` 的真实 HTTP 未验（本机 Docker / Nacos 未起），同前几批口径；
+  改了 whale-contract 与 whale-monitor 的 yml，**部署时两座容器都要重建镜像**。
 
 ### S7 外城 9 处
 

@@ -76,6 +76,7 @@ import {
   COURSE_PAGE,
   PART_PAGE,
   PROJECT_PAGE,
+  CONTRACT_PAGE,
 } from './screenpages';
 import { createSceneEnv, type SceneEnv } from './env';
 import { createPostFx, type PostFx } from './postfx';
@@ -3958,6 +3959,10 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   let yingzaoScreen: ScreenHandle | null = null;
   let yingzaoPage: ScreenPageHandle | null = null;
 
+  /** 盟府（S6/T6.25）屏风与其业务页句柄（同上） */
+  let mengfuScreen: ScreenHandle | null = null;
+  let mengfuPage: ScreenPageHandle | null = null;
+
   /**
    * 坊的屏风落位：从布局数据现算，不手抄坐标。
    *
@@ -4359,6 +4364,47 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
           return () => {
             yingzaoPage?.dispose();
             yingzaoPage = null;
+          };
+        },
+      });
+    }
+
+    /* 盟府（S6/T6.25）：合同台账 + 契约三本账 —— 纸面上的承诺：金额、状态、到期。
+
+       布局里盟府在内城西北角（将作的对面、营造的邻坊）；`districtScreenPose`
+       按它自己的正面法线算落点，不需要手调坐标。
+
+       屏风上半部是四张牌（生效中 / 在途 / 本月到期 / 已过期仍生效），
+       中部是生效合同金额柱图，下半部是合同台账。印章与签署任务不单摆页：
+       印章授权是管理操作不是台账，签署任务挂在具体合同下，租户级清单不存在。 */
+    const mengfuPose = districtScreenPose('mengfu-hall');
+    if (mengfuPose) {
+      mengfuScreen = screens.add({
+        id: 'mengfu',
+        position: [mengfuPose.x, 1.55, mengfuPose.z],
+        facing: mengfuPose.facing,
+        size: 'large',
+        title: '盟府 · 合同台账',
+        subtitle: 'CONTRACT / 契约',
+        tone: 'idle',
+        mount: (body) => {
+          mengfuPage = mountScreenPage(body, {
+            nodeKey: 'mengfu-hall',
+            overviewPath: '/contract/overview',
+            overviewPermission: 'sys:contract:list',
+            pages: [CONTRACT_PAGE],
+            getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+            getPermissions: opts.getPermissions,
+            // 题头灯跟业务页状态走：概览陈旧/失败（服务未起、无凭据）时不该还亮绿灯
+            onTone: (tone) => mengfuScreen?.setTone(tone),
+            onTitle: (title, subtitle) => {
+              mengfuScreen?.setTitle(title ? `${title} · 合同台账` : '盟府 · 合同台账',
+                subtitle ?? 'CONTRACT / 契约');
+            },
+          });
+          return () => {
+            mengfuPage?.dispose();
+            mengfuPage = null;
           };
         },
       });
@@ -4918,6 +4964,8 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
           return jiangzuoPage;
         case 'yingzao':
           return yingzaoPage;
+        case 'mengfu':
+          return mengfuPage;
         default:
           return hubuPage;
       }

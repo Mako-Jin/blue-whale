@@ -1236,6 +1236,86 @@ export const PROJECT_PAGE: ScreenListPageSpec = {
   titleKey: 'name',
 };
 
+/** 合同状态：与 {@code ContractStatus} 一一对应，前端只做展示 */
+export const CONTRACT_STATUS_STYLE: Record<string, ScreenStatusStyle> = {
+  DRAFT: { label: '草稿', tone: 'flat' },
+  APPROVING: { label: '审批中', tone: 'warn' },
+  APPROVED: { label: '已批待签', tone: 'flat' },
+  REJECTED: { label: '已驳回', tone: 'bad' },
+  WITHDRAWN: { label: '已撤回', tone: 'flat' },
+  SIGNING: { label: '签署中', tone: 'warn' },
+  SIGNED: { label: '已签待生效', tone: 'flat' },
+  EFFECTIVE: { label: '生效中', tone: 'good' },
+  ARCHIVED: { label: '已归档', tone: 'flat' },
+  TERMINATED: { label: '已终止', tone: 'bad' },
+  VOID: { label: '已作废', tone: 'bad' },
+};
+
+/** 合同类别：与迁移注释 PURCHASE/SALES/SERVICE/LEASE/OTHER 一一对应 */
+export const CONTRACT_CATEGORY_STYLE: Record<string, ScreenStatusStyle> = {
+  PURCHASE: { label: '采购', tone: 'flat' },
+  SALES: { label: '销售', tone: 'good' },
+  SERVICE: { label: '服务', tone: 'flat' },
+  LEASE: { label: '租赁', tone: 'flat' },
+  OTHER: { label: '其他', tone: 'flat' },
+};
+
+/**
+ * 盟府（CONTRACT）合同台账页。
+ *
+ * <p><b>不配搜索框</b>：合同查询的 {@code code} 与 {@code title} 是两个独立条件
+ * （后端没有合并 keyword），硬拼一个关键字要么只匹配编号要么只匹配标题，
+ * 看起来像"搜不到"其实是没发对参数。</p>
+ *
+ * <p><b>状态筛选给全</b>：合同十一个状态都是真状态（不是实例/任务那种
+ * 同码不同义），页面级字典全覆盖；类别是列级字典——类别与状态是两个
+ * 独立码值空间，绝不能混用同一本字典。</p>
+ *
+ * <p><b>不配 `detailPath`：列表行已经带回 parties/versions/flows 三本分录，
+ * 再请求一次只会让点开有半秒空白。</b></p>
+ */
+export const CONTRACT_PAGE: ScreenListPageSpec = {
+  key: 'contracts',
+  title: '合同台账',
+  listPath: '/contract/page',
+  permission: 'sys:contract:list',
+  idKey: 'id',
+  statusParam: 'status',
+  statuses: [
+    { value: '', label: '全部状态' },
+    { value: 'EFFECTIVE', label: '生效中' },
+    { value: 'SIGNING', label: '签署中' },
+    { value: 'APPROVING', label: '审批中' },
+    { value: 'DRAFT', label: '草稿' },
+    { value: 'ARCHIVED', label: '已归档' },
+    { value: 'TERMINATED', label: '已终止' },
+  ],
+  statusMap: CONTRACT_STATUS_STYLE,
+  /* 6 行/页：大屏 620px 里 KPI + 金额柱图 + 工具栏之后只剩约 230px */
+  pageSize: 6,
+  columns: [
+    { key: 'code', label: '编号', width: '14%' },
+    { key: 'title', label: '标题', width: '26%' },
+    { key: 'category', label: '类别', width: '10%', format: 'status', statusMap: CONTRACT_CATEGORY_STYLE },
+    { key: 'amount', label: '金额', width: '14%', format: 'money', align: 'right' },
+    { key: 'status', label: '状态', width: '12%', format: 'status' },
+    { key: 'expireDate', label: '到期日', width: '12%', format: 'date' },
+  ],
+  detailFields: [
+    { key: 'code', label: '编号' },
+    { key: 'title', label: '标题' },
+    { key: 'category', label: '类别', format: 'status' },
+    { key: 'amount', label: '金额', format: 'money', align: 'right' },
+    { key: 'currency', label: '币种' },
+    { key: 'status', label: '状态', format: 'status' },
+    { key: 'effectiveDate', label: '生效日', format: 'date' },
+    { key: 'expireDate', label: '到期日', format: 'date' },
+    { key: 'daysToExpire', label: '距到期（天）' },
+    { key: 'remark', label: '备注' },
+  ],
+  titleKey: 'title',
+};
+
 /**
  * 殿的连通状态：与后端 {@code HubHallState} 一一对应，前端只做展示。
  *
@@ -1323,5 +1403,6 @@ export const SCREEN_PAGES: Record<string, ScreenListPageSpec> = {
   [DEVICE_PAGE.key]: DEVICE_PAGE,
   [COURSE_PAGE.key]: COURSE_PAGE,
   [PART_PAGE.key]: PART_PAGE,
+  [CONTRACT_PAGE.key]: CONTRACT_PAGE,
   [PROJECT_PAGE.key]: PROJECT_PAGE,
 };

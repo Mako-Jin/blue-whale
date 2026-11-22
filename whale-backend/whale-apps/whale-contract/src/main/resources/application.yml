@@ -58,6 +58,14 @@ whale:
   permission:
     header:
       enabled: true
+  # 概览契约（三维王城数据厅 - 盟府）：SDK 注册 GET /contract/overview，本服务只提供 provider。
+  # 路径带服务前缀（REQ-ARCH-003：网关不剥前缀）；TTL 30s 对应前端 30s 轮询。
+  # timeout 2s：统计是十几次索引 count + 生效合同三列扫描，不碰正文大字段；
+  # 超过 2s 说明库已经不正常，早点降级比让屏风转圈强。
+  overview:
+    base-path: /contract/overview
+    ttl: 30s
+    timeout: 2s
   contract:
     # 工作流审批集成：submit 提交审批时按 definition-id 发起流程实例
     approval:

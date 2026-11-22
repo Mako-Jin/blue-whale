@@ -134,3 +134,7 @@ whale:
           name: 营造坊
           url: http://bw-pm:9005/pm/overview
           permission: sys:pm:project:list
+        - nodeKey: mengfu-hall
+          name: 盟府
+          url: http://bw-contract:9006/contract/overview
+          permission: sys:contract:list

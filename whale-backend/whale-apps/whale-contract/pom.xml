@@ -74,6 +74,12 @@
             <artifactId>whale-tools</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- 概览契约（三维王城数据厅 - 盟府）：SDK 注册 GET /contract/overview，本服务只提供 provider -->
+        <dependency>
+            <groupId>com.bluewhale</groupId>
+            <artifactId>whale-overview-sdk</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <!-- Wave 5.61 M2 电子签章：PDFBox 视觉盖章 + BouncyCastle CMS 数字签名 -->
         <dependency>
             <groupId>org.apache.pdfbox</groupId>

@@ -59,6 +59,7 @@ export const OVERVIEW_HALLS: OverviewHallSpec[] = [
      （TODO / IN_PROGRESS / DONE）走，由 provider 在口径说明里写明，
      前端不做二次换算。 */
   { nodeKey: 'yingzao-bureau', path: '/pm/overview', permission: 'sys:pm:project:list' },
+  { nodeKey: 'mengfu-hall', path: '/contract/overview', permission: 'sys:contract:list' },
   /* 数枢殿总控（S5/T5.1）：服务端把在册各殿的概览汇成一屏。
      **不设权限码**——总控的可见范围就是"你在各殿能看到的范围"，
      缺凭据的殿在总控里显示为「无凭据」行，而不是整块 403。
