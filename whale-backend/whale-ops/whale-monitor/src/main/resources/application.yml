@@ -170,3 +170,7 @@ whale:
           name: 传信司
           url: http://bw-im:8091/im/overview
           permission: sys:im:chat
+        - nodeKey: yutu-stage
+          name: 舆图司
+          url: http://bw-map:8100/map/overview
+          permission: sys:map:provider:view

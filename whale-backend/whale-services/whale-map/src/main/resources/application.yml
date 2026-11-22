@@ -56,6 +56,14 @@ whale:
   permission:
     header:
       enabled: true
+  # 三维王城概览（S7/T7.6）：舆图司屏风读 /map/overview。
+  # 路径带服务前缀（REQ-ARCH-003：网关不剥前缀）；TTL 30s 对应前端 30s 轮询。
+  # timeout 2s：四次索引 count + 一次七日台账扫描，不碰缓存大字段；超过 2s
+  # 说明库已经不正常，早点降级比让屏风转圈强。
+  overview:
+    base-path: /map/overview
+    ttl: 30s
+    timeout: 2s
   # 国际化：BizException 文案键按请求 Locale 解析；属性文件回退源为 classpath:i18n/map/messages*
   i18n:
     enabled: true
