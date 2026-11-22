@@ -111,11 +111,8 @@ $serviceRoots = @(
     (Join-Path $RepoRoot 'whale-backend/whale-services')
 ) | Where-Object { Test-Path -LiteralPath $_ }
 
-# 模块目录名与服务名不一致时的映射（目录名 → service-catalog 服务名）
-$catalogAliases = @{
-    'whale-service-file' = 'whale-file'
-    'whale-service-form' = 'whale-form'
-}
+# 模块目录名与服务名已统一为 whale-service-* / whale-ops-*，无需别名映射
+$catalogAliases = @{}
 
 if ((Test-Path -LiteralPath $catalogPath) -and $serviceRoots.Count -gt 0) {
     $catalogLines = Get-Content -LiteralPath $catalogPath -Encoding UTF8

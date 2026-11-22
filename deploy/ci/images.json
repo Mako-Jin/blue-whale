@@ -10,7 +10,7 @@
     { "service": "whale-agent", "module": "whale-services/whale-agent", "match": "whale-services/whale-agent/", "port": 8090, "assets": true },
     { "service": "whale-im", "module": "whale-services/whale-im", "match": "whale-services/whale-im/", "port": 8091 },
     { "service": "whale-archive", "module": "whale-services/whale-archive", "match": "whale-services/whale-archive/", "port": 8093 },
-    { "service": "whale-message", "module": "whale-services/whale-message", "match": "whale-services/whale-message/", "port": 8094 },
+    { "service": "whale-message", "module": "whale-services/whale-service-message", "match": "whale-services/whale-service-message/", "port": 8094 },
     { "service": "whale-doc", "module": "whale-services/whale-doc", "match": "whale-services/whale-doc/", "port": 8095 },
     { "service": "whale-music", "module": "whale-services/whale-music", "match": "whale-services/whale-music/", "port": 8096 },
     { "service": "whale-scene", "module": "whale-services/whale-scene", "match": "whale-services/whale-scene/", "port": 8097 },

@@ -59,7 +59,7 @@ public class PayInternalClient {
      */
     public PayInternalClient(DiscoveryClient discoveryClient, ObjectMapper objectMapper,
             @Value("${whale.mall.pay.base-url:}") String baseUrl,
-            @Value("${whale.mall.pay.service-name:whale-pay}") String serviceName,
+            @Value("${whale.mall.pay.service-name:whale-service-pay}") String serviceName,
             @Value("${whale.mall.pay.timeout-seconds:3}") long timeoutSeconds) {
         this.discoveryClient = discoveryClient;
         this.objectMapper = objectMapper;

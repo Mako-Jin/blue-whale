@@ -144,7 +144,7 @@
     {
       "type": "timeseries",
       "title": "HTTP P95 时延（仅开启直方图的服务）",
-      "description": "whale-service-auth / whale-workflow / whale-doc 已开启 http.server.requests 直方图，其余服务需在配置中开启后才有曲线",
+      "description": "whale-service-auth / whale-service-workflow / whale-doc 已开启 http.server.requests 直方图，其余服务需在配置中开启后才有曲线",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
       "targets": [

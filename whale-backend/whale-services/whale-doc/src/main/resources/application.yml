@@ -100,8 +100,8 @@ whale:
     share-default-expire-days: ${WHALE_DOC_SHARE_DEFAULT_EXPIRE_DAYS:7}
     share-max-expire-days: ${WHALE_DOC_SHARE_MAX_EXPIRE_DAYS:365}
     # M3 外部服务名（Nacos 服务发现）
-    message-service-name: ${WHALE_DOC_MESSAGE_SERVICE:whale-message}
-    workflow-service-name: ${WHALE_DOC_WORKFLOW_SERVICE:whale-workflow}
+    message-service-name: ${WHALE_DOC_MESSAGE_SERVICE:whale-service-message}
+    workflow-service-name: ${WHALE_DOC_WORKFLOW_SERVICE:whale-service-workflow}
     archive-service-name: ${WHALE_DOC_ARCHIVE_SERVICE:whale-archive}
     auto-snapshot-minutes: ${WHALE_DOC_AUTO_SNAPSHOT_MINUTES:10}
     auto-snapshot-revisions: ${WHALE_DOC_AUTO_SNAPSHOT_REVISIONS:20}

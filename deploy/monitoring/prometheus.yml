@@ -29,23 +29,23 @@ scrape_configs:
     metrics_path: /actuator/prometheus
     static_configs:
       - targets: ['127.0.0.1:8081']
-  - job_name: whale-job
+  - job_name: whale-service-job
     metrics_path: /actuator/prometheus
     static_configs:
       - targets: ['127.0.0.1:8082']
-  - job_name: whale-workflow
+  - job_name: whale-service-workflow
     metrics_path: /actuator/prometheus
     static_configs:
       - targets: ['127.0.0.1:8083']
-  - job_name: whale-form
+  - job_name: whale-service-form
     metrics_path: /actuator/prometheus
     static_configs:
       - targets: ['127.0.0.1:8084']
-  - job_name: whale-file
+  - job_name: whale-service-file
     metrics_path: /actuator/prometheus
     static_configs:
       - targets: ['127.0.0.1:8085']
-  - job_name: whale-pay
+  - job_name: whale-service-pay
     metrics_path: /actuator/prometheus
     static_configs:
       - targets: ['127.0.0.1:8086']
@@ -61,7 +61,7 @@ scrape_configs:
     metrics_path: /actuator/prometheus
     static_configs:
       - targets: ['127.0.0.1:8093']
-  - job_name: whale-message
+  - job_name: whale-service-message
     metrics_path: /actuator/prometheus
     static_configs:
       - targets: ['127.0.0.1:8094']
@@ -116,7 +116,7 @@ scrape_configs:
     metrics_path: /actuator/prometheus
     static_configs:
       - targets: ['127.0.0.1:9010']
-  - job_name: whale-audit
+  - job_name: whale-ops-audit
     metrics_path: /actuator/prometheus
     static_configs:
       - targets: ['127.0.0.1:9101']
@@ -124,7 +124,7 @@ scrape_configs:
     metrics_path: /actuator/prometheus
     static_configs:
       - targets: ['127.0.0.1:9102']
-  - job_name: whale-alert
+  - job_name: whale-ops-alert
     metrics_path: /actuator/prometheus
     static_configs:
       - targets: ['127.0.0.1:9103']

@@ -55,5 +55,6 @@ public class CircuitBreakerProperties {
     private String internalToken = "";
 
     /** 启用熔断降级的路由 id 列表，默认覆盖认证/任务/文件/审计四类关键路由 */
-    private List<String> applyToRoutes = new ArrayList<>(List.of("whale-service-auth", "whale-job", "whale-file", "whale-audit"));
+    private List<String> applyToRoutes = new ArrayList<>(List.of("whale-service-auth", "whale-service-job",
+            "whale-service-file", "whale-ops-audit"));
 }

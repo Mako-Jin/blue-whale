@@ -31,7 +31,8 @@ class CircuitBreakerPropertiesTest {
         assertEquals(50, properties.getFailureRateThreshold());
         assertEquals(20, properties.getSlidingWindowSize());
         assertEquals(10000, properties.getWaitDurationInOpenStateMillis());
-        assertEquals(List.of("whale-service-auth", "whale-job", "whale-file", "whale-audit"), properties.getApplyToRoutes());
+        assertEquals(List.of("whale-service-auth", "whale-service-job", "whale-service-file", "whale-ops-audit"),
+                properties.getApplyToRoutes());
     }
 
     @Test

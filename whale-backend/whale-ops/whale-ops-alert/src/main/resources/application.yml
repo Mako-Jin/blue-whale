@@ -7,7 +7,7 @@ server:
 
 spring:
   application:
-    name: whale-alert
+    name: whale-ops-alert
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
   datasource:

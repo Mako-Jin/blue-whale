@@ -147,43 +147,43 @@ whale:
             args:
               patterns: /login-history/v1/**
         filters: []
-      - id: whale-job
-        uri: lb://whale-job
+      - id: whale-service-job
+        uri: lb://whale-service-job
         predicates:
           - name: Path
             args:
               patterns: /job/**
         filters: []
-      - id: whale-workflow
-        uri: lb://whale-workflow
+      - id: whale-service-workflow
+        uri: lb://whale-service-workflow
         predicates:
           - name: Path
             args:
               patterns: /workflow/**
         filters: []
-      - id: whale-form
-        uri: lb://whale-form
+      - id: whale-service-form
+        uri: lb://whale-service-form
         predicates:
           - name: Path
             args:
               patterns: /form/**
         filters: []
-      - id: whale-file
-        uri: lb://whale-file
+      - id: whale-service-file
+        uri: lb://whale-service-file
         predicates:
           - name: Path
             args:
               patterns: /file/**
         filters: []
-      - id: whale-pay
-        uri: lb://whale-pay
+      - id: whale-service-pay
+        uri: lb://whale-service-pay
         predicates:
           - name: Path
             args:
               patterns: /pay/**
         filters: []
-      - id: whale-alert
-        uri: lb://whale-alert
+      - id: whale-ops-alert
+        uri: lb://whale-ops-alert
         predicates:
           - name: Path
             args:
@@ -196,8 +196,8 @@ whale:
             args:
               patterns: /monitor/**
         filters: []
-      - id: whale-audit
-        uri: lb://whale-audit
+      - id: whale-ops-audit
+        uri: lb://whale-ops-audit
         predicates:
           - name: Path
             args:
@@ -271,8 +271,8 @@ whale:
             args:
               patterns: /archive/**
         filters: []
-      - id: whale-message
-        uri: lb://whale-message
+      - id: whale-service-message
+        uri: lb://whale-service-message
         predicates:
           - name: Path
             args:

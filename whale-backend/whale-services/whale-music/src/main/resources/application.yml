@@ -90,7 +90,7 @@ whale:
     comment-pre-audit: ${WHALE_MUSIC_COMMENT_PRE_AUDIT:false}
     playlist-max-songs: ${WHALE_MUSIC_PLAYLIST_MAX_SONGS:500}
     play-history-retention-days: ${WHALE_MUSIC_PLAY_HISTORY_RETENTION_DAYS:90}
-    file-service-name: ${WHALE_MUSIC_FILE_SERVICE:whale-file}
+    file-service-name: ${WHALE_MUSIC_FILE_SERVICE:whale-service-file}
 
 mybatis-plus:
   configuration:

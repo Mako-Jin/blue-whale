@@ -7,7 +7,7 @@ server:
 
 spring:
   application:
-    name: whale-pay
+    name: whale-service-pay
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
   datasource:

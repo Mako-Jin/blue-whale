@@ -92,7 +92,7 @@ whale:
     comment-pre-audit: ${WHALE_VIDEO_COMMENT_PRE_AUDIT:false}
     history-retention-days: ${WHALE_VIDEO_HISTORY_RETENTION_DAYS:180}
     content-cache-seconds: ${WHALE_VIDEO_CONTENT_CACHE_SECONDS:60}
-    file-service-name: ${WHALE_VIDEO_FILE_SERVICE:whale-file}
+    file-service-name: ${WHALE_VIDEO_FILE_SERVICE:whale-service-file}
     file-bucket: ${WHALE_VIDEO_FILE_BUCKET:whale-video}
 
 mybatis-plus:

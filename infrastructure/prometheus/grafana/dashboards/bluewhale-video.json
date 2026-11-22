@@ -67,7 +67,7 @@
     {
       "type": "stat",
       "title": "流式首字节 P95（SLO-11 < 400ms）",
-      "description": "GET /video/stream/{contentId}，含上游 whale-file 内容接口耗时",
+      "description": "GET /video/stream/{contentId}，含上游 whale-service-file 内容接口耗时",
       "datasource": { "type": "prometheus", "uid": "bluewhale-prometheus" },
       "gridPos": { "h": 5, "w": 6, "x": 12, "y": 1 },
       "targets": [

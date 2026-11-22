@@ -24,8 +24,8 @@ $env:NACOS_ADDR = '127.0.0.1:8848'
 Start-Svc 'gateway' "$base\whale-services\whale-service-gateway\target\whale-service-gateway.jar" 8080
 Remove-Item Env:\NACOS_ADDR
 Start-Svc 'auth'    "$base\whale-services\whale-service-auth\whale-service-auth-starter\target\whale-service-auth.jar"       8081
-Start-Svc 'alert'   "$base\whale-ops\whale-alert\target\whale-alert.jar"          9103
-Start-Svc 'audit'   "$base\whale-ops\whale-audit\target\whale-audit.jar"          9101
+Start-Svc 'alert'   "$base\whale-ops\whale-ops-alert\target\whale-ops-alert.jar"          9103
+Start-Svc 'audit'   "$base\whale-ops\whale-ops-audit\target\whale-ops-audit.jar"          9101
 Start-Svc 'monitor' "$base\whale-ops\whale-monitor\target\whale-monitor.jar"      9102
 Start-Svc 'pay'     "$base\whale-services\whale-service-pay\target\whale-service-pay.jar"         8086
 Write-Host 'all launched; holding terminal open'

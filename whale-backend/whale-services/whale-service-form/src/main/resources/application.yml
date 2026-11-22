@@ -7,7 +7,7 @@ server:
 
 spring:
   application:
-    name: whale-form
+    name: whale-service-form
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
   datasource:

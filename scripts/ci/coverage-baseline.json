@@ -131,7 +131,7 @@
       "line": 0.7006,
       "branch": 0.5548
     },
-    "whale-services/whale-job": {
+    "whale-services/whale-service-job": {
       "line": 0.5938,
       "branch": 0.4902
     },
@@ -143,7 +143,7 @@
       "line": 0.5451,
       "branch": 0.4706
     },
-    "whale-services/whale-message": {
+    "whale-services/whale-service-message": {
       "line": 0.6084,
       "branch": 0.5121
     },
@@ -199,7 +199,7 @@
       "line": 0.3679,
       "branch": 0.3465
     },
-    "whale-services/whale-workflow": {
+    "whale-services/whale-service-workflow": {
       "line": 0.7498,
       "branch": 0.5967
     }

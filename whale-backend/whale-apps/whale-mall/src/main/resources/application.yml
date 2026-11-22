@@ -80,7 +80,7 @@ whale:
     pay-notify-url: ${WHALE_MALL_PAY_NOTIFY_URL:whale-mall/mall/internal/order/paid}
     # whale-pay 内网客户端（服务间直连，不经网关）
     pay:
-      service-name: ${WHALE_MALL_PAY_SERVICE_NAME:whale-pay}
+      service-name: ${WHALE_MALL_PAY_SERVICE_NAME:whale-service-pay}
       # 配置了 base-url 则跳过服务发现直连（本机联调用）
       # base-url: http://127.0.0.1:8086
       timeout-seconds: ${WHALE_MALL_PAY_TIMEOUT_SECONDS:3}

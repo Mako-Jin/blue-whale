@@ -7,7 +7,7 @@ server:
 
 spring:
   application:
-    name: whale-workflow
+    name: whale-service-workflow
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
   datasource:

@@ -1,8 +1,8 @@
 ﻿# V-14：网关熔断半开运行态取证（真实故障注入）
 #
 # 前置：
-#   - 网关 8080 已启动，whale-audit 路由参与熔断（默认 apply-to-routes 包含 whale-audit）；
-#   - whale-audit 服务未注册/不可用，用于制造真实下游失败；
+#   - 网关 8080 已启动，whale-ops-audit 路由参与熔断（默认 apply-to-routes 包含 whale-ops-audit）；
+#   - whale-ops-audit 服务未注册/不可用，用于制造真实下游失败；
 #   - admin 凭据经 SMOKE_PASSWORD 环境变量提供且可登录；
 #   - 网关日志已落盘，默认 logs/gateway.e2e.out.log（建议用 `docker logs -f bw-gateway` 持续追加）。
 #
@@ -15,7 +15,7 @@
 #
 # 用法：
 #   powershell -File scripts/smoke/bw-gateway-circuit-breaker-smoke.ps1 -GatewayLog logs/gateway.e2e.out.log
-#   # 恢复路径：先在另一终端启动 whale-audit，再带 -Recovery 运行（脚本会轮询等待其可用）
+#   # 恢复路径：先在另一终端启动 whale-ops-audit，再带 -Recovery 运行（脚本会轮询等待其可用）
 #
 # 退出码：0 通过；1 失败；2 参数/前置缺失。
 
@@ -74,7 +74,7 @@ function Get-CircuitMetrics {
     # 从 prometheus 端点抓取熔断指标（缺失/未暴露时返回空串，不阻断主流程）
     try {
         $prom = (Invoke-WebRequest -Uri "$BaseUrl/actuator/prometheus" -UseBasicParsing).Content
-        $lines = @($prom -split "`n" | Where-Object { $_ -match '^gateway_circuit_(state|short_circuits_total|calls_total)\{[^}]*route="whale-audit"' })
+        $lines = @($prom -split "`n" | Where-Object { $_ -match '^gateway_circuit_(state|short_circuits_total|calls_total)\{[^}]*route="whale-ops-audit"' })
         return ($lines | ForEach-Object { $_.Trim() }) -join "`n"
     } catch {
         return ''
@@ -93,7 +93,7 @@ try {
     exit 2
 }
 
-# 1) 真实下游失败：whale-audit 无实例，连续 20 次请求均走降级
+# 1) 真实下游失败：whale-ops-audit 无实例，连续 20 次请求均走降级
 $statuses = @()
 for ($i = 1; $i -le $FailureCalls; $i++) {
     $result = Call-Audit $token
@@ -101,7 +101,7 @@ for ($i = 1; $i -le $FailureCalls; $i++) {
 }
 $non503 = @($statuses | Where-Object { $_ -ne 503 })
 Assert "连续 $FailureCalls 次下游失败均返回 503" ($non503.Count -eq 0) "statuses=$($statuses -join ',')"
-Assert "CLOSED -> OPEN 迁移日志" (Has-Log 'route=whale-audit, CLOSED -> OPEN')
+Assert "CLOSED -> OPEN 迁移日志" (Has-Log 'route=whale-ops-audit, CLOSED -> OPEN')
 
 # 2) 打开后请求应被短路，返回统一降级提示
 $shortCircuit = Call-Audit $token
@@ -115,11 +115,11 @@ if ($metrics) { Write-Host $metrics } else { Write-Host "WARN prometheus 指标�
 Start-Sleep -Seconds $OpenWaitSeconds
 $probe = Call-Audit $token
 Assert "半开探测请求仍返回 503" ($probe.Status -eq 503) "status=$($probe.Status)"
-Assert "OPEN -> HALF_OPEN 迁移日志" (Has-Log 'route=whale-audit, OPEN -> HALF_OPEN')
+Assert "OPEN -> HALF_OPEN 迁移日志" (Has-Log 'route=whale-ops-audit, OPEN -> HALF_OPEN')
 
 # 4) 探测失败后重新打开
 Start-Sleep -Seconds 2
-Assert "HALF_OPEN -> OPEN 迁移日志" (Has-Log 'route=whale-audit, HALF_OPEN -> OPEN')
+Assert "HALF_OPEN -> OPEN 迁移日志" (Has-Log 'route=whale-ops-audit, HALF_OPEN -> OPEN')
 
 # 5) 恢复路径（-Recovery）：下游恢复后轮询等待半开探测成功 → HALF_OPEN -> CLOSED
 if ($Recovery) {
@@ -136,7 +136,7 @@ if ($Recovery) {
         # 503 = 熔断打开短路或探测失败再打开，等下一轮探测即可
     }
     Assert "下游恢复后半开探测成功（请求 200）" $recovered "lastStatus=$($probe2.Status)"
-    Assert "HALF_OPEN -> CLOSED 迁移日志" (Has-Log 'route=whale-audit, HALF_OPEN -> CLOSED')
+    Assert "HALF_OPEN -> CLOSED 迁移日志" (Has-Log 'route=whale-ops-audit, HALF_OPEN -> CLOSED')
     $after = Call-Audit $token
     Assert "恢复闭合后请求正常 200" ($after.Status -eq 200) "status=$($after.Status) body=$($after.Body)"
     $metricsClosed = Get-CircuitMetrics

@@ -7,7 +7,7 @@ server:
 
 spring:
   application:
-    name: whale-message
+    name: whale-service-message
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
   datasource:
