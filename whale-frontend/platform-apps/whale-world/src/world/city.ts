@@ -77,6 +77,7 @@ import {
   PART_PAGE,
   PROJECT_PAGE,
   CONTRACT_PAGE,
+  MEMBER_PAGE,
 } from './screenpages';
 import { createSceneEnv, type SceneEnv } from './env';
 import { createPostFx, type PostFx } from './postfx';
@@ -3963,6 +3964,10 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   let mengfuScreen: ScreenHandle | null = null;
   let mengfuPage: ScreenPageHandle | null = null;
 
+  /** 宣抚坊（S6/T6.28）屏风与其业务页句柄（同上） */
+  let xuanfuScreen: ScreenHandle | null = null;
+  let xuanfuPage: ScreenPageHandle | null = null;
+
   /**
    * 坊的屏风落位：从布局数据现算，不手抄坐标。
    *
@@ -4405,6 +4410,47 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
           return () => {
             mengfuPage?.dispose();
             mengfuPage = null;
+          };
+        },
+      });
+    }
+
+    /* 宣抚坊（S6/T6.28）：党员台账 + 党务四张牌 —— 组织生活正不正常。
+
+       布局里宣抚院在城南侧（z=+73.41，盟府的邻坊）；`districtScreenPose`
+       按它自己的正面法线算落点，不需要手调坐标。
+
+       屏风上半部是四张牌（在册党员 / 党费收缴 / 三会一课 / 组织生活参会），
+       中部是党员年龄结构柱图，下半部是党员台账。支部与工会不单摆页：
+       支部是组织结构不是台账，工会的账在联建（union）另算，混进来口径就乱了。 */
+    const xuanfuPose = districtScreenPose('xuanfu-court');
+    if (xuanfuPose) {
+      xuanfuScreen = screens.add({
+        id: 'xuanfu',
+        position: [xuanfuPose.x, 1.55, xuanfuPose.z],
+        facing: xuanfuPose.facing,
+        size: 'large',
+        title: '宣抚坊 · 党员台账',
+        subtitle: 'PARTY / 党务',
+        tone: 'idle',
+        mount: (body) => {
+          xuanfuPage = mountScreenPage(body, {
+            nodeKey: 'xuanfu-court',
+            overviewPath: '/party/overview',
+            overviewPermission: 'sys:party:metric:list',
+            pages: [MEMBER_PAGE],
+            getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+            getPermissions: opts.getPermissions,
+            // 题头灯跟业务页状态走：概览陈旧/失败（服务未起、无凭据）时不该还亮绿灯
+            onTone: (tone) => xuanfuScreen?.setTone(tone),
+            onTitle: (title, subtitle) => {
+              xuanfuScreen?.setTitle(title ? `${title} · 党员台账` : '宣抚坊 · 党员台账',
+                subtitle ?? 'PARTY / 党务');
+            },
+          });
+          return () => {
+            xuanfuPage?.dispose();
+            xuanfuPage = null;
           };
         },
       });
@@ -4966,6 +5012,8 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
           return yingzaoPage;
         case 'mengfu':
           return mengfuPage;
+        case 'xuanfu':
+          return xuanfuPage;
         default:
           return hubuPage;
       }

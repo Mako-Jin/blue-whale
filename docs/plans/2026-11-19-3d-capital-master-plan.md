@@ -789,7 +789,8 @@
 | T6.23 | 营造坊 屏风页（项目台账） | pm | [x] |
 | T6.24 | 营造坊 厅配置 + 数枢殿总控在册 | pm | [x] |
 | T6.25–T6.27 | 盟府（contract） | contract | [x] |
-| T6.28–T6.36 | 其余三坊（宣抚 / 翰林 / 市舶） | party / doc / mall | [ ] |
+| T6.28–T6.30 | 宣抚坊（party） | party | [x] |
+| T6.31–T6.36 | 其余二坊（翰林 / 市舶） | doc / mall | [ ] |
 
 **S6 第一批交付说明（2026-11-21，T6.4–T6.6 工部坊 / mes）**
 
@@ -1078,6 +1079,35 @@
   已接入 **17 处**。
 - **已知遗留**：`/contract/overview` 的真实 HTTP 未验（本机 Docker / Nacos 未起），同前几批口径；
   改了 whale-contract 与 whale-monitor 的 yml，**部署时两座容器都要重建镜像**。
+
+**S6 第九批交付说明（2026-11-22，T6.28–T6.30 宣抚坊 / party）**
+
+- **接口**：`GET /party/overview`（`whale.overview.base-path=/party/overview`，TTL 30s、超时 2s）：
+  四张 KPI（在册党员 / 党费收缴 / 三会一课 / 组织生活参会，三张是比率牌）+ 一张六段
+  **年龄结构柱图**（30 以下 / 30–39 / 40–49 / 50–59 / 60+ / 未知，COUNT）+ 五条告警
+  （低收缴 / 低开展 / 低参会 / 换届到期 WARNING；待转正 / 无党员 / 实时算 INFO）
+  + 党员台账入口。PARTY 有现成党务看板（`AnalyticsAppService#partyOverview`），
+  像 LMS 一样**直接复用**：provider 只排版，无新统计类。权限码复用
+  `sys:party:metric:list`，屏风页复用 `/party/member/page`，无新接口无新权限点无新迁移。
+- **比率 /100**：`MetricSnapshot#rate` 是百分数（×100），进契约前统一除以 100——
+  不除就会得到「9400.0%」（杏坛坊同款坑，勿回退）。
+- **语气分界**：收缴 95/80、开展 90/70、参会 85/60（绿灯 / 黄灯 / 红灯分界）。
+  指标按 `MetricType` 码建 EnumMap 索引，看板侧新加的不认识的码跳过不炸整屏。
+- **屏风页**：`MEMBER_PAGE`（`/party/member/page`，六列：编号 / 姓名 / 支部 / 政治面貌 /
+  党龄 / 状态）。**有搜索框**（keyword 合并关键字）；**政治面貌用列级 statusMap**
+  （FULL_MEMBER 灰 / PROBATIONARY 黄——预备党员黄灯不是事故，是"转正手续得有人办"），
+  页面级字典留给状态列（ACTIVE 在册绿 / TRANSFERRED 转出灰 / SUSPENDED 停籍红）。
+  **不配 `detailPath`**：`MemberView` 平铺。
+- **city-smoke 时间窗放宽（重要，勿回退）**：屏风逐坊增挂，软件渲染步行帧率进一步压低
+  （实测 spawn 处 17fps），代码里 9 秒的门洞余量又是掷硬币（停在 z=58.04），
+  420ms 的 F 提示窗也只赶上一次邻近检测——改为 **walk(14000) + 提示窗 1500ms +
+  KeyF 后 900ms**。哲学不变：测的是"门洞可穿 / 走近会提示"，不是"帧率够不够高"。
+- **e2e**：`world-xuanfu-smoke.mjs` **55 项全绿**（复用走位姿势）；回归 world-city-smoke
+  全通过（放宽时间窗后）；八项门禁 rc=0；tsc --noEmit 通过；whale-party 全量 **167 例**通过。
+- **数枢殿总控在册**：`aggregate.targets` 加 `http://bw-party:9009/party/overview`，
+  已接入 **18 处**。
+- **已知遗留**：`/party/overview` 的真实 HTTP 未验（本机 Docker / Nacos 未起），同前几批口径；
+  改了 whale-party 与 whale-monitor 的 yml，**部署时两座容器都要重建镜像**。
 
 ### S7 外城 9 处
 

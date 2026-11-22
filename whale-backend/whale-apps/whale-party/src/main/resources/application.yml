@@ -54,6 +54,14 @@ whale:
   permission:
     header:
       enabled: true
+  # 概览契约（三维王城数据厅 - 宣抚坊）：SDK 注册 GET /party/overview，本服务只提供 provider。
+  # 路径带服务前缀（REQ-ARCH-003：网关不剥前缀）；TTL 30s 对应前端 30s 轮询。
+  # timeout 2s：数字来自党务看板（快照优先、无快照实时算），不碰明细大字段；
+  # 超过 2s 说明库已经不正常，早点降级比让屏风转圈强。
+  overview:
+    base-path: /party/overview
+    ttl: 30s
+    timeout: 2s
   party:
     # 需求门禁（REQ-FUNC-094 / REQ-ARCH-026 / REQ-SEC-036）已通过（Wave 5.88）；
     # 置为 false 可一键回退到仅 /party/meta 的维护态

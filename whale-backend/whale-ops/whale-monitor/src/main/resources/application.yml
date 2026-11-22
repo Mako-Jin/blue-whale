@@ -138,3 +138,7 @@ whale:
           name: 盟府
           url: http://bw-contract:9006/contract/overview
           permission: sys:contract:list
+        - nodeKey: xuanfu-court
+          name: 宣抚坊
+          url: http://bw-party:9009/party/overview
+          permission: sys:party:metric:list
