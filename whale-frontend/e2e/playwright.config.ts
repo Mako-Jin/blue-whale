@@ -19,6 +19,9 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: [['list'], ['html', { outputFolder: 'playwright-report', open: 'never' }]],
   use: {
+    // 用例定位器按中文界面编写；CI 浏览器默认 en-US 会让 admin 的 i18n 渲染英文占位符，
+    // 固定为中文避免环境语言差异导致假失败。
+    locale: 'zh-CN',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'off',
