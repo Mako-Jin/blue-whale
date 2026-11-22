@@ -1166,8 +1166,11 @@
 
 - **外城建筑先建节点**：前六阶段十二坊都在 `city-layout.json` 现成环上，S7 外城九处
   布局里没有——第一批先在 `city-layout.json` 加 `yuefang-stage`（东南外城 x/z=
-  39.73/85.20、rotationDeg=-155、portal=殿心+14×正面法线、entry `/music`
+  47.00/81.41、rotationDeg=-150、portal=殿心+14×正面法线、entry `/music`
   `sys:music:browse`）。`PALACES` / `DISTRICTS` 从布局派生，乐坊自动拿到坊墙与传送门。
+  **T7.4 复查时迁过位**：原落点 25°（39.73/85.20）的屏风正立在户部坊院墙内
+  （屏风落点距户部台基只有 1.75 米，人走不进去），随寻路网格按旋转盒修正一并
+  挪到 30° 的坊间街道口；坐标以本行为准。
 - **接口**：`GET /music/overview`（`whale.overview.base-path=/music/overview`，
   TTL 30s、超时 2s）：四张 KPI（已上架歌曲 / 待审评论 / 待复核申诉 / 版权待复核，
   后三张有账就黄）+ 一张歌曲发布三态柱图（草稿 / 已上架 / 已下架，COUNT）
@@ -1193,7 +1196,8 @@
   同步；八项门禁 rc=0 除已知遗留。
 - **新坑（写进门禁/记忆）**：① CSS3D 走位必须解 `bws-screen` **自身**的 matrix3d
   （世界 x/z），`parentElement` 是相机透视层，从它解出的是相机坐标（乐坊解成
-  (0,-76) 而真位在 (39.73,85.20)）——前几坊用 dispatchEvent 强制点击、断言不校验
+  (0,-76) 而真位在 (47.00,81.41)，当时还是 25° 的老位）——前几坊用 dispatchEvent
+  强制点击、断言不校验
   真实距离把这个坑盖住了，乐坊空间音频按真实距离衰减才暴露；② e2e 音频断言必须做
   负向验证（出生点远离应恒 0），否则"无条件拉起"也会 PASS。
 - **已知遗留（非本批引入）**：`check-api-path-drift.py` FAIL 2 处——POST /contract
@@ -1282,6 +1286,49 @@
   check:overview 通过；八项门禁 8/8 rc=0；覆盖率门禁通过（聚合 53.56%/47.69%）。
 - 改了 whale-forum 与 whale-monitor 的 yml，**部署时两座容器都要重建镜像**。
 
+**S7 第四批交付说明（2026-11-23，T7.4 邮驿 / mail，邮件列表）**
+
+- **选址**：邮驿在正北偏东外城（x/z = 47.00/-81.41、r=94、θ=150°、rotationDeg=-30、
+  portal=殿心+14×正面法线 → (40.00,-69.28)、entry `/mail` `sys:mail:message:list`）。
+  θ 取 150°（离 180° 的北门轴线 30°、离 135° 的兵部坊最近点 5.7 米），
+  `collider.halfX=6.5 / halfZ=5.0`。**MAIL 没有 browse 权限码**，入口用
+  `sys:mail:message:list`——那是 2D 里"能读自己的信"的那个码，不要臆造 `sys:mail:browse`。
+- **接口**：`GET /mail/overview`（`whale.overview.base-path=/mail/overview`，TTL 30s、
+  超时 2s）：四张 KPI（在册邮箱 / 同步超时 / 配额吃紧 / 近七日退信，后三张有账就黄）
+  + 一张账号**同步四态**柱图（近一日已同步 / 超时未同步 / 从未同步 / 未开同步，
+  四格互斥且合计等于在册数）+ 六条告警（超时 / 配额 / 永久退信 WARNING；从未同步 /
+  临时退信 / 空库 INFO）+ 三入口（邮件列表 / 邮箱账号 / 退信回执）。
+  新建 `MailOverviewStats / StatsService / Provider`（whale-services/whale-mail，
+  :8099，容器 bw-mail）。**权限码 `sys:mail:account:list`**——本屏统的是全租户的
+  邮箱（同步、配额、退信），不是某人的收件箱；邮件列表入口另带 `sys:mail:message:list`。
+- **口径**：邮件是"拉"进来的，所以主账盯同步不盯信数——同步一停屏风只会一直显示旧信，
+  而它自己不报错。同步新鲜度按 24 小时、配额按 `used_bytes*100 >= quota_bytes*80`
+  （`quota_bytes=0` 表示未知，不参与判定，否则会天天假警）、退信只数近 7 日并区分
+  永久（5.x.x）/临时（4.x.x）。**不写 GROUP BY，各 count 一次**；`apply` 只带常量
+  占位符，租户条件仍由插件追加；tenantId 显式传入，缺了直接抛。
+- **屏风页**：`MAIL_PAGE`（`/mail/v1/message/page`，六列）。**筛选框选的是文件夹
+  不是状态**（邮件没有状态维度，statusParam 指向 `folderCode`），第一项空串即
+  "不给参数"——服务端 `resolveFolder` 缺省取 INBOX，前端不写死默认值。
+  已读/附件走 0/1 字典，**键必须是字符串**（渲染层 `String(value)` 查表，写数字
+  会静默查不到、那一列永远显示裸的 "0"）。不配 `detailPath`：
+  `GET /mail/v1/message/{id}` 会触发正文回源（现场再连一次 IMAP），屏风上点一行
+  不该去打邮箱服务器。
+- **★ 寻路网格必须按旋转盒算（本批修的既有缺陷）**：`createNavGrid` 原先拿
+  `hx/hz` 当轴对齐盒用，而内城十二坊的坊墙是斜的——斜墙在格网里既"少挡"
+  （墙端被抹平，路被规划进真墙里，角色顶着墙推不进去、几秒后放弃在路中间），
+  也会"多挡"（墙中段被摊平，本该能走的街道成死路）。实测：邮驿规划路过翰林院
+  北墙，停在 (8.2,-82.3)、离目标 44 米。现在格网与拉直都按盒的局部坐标系判
+  （`boxContains` / `segmentHitsBox` 先转局部）。**副作用是要修两处不合法选址**：
+  乐坊屏风原立在户部坊院内（迁到 30°），邮驿取 150°。
+  调试入口：`window.__bwwNav(x, z)` 返回 `{grid, hits}`——`grid:true` 且 `hits`
+  非空就是"格网放行、人却被顶住"的格子，长距离走位失败先问它。
+- **数枢殿总控在册**：`http://bw-mail:8099/mail/overview`，接入 **24 处**。
+- **验证**：mail 单测 52 例（新增 16）；monitor 53 例；e2e `world-youyi-smoke`
+  **56 项全绿**（含禁用标签、文件夹切换、六列字典、分页、走位实测 4.7 米、降级 stale）；
+  city-smoke 传送门 16→17；回归清议堂 56、影戏院 60、乐坊 59、翰林院/孟府/市舶司/
+  宣抚司/营造局全过；tsc / lint / check:overview 通过。
+- 改了 whale-mail 与 whale-monitor 的 yml，**部署时两座容器都要重建镜像**。
+
 ### S7 外城 9 处
 
 | 编号 | 任务 | 服务 | 特殊 |
@@ -1289,7 +1336,7 @@
 | T7.1 | [x] 乐坊 | music | 空间音频 |
 | T7.2 | [x] 影戏院 | video | 视频纹理 |
 | T7.3 | [x] 清议堂 | forum | 帖子列表 |
-| T7.4 | [ ] 邮驿 | mail | 邮件列表 |
+| T7.4 | [x] 邮驿 | mail | 邮件列表 |
 | T7.5 | [ ] 传信司 | im | 会话列表（贴脸模式） |
 | T7.6 | [ ] 舆图司 | map | 地面舆图纹理 |
 | T7.7 | [ ] 观星台 | twin | 3D 场景嵌入 |
