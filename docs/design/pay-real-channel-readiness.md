@@ -485,6 +485,23 @@ public interface PayChannelAdapter {
 
 **验证**：`mvn test` 88 项通过（新增对账 9 项：LOCAL_ONLY、CHANNEL_ONLY、AMOUNT_MISMATCH、STATUS_MISMATCH、降级 PARTIAL、账单取数失败、批次幂等、补偿拒绝、补偿成功；概览新增 1 项差异告警），`checkstyle:check` 通过。
 
+### 7.4 阶段 4 落地记录（2026-11-22）
+
+| 改动 | 内容 |
+|---|---|
+| 新模块 `whale-sdk/whale-pay-client` | 与 `whale-auth-sdk` / `whale-overview-sdk` 同级，已注册进 `whale-sdk/pom.xml` |
+| `WhalePayClient` | `create` / `pay` / `cancel` / `getByOrderNo` / `refund`，视图为 SDK 自有 `PayOrderView` / `PayRefundView`，不反向依赖服务端模块 |
+| `HttpWhalePayClient` | 自动注入 `X-Internal-Token`（配置优先，否则取 starter 当前令牌）、`X-Tenant-Id`（配置优先，否则取租户上下文）、`X-Trace-Id`（沿用当前 trace，缺失生成 32 位） |
+| 幂等键 | `create` 缺 `orderNo` 时按 `bizType-businessKey` 生成；`refund` 缺 `refundNo` 时生成一次并在本次调用重试间复用 |
+| 重试 | 仅连接/读超时、HTTP 5xx、服务端 `Result.code == 500` 在幂等接口重试；`pay` 永不自动重试；`PARAM_ERROR` / `NOT_FOUND` 直接抛 |
+| 异常 | `PayClientException(code, messageKey, message)`，`code` 对齐 `Result.code` 或 HTTP 状态码 |
+| 配置 | `whale.pay.client.{base-url,internal-token,tenant-id,connect-timeout,read-timeout,max-retries,api-version,enabled}` |
+| 自动装配 | `WhalePayClientAutoConfiguration` 注册进 `AutoConfiguration.imports`；存在宿主 `RestClient.Builder` 时沿用其消息转换器 |
+
+**部署侧未随代码落地**：`whale.internal-token.issuers` 与租户白名单、网关 403、K8s NetworkPolicy 属环境配置（见 3.2），代码侧已具备按服务签发与白名单校验能力，待发布时下发。共享令牌继续作为本地开发默认。
+
+**验证**：新增 6 项单测（头部注入与单号生成、退款号生成、业务错误不重试、5xx 重试、`pay` 不重试、本地参数校验），`checkstyle:check` 通过。
+
 ---
 
 ## 8. 需求项 / 完成项 / 待做项 / 已修正问题项
@@ -510,11 +527,12 @@ public interface PayChannelAdapter {
 | 阶段 1：统一状态推进 + 状态机 + 渠道结果状态 | 已完成（2026-11-22，见 7.1） |
 | 阶段 2：渠道异步回调入站（验签/幂等/留痕/统一落账） | 已完成（2026-11-22，见 7.2） |
 | 阶段 3：批量对账 + 差异闭环（批次/差异/处置/概览告警） | 已完成（2026-11-22，见 7.3） |
+| 阶段 4：内网鉴权 + `whale-pay-client` SDK（代码侧） | 已完成（2026-11-22，见 7.4；部署侧待下发） |
 | 本设计文档 | 已完成 |
 
 ### 待做项
 
-1. 阶段 4～6 实现（按第 7 节顺序）。
+1. 阶段 5～6 实现（按第 7 节顺序）。
 2. 部署侧下发 `issuer-id`/`issuer-secret` 与租户白名单，配置 NetworkPolicy。
 3. 并发/幂等/故障注入集成测试（需 MySQL 环境）。
 4. `queryStatus` 扩展为可返回渠道流水号的 `queryResult`，补齐自动收敛时 `channel_trade_no` 为空的问题。
