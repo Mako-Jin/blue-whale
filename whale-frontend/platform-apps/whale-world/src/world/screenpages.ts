@@ -25,7 +25,7 @@ export type ColumnFormat =
 
 /** 一列 */
 export interface ScreenColumn {
-  /** 取值字段名（后端 JSON 的 key） */
+  /** 取值字段名（后端 JSON 的 key）；支持 `a.b` 取嵌套字段（IM 的 lastMessage.content） */
   key: string;
   /** 表头 */
   label: string;
@@ -35,6 +35,13 @@ export interface ScreenColumn {
   align?: 'left' | 'right';
   /** 排版口径 */
   format?: ColumnFormat;
+  /**
+   * 空值显示的文字，缺省 `—`。
+   *
+   * <p>单聊会话的标题为空是<b>平台约定</b>（2D 里显示"未命名会话"），不是数据缺失；
+   * 一列 `—` 会让人以为接口没返回。这个字段让口径跟着列走，而不是让渲染器猜。</p>
+   */
+  emptyText?: string;
   /**
    * 列级状态字典；缺省用页面级 {@link ScreenListPageSpec#statusMap}。
    *
@@ -78,6 +85,15 @@ export interface ScreenListPageSpec {
   statusMap?: Record<string, ScreenStatusStyle>;
   /** 每页条数，缺省 8（大屏 620px 高，8 行刚好不用滚；再多就靠滚动） */
   pageSize?: number;
+  /**
+   * 接口返回的是"整份数组、不分页"时置 true：一次取回后前端切页。
+   *
+   * <p><b>为什么要这一档。</b>IM 的会话列表是普通数组（不是 `{records,total}`），
+   * 服务端也没有分页参数。渲染器按后端分页的写法取回整份后不再切片，翻页按钮
+   * 会显示"2/3"却仍然列同样 30 行——看着像坏了，而且不报错。置 true 后
+   * 请求不再带 `current/size`，翻页只切本地数组。</p>
+   */
+  clientPaged?: boolean;
   /** 列表列 */
   columns: ScreenColumn[];
   /** 详情页的字段（键值对） */
@@ -1959,6 +1975,74 @@ export const MAIL_PAGE: ScreenListPageSpec = {
     { key: 'preview', label: '摘要' },
   ],
   titleKey: 'subject',
+};
+
+/**
+ * 会话类型：与后端 {@code ImConversation.type} 一一对应。
+ *
+ * <p>机器人会话用黄灯：它不是异常，但它是"会话里混进了一个自动应答的东西"，
+ * 值班的人应当一眼分得出来谁在说话。</p>
+ */
+export const IM_CONVERSATION_TYPE: Record<string, ScreenStatusStyle> = {
+  SINGLE: { label: '单聊', tone: 'flat' },
+  GROUP: { label: '群聊', tone: 'good' },
+  BOT: { label: '机器人', tone: 'warn' },
+};
+
+/**
+ * 最后发言者类型：与后端 {@code MessageVO.senderType} 一致。
+ *
+ * <p>详情里不能显示裸的 "USER"——屏风上出现英文码，读的人第一反应是"接口没翻译"。</p>
+ */
+export const IM_SENDER_TYPE: Record<string, ScreenStatusStyle> = {
+  USER: { label: '用户', tone: 'flat' },
+  BOT: { label: '机器人', tone: 'warn' },
+  SYSTEM: { label: '系统', tone: 'good' },
+};
+
+/**
+ * 传信司（IM）会话列表页（S7 / T7.5）。
+ *
+ * <p><b>这一屏讲什么。</b>传信司是即时会话的驿站：哪些话还在说、哪些会话已经
+ * 没人开口。列表的主列不是"标题"而是<b>最后一句</b>——单聊在平台里本来就没有
+ * 标题（2D 也显示"未命名会话"），一眼能读到"最后说了什么"比一个空标题有用。</p>
+ *
+ * <p><b>为什么要 {@code clientPaged}。</b>`GET /im/v1/conversations` 返回的是
+ * 普通数组，没有分页参数；照其他殿的写法翻页会只翻页码不换内容。置 true 后
+ * 一次取回、前端切页——会话列表最多几十条，一次取回比给 2D 接口加分页参数便宜。</p>
+ *
+ * <p><b>不配 {@code detailPath}。</b>后端没有"按会话取详情"的接口（只有成员表与
+ * 消息游标），行展开就用列表带回的字段；硬配一个不存在的路径，点一行会 404。</p>
+ */
+export const IM_PAGE: ScreenListPageSpec = {
+  key: 'conversations',
+  title: '会话列表',
+  listPath: '/im/v1/conversations',
+  permission: 'sys:im:chat',
+  idKey: 'id',
+  clientPaged: true,
+  /* 3 行/页：近七日消息是**横向柱图**，七根柱子比四态/五态柱图各多吃两行，
+     实测表体只放得下 3.3 行；排 4 行会让第 4 行在表格下缘被切一半（截图可见）。 */
+  pageSize: 3,
+  columns: [
+    { key: 'title', label: '会话', width: '27%', emptyText: '未命名会话' },
+    { key: 'type', label: '类型', width: '11%', format: 'status', statusMap: IM_CONVERSATION_TYPE },
+    { key: 'lastMessage.content', label: '最后一句', width: '29%', emptyText: '还没有消息' },
+    { key: 'unread', label: '未读', width: '9%', align: 'right' },
+    { key: 'lastActiveAt', label: '最后活跃', width: '24%', format: 'datetime' },
+  ],
+  detailFields: [
+    { key: 'title', label: '会话', emptyText: '未命名会话' },
+    { key: 'type', label: '类型', format: 'status', statusMap: IM_CONVERSATION_TYPE },
+    { key: 'ownerId', label: '会话主' },
+    { key: 'lastSeq', label: '末序' },
+    { key: 'unread', label: '未读' },
+    { key: 'lastMessage.content', label: '最后一句', emptyText: '还没有消息' },
+    { key: 'lastMessage.senderType', label: '最后发言', format: 'status', statusMap: IM_SENDER_TYPE },
+    { key: 'lastMessage.createTime', label: '最后发言时间', format: 'datetime' },
+    { key: 'lastActiveAt', label: '最后活跃', format: 'datetime' },
+  ],
+  titleKey: 'title',
 };
 
 /**

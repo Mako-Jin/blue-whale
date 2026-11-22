@@ -91,6 +91,10 @@ export const OVERVIEW_HALLS: OverviewHallSpec[] = [
      （同步、配额、退信），走账号清单码 sys:mail:account:list；邮件列表页
      读的是当前用户自己的收件箱，只需 sys:mail:message:list，在 provider link 里带。 */
   { nodeKey: 'youyi-stage', path: '/mail/overview', permission: 'sys:mail:account:list' },
+  /* 传信司（S7/T7.5）——外城九处第五处：即时会话。whale-im 全类只有一个权限码
+     sys:im:chat（会话与消息同权），不臆造 browse/manage；会话列表入口在 provider
+     link 里带同一个码。 */
+  { nodeKey: 'chuanxin-stage', path: '/im/overview', permission: 'sys:im:chat' },
   /* 数枢殿总控（S5/T5.1）：服务端把在册各殿的概览汇成一屏。
      **不设权限码**——总控的可见范围就是"你在各殿能看到的范围"，
      缺凭据的殿在总控里显示为「无凭据」行，而不是整块 403。

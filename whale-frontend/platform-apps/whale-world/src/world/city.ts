@@ -84,6 +84,7 @@ import {
   CONTENT_PAGE,
   THREAD_PAGE,
   MAIL_PAGE,
+  IM_PAGE,
 } from './screenpages';
 import { createStageScreen, type StageScreenHandle } from './stagescreen';
 import { createSceneEnv, type SceneEnv } from './env';
@@ -4031,6 +4032,8 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   /** 邮驿（S7/T7.4）屏风与其业务页句柄（同上） */
   let youyiScreen: ScreenHandle | null = null;
   let youyiPage: ScreenPageHandle | null = null;
+  let chuanxinScreen: ScreenHandle | null = null;
+  let chuanxinPage: ScreenPageHandle | null = null;
 
   /**
    * 坊的屏风落位：从布局数据现算，不手抄坐标。
@@ -4835,6 +4838,55 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
         });
       }
 
+      /* 传信司（S7/T7.5，外城九处第五处）：会话列表 + 驿路账。
+
+       布局里传信司在西北外城（x/z = -47.00/-81.41，旋转 +30°），与邮驿关于
+       中轴南北对称——同一套正面法线落点公式，θ 取 210°（离 180° 北门轴线 30°、
+       离 195° 的兴檀坊与 225° 的市舶司各 7.3 米）。
+
+       屏风上半部是四张牌（会话总数 / 今日消息 / 静默会话 / 待确认），中部是
+       近七日消息量柱图，下半部是会话列表。这一屏的主图刻意不是"会话按类型分布"：
+       会话数是存量，三个月没人说话它也不变；逐日消息量掉到 0 的那一刻，
+       会话数一点都不会动。待确认是机器人的写操作在等人点头——不数出来，
+       它只会安静地停在那里。
+
+       贴脸模式（T2.11 静室）在这里是主要用法的前提：会话列表要一行一行读，
+       站在屏风前 3 米看大屏比在远处看一块小屏清楚得多。 */
+      const chuanxinPose = districtScreenPose('chuanxin-stage');
+      if (chuanxinPose) {
+        chuanxinScreen = screens.add({
+          id: 'chuanxin',
+          position: [chuanxinPose.x, 1.55, chuanxinPose.z],
+          facing: chuanxinPose.facing,
+          size: 'large',
+          title: '传信司 · 会话列表',
+          subtitle: 'IM / 即时传信',
+          tone: 'idle',
+          mount: (body) => {
+            chuanxinPage = mountScreenPage(body, {
+              nodeKey: 'chuanxin-stage',
+              overviewPath: '/im/overview',
+              overviewPermission: 'sys:im:chat',
+              pages: [IM_PAGE],
+              getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+              getPermissions: opts.getPermissions,
+              // 题头灯跟业务页状态走：概览陈旧/失败（服务未起、无凭据）时不该还亮绿灯
+              onTone: (tone) => chuanxinScreen?.setTone(tone),
+              onTitle: (title, subtitle) => {
+                chuanxinScreen?.setTitle(
+                  title ? `${title} · 会话列表` : '传信司 · 会话列表',
+                  subtitle ?? 'IM / 即时传信',
+                );
+              },
+            });
+            return () => {
+              chuanxinPage?.dispose();
+              chuanxinPage = null;
+            };
+          },
+        });
+      }
+
       /* 枢密殿（AUTH）屏风页（S5 / T5.2）：屏风里是登录历史 ——
        谁、什么时候、用什么方式登录，失败了多少次。
 
@@ -5445,6 +5497,8 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
           return qingyiPage;
         case 'youyi':
           return youyiPage;
+        case 'chuanxin':
+          return chuanxinPage;
         default:
           return hubuPage;
       }

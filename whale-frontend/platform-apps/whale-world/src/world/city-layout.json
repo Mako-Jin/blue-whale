@@ -887,6 +887,41 @@
         "label": "邮驿",
         "subLabel": "MAIL · 驿站传书"
       }
+    },
+    {
+      "nodeKey": "chuanxin-stage",
+      "parentKey": "outer-city",
+      "nodeType": "BUILDING",
+      "name": "传信司",
+      "sub": "IM · 即时传信",
+      "icon": "im",
+      "x": -47.0,
+      "z": -81.41,
+      "y": 0,
+      "w": 9,
+      "d": 7,
+      "scale": 0.75,
+      "rotationDeg": 30.0,
+      "roofColor": "#3e5c78",
+      "bodyColor": "#2f4759",
+      "modelKey": "palace-hall",
+      "collider": {
+        "halfX": 6.5,
+        "halfZ": 5.0
+      },
+      "sortNo": 31,
+      "entry": {
+        "type": "SYSTEM",
+        "path": "/im",
+        "permission": "sys:im:chat"
+      },
+      "portal": {
+        "x": -40.0,
+        "z": -69.28,
+        "color": "#8fd0e8",
+        "label": "传信司",
+        "subLabel": "IM · 即时传信"
+      }
     }
   ]
 }

@@ -368,6 +368,22 @@ const PROBES: ProbeSpec[] = [
       },
     ],
   },
+  {
+    // 传信司 = IM：S7/T7.5 起读契约 /im/overview，与屏风上半部四张牌同一份快照。
+    // 牌坊放"有多少会话 + 有多少欠账"两格：静默会话与待确认各算一笔。
+    // 今日消息不进牌坊——它是流量不是欠账，多了少了都不该让牌坊变黄。
+    nodeKey: 'chuanxin-stage',
+    permission: 'sys:im:chat',
+    url: '/im/overview',
+    extract: (d) => [
+      { label: '会话', value: formatCount(kpiOf(d, 'conversations')) },
+      {
+        label: '待办',
+        value: formatCount(num(kpiOf(d, 'silent')) + num(kpiOf(d, 'pending-confirm'))),
+        tone: num(kpiOf(d, 'silent')) + num(kpiOf(d, 'pending-confirm')) > 0 ? 'warn' : 'good',
+      },
+    ],
+  },
 ];
 
 /* ---------------------------------------------------------------- 持久化 */

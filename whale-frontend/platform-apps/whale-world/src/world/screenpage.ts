@@ -116,6 +116,26 @@ function lacksPermission(permission: string | undefined, options: ScreenPageOpti
   return !perms.includes(permission);
 }
 
+/**
+ * 按列配置取一行里的值，支持 `a.b` 取嵌套字段。
+ *
+ * <p>只认对象与数组下标，不做表达式求值：列配置是代码里写死的，但业务数据不可信，
+ * 走到一半遇到 `null` 就返回 `undefined`，交给单元格兜底成 `—` 或列的 `emptyText`。</p>
+ *
+ * @param row 一行数据
+ * @param key 字段名，可带点
+ * @returns 取到的值；路径断了给 undefined
+ */
+function pick(row: Row, key: string): unknown {
+  if (!key.includes('.')) return row[key];
+  let current: unknown = row;
+  for (const part of key.split('.')) {
+    if (current === null || typeof current !== 'object') return undefined;
+    current = (current as Row)[part];
+  }
+  return current;
+}
+
 /** 数字兜底：字符串数字也认，非数字一律 0（NaN 会画成空白柱） */
 function num(value: unknown): number {
   const n = typeof value === 'string' ? Number(value) : (value as number);
@@ -146,6 +166,8 @@ export function mountScreenPage(body: HTMLElement, options: ScreenPageOptions): 
   let overview: OverviewResult | null = null;
   let activeKey: string | null = null;
   let rows: Row[] = [];
+  /** 一次取回的整份数组（仅 `clientPaged` 页使用；其余页为空） */
+  let allRows: Row[] = [];
   let total = 0;
   let page = 1;
   let keyword = '';
@@ -564,6 +586,36 @@ export function mountScreenPage(body: HTMLElement, options: ScreenPageOptions): 
   }
 
   /**
+   * 本地切页：只给 `clientPaged` 页用。
+   *
+   * <p>页码越界时先收回末页再切——刷新后列表变短是常事（会话被解散、消息被删），
+   * 停在"第 3/2 页"会看到一片空白，而数据其实是有的。</p>
+   */
+  function slicePage(): void {
+    total = allRows.length;
+    const size = pageSize();
+    const pages = Math.max(1, Math.ceil(total / size));
+    if (page > pages) page = pages;
+    if (page < 1) page = 1;
+    rows = allRows.slice((page - 1) * size, page * size);
+    listState = total === 0 ? 'empty' : 'ready';
+  }
+
+  /** 翻页：本地分页的页只切数组，其余页回后端取（保持原行为） */
+  function stepPage(delta: number): void {
+    const next = page + delta;
+    if (next < 1 || next > pageCount()) return;
+    page = next;
+    if (activeSpec()?.clientPaged) {
+      slicePage();
+      paintTool();
+      paintMain();
+      return;
+    }
+    void loadList();
+  }
+
+  /**
    * 字节数排成可读文本（1024 进制）
    *
    * <p>不足 1KB 保留整数（"512 B"），其余一位小数——磁盘数字的用处是"量级对不对"，
@@ -585,7 +637,7 @@ export function mountScreenPage(body: HTMLElement, options: ScreenPageOptions): 
   }
 
   function cellText(spec: ScreenListPageSpec, column: ScreenColumn, row: Row): string {
-    const value = row[column.key];
+    const value = pick(row, column.key);
     switch (column.format) {
       case 'money':
       case 'count':
@@ -614,7 +666,9 @@ export function mountScreenPage(body: HTMLElement, options: ScreenPageOptions): 
       case 'size':
         return formatBytes(num(value));
       default:
-        return value === null || value === undefined || value === '' ? '—' : String(value);
+        return value === null || value === undefined || value === ''
+          ? (column.emptyText ?? '—')
+          : String(value);
     }
   }
 
@@ -739,7 +793,7 @@ export function mountScreenPage(body: HTMLElement, options: ScreenPageOptions): 
       return;
     }
     const row = detail.data;
-    detailTitle.textContent = String(row[spec.titleKey ?? spec.columns[0]?.key ?? 'id'] ?? '详情');
+    detailTitle.textContent = String(pick(row, spec.titleKey ?? spec.columns[0]?.key ?? 'id') ?? '详情');
 
     if (spec.detailFields && spec.detailFields.length > 0) {
       const grid = h('dl', 'bwsp-kv');
@@ -747,7 +801,7 @@ export function mountScreenPage(body: HTMLElement, options: ScreenPageOptions): 
         grid.appendChild(h('dt', '', field.label));
         const dd = h('dd', '');
         if (field.format === 'status') {
-          const key = String(row[field.key] ?? '');
+          const key = String(pick(row, field.key) ?? '');
           const badge = h('span', 'bwsp-badge', cellText(spec, field, row));
           const map = field.statusMap ?? spec.statusMap;
           badge.dataset.tone = map?.[key]?.tone ?? 'flat';
@@ -853,6 +907,7 @@ export function mountScreenPage(body: HTMLElement, options: ScreenPageOptions): 
       listError = '未登录';
       total = 0;
       rows = [];
+      allRows = [];
       paintTool();
       paintMain();
       return;
@@ -862,6 +917,7 @@ export function mountScreenPage(body: HTMLElement, options: ScreenPageOptions): 
       listError = '无此殿凭据';
       total = 0;
       rows = [];
+      allRows = [];
       paintTool();
       paintMain();
       return;
@@ -869,7 +925,11 @@ export function mountScreenPage(body: HTMLElement, options: ScreenPageOptions): 
     listState = 'loading';
     paintTool();
     paintMain();
-    const params: Record<string, string> = { current: String(page), size: String(pageSize()) };
+    /* 本地分页的接口（IM 会话列表）不认 current/size，带上只会让网关日志里
+       多两个没人读的参数；取回整份后由 slicePage 切。 */
+    const params: Record<string, string> = spec.clientPaged
+      ? {}
+      : { current: String(page), size: String(pageSize()) };
     if (spec.keywordParam && keyword) params[spec.keywordParam] = keyword;
     if (spec.statusParam && status) params[spec.statusParam] = status;
     const result = await getJson(spec.listPath, params);
@@ -879,6 +939,7 @@ export function mountScreenPage(body: HTMLElement, options: ScreenPageOptions): 
       listError = result.error;
       total = 0;
       rows = [];
+      allRows = [];
     } else {
       const data = (result.data ?? {}) as Row;
       const records = Array.isArray(data)
@@ -886,9 +947,14 @@ export function mountScreenPage(body: HTMLElement, options: ScreenPageOptions): 
         : Array.isArray(data.records)
           ? (data.records as Row[])
           : [];
-      rows = records;
-      total = num(data.total ?? records.length);
-      listState = rows.length === 0 ? 'empty' : 'ready';
+      if (spec.clientPaged) {
+        allRows = records;
+        slicePage();
+      } else {
+        rows = records;
+        total = num(data.total ?? records.length);
+        listState = rows.length === 0 ? 'empty' : 'ready';
+      }
       listError = '';
     }
     paintTool();
@@ -916,14 +982,12 @@ export function mountScreenPage(body: HTMLElement, options: ScreenPageOptions): 
 
   prevBtn.addEventListener('click', () => {
     if (!engaged() || page <= 1) return;
-    page -= 1;
-    void loadList();
+    stepPage(-1);
   });
 
   nextBtn.addEventListener('click', () => {
     if (!engaged() || page >= pageCount()) return;
-    page += 1;
-    void loadList();
+    stepPage(1);
   });
 
   refreshBtn.addEventListener('click', () => {
