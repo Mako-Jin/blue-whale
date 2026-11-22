@@ -416,7 +416,7 @@ public interface PayChannelAdapter {
 ```text
 阶段 0  文档定稿（本文） ✅
 阶段 1  统一状态推进 PaySettlementService + PayChannelResult 扩展 + 状态机 ✅
-阶段 2  回调入站（表 + 控制器 + 适配器 parseCallback + 幂等 + 日志）
+阶段 2  回调入站（表 + 控制器 + 适配器 parseCallback + 幂等 + 日志） ✅
 阶段 3  批量对账（表 + 任务 + 差异处置接口 + 概览告警）
 阶段 4  内网鉴权部署侧切换 + whale-pay-client SDK
 阶段 5  次优三件（超时关单、通知指标 + ShedLock、部分退款 + 能力矩阵）
@@ -437,6 +437,30 @@ public interface PayChannelAdapter {
 | `PayRefundServiceImpl` | 退款记账改为调用 `markRefunded`，移除自带的流水与通知写入 |
 
 验证：`mvn test` 70 项通过（新增状态机 4 项、落账服务 4 项、受理中 1 项），`mvn checkstyle:check` 通过。
+
+### 7.2 阶段 2 落地记录（2026-11-22）
+
+| 改动 | 内容 |
+|---|---|
+| `V5__pay_channel_callback.sql` | 新增 `pay_channel_callback_log`：幂等键唯一、租户可空、结果与拒绝原因留痕 |
+| `PayChannelCallbackLogPo` / `PayChannelCallbackLogMapper` | 日志实体与 Mapper；整个 Mapper `@InterceptorIgnore(tenantLine)`，主键 `FOR UPDATE` 串行化同一幂等键 |
+| `PayChannelAdapter#parseCallback` | 新增回调解析 SPI，验签在适配器内完成；`successResponse` / `failureResponse` 默认实现，真实渠道可按协议覆盖 |
+| `MockPayChannelAdapter` | 解析 JSON 回调（`outTradeNo` / `channelTradeNo` / `refundNo` / `event` / `amount` / `currency`） |
+| `PayChannelGateway` | 新增 `parseCallback` / `successResponse` / `failureResponse` 路由 |
+| `PayChannelCallbackService(Impl)` | 验签 → 幂等占位 → 行锁 → 跨租户反查 → 金额币种校验 → 复用 `PaySettlementService#markPaid / markRefunded` → 回写日志；入站租户头全程忽略 |
+| `PayChannelCallbackController` | `POST /pay/v1/callback/{channel}`，HTTP 恒 200，响应体由渠道适配器决定 |
+| `PayOrderMapper` | 新增 `selectTenantIdsByOrderNo`（跨租户）与 `closeIfUnpaid`（关单条件更新） |
+| 网关 `white-list` | 放行 `/pay/v1/callback/**`；白名单请求会剥离客户端伪造的身份/租户头 |
+
+**与定稿的差异（理由随行）**
+
+1. `ChannelCallbackRequest` 增加 `refundNo`：退款回调必须靠商户退款单号定位 `pay_refund`，仅 `outTradeNo` 无法区分同单多笔部分退款。
+2. 拒绝原因补充 `REFUND_NOT_FOUND` 与 `EVENT_UNSUPPORTED`：分别用于退款单无法定位与未知事件留痕，均只写日志、不改资金状态。
+3. 并发幂等未引入 `PROCESSING` 状态：改为事务内 `SELECT ... FOR UPDATE` 锁定日志行，避免新增状态与「进程崩溃后永久 PROCESSING」；上次中断留下的 `FAILED` 行在渠道重发时可重新处理。
+4. 验签失败无法取得渠道流水号，幂等键追加随机段（`channel:INVALID:<uuid>`），保证每次尝试都留痕，不被唯一键吞掉。
+5. MOCK 适配器不做签名校验（仅本地开发），真实渠道必须在各自适配器内验签；失败响应体默认 `FAIL`，真实渠道按自身协议覆盖。
+
+**验证**：`mvn test` 78 项通过（新增回调 8 项：支付成功、验签失败、金额不符、未知单号、重复回调、失败重试、退款成功、关单冲突），`mvn checkstyle:check` 通过。
 
 ---
 
@@ -461,11 +485,12 @@ public interface PayChannelAdapter {
 | 单笔手工对账接口 | 已完成 |
 | 内网令牌 starter 按服务签发 + 租户白名单 | 已完成（代码侧） |
 | 阶段 1：统一状态推进 + 状态机 + 渠道结果状态 | 已完成（2026-11-22，见 7.1） |
+| 阶段 2：渠道异步回调入站（验签/幂等/留痕/统一落账） | 已完成（2026-11-22，见 7.2） |
 | 本设计文档 | 已完成 |
 
 ### 待做项
 
-1. 阶段 2～6 实现（按第 7 节顺序）。
+1. 阶段 3～6 实现（按第 7 节顺序）。
 2. 部署侧下发 `issuer-id`/`issuer-secret` 与租户白名单，配置 NetworkPolicy。
 3. 并发/幂等/故障注入集成测试（需 MySQL 环境）。
 4. `queryStatus` 扩展为可返回渠道流水号的 `queryResult`，补齐自动收敛时 `channel_trade_no` 为空的问题。
