@@ -81,7 +81,9 @@ import {
   SPACE_PAGE,
   ORDER_PAGE,
   SONG_PAGE,
+  CONTENT_PAGE,
 } from './screenpages';
+import { createStageScreen, type StageScreenHandle } from './stagescreen';
 import { createSceneEnv, type SceneEnv } from './env';
 import { createPostFx, type PostFx } from './postfx';
 import { createSky, type SkyState } from './env-sky';
@@ -3879,6 +3881,12 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
         audio.setStageProximity(Math.hypot(dx, dz), bearing);
       }
     }
+    // 影戏院幕布（S7/T7.2 视频纹理）：按玩家距离决定放不放映。
+    // 与乐坊同一处置：不进 update 签名，只有这一坊需要距离参数。
+    if (stageScreen) {
+      const stagePos = stageScreen.group.position;
+      stageScreen.update(dt, Math.hypot(stagePos.x - player.pos.x, stagePos.z - player.pos.z));
+    }
     updateActors(dt);
     if (!screenBusy && !hallActive) updateCamera(dt);
     updateWhale(dt);
@@ -4006,6 +4014,13 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   /** 乐坊（S7/T7.1）屏风与其业务页句柄（同上） */
   let yuefangScreen: ScreenHandle | null = null;
   let yuefangPage: ScreenPageHandle | null = null;
+
+  /** 影戏院（S7/T7.2）屏风与其业务页句柄（同上） */
+  let yingxiScreen: ScreenHandle | null = null;
+  let yingxiPage: ScreenPageHandle | null = null;
+
+  /** 影戏院幕布（视频纹理，S7/T7.2）：主循环每帧喂一次距离，走远即停 */
+  let stageScreen: StageScreenHandle | null = null;
 
   /**
    * 坊的屏风落位：从布局数据现算，不手抄坐标。
@@ -4649,6 +4664,77 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
         });
       }
 
+      /* 影戏院（S7/T7.2，外城九处第二处）：内容台账 + 内容流水线账。
+
+       布局里影戏院在正东偏北的外城（x/z = 85.19/39.72，旋转 -115°），
+       `districtScreenPose` 按它自己的正面法线算落点，与乐坊同一套公式——
+       外城每接一处不必手调坐标。
+
+       屏风上半部是四张牌（已发布内容 / 待审内容 / 待审评论 / 授权将到期），
+       中部是内容四态分布柱图，下半部是内容台账。评论审核不单摆页：
+       2D 里都从内容进，硬凑只会把入口铺满。
+
+       除屏风之外，这一坊还有**幕布**（视频纹理）：立在建筑侧前方，
+       避开屏风落点（屏风在正面法线 9.67 米 + 切向 2.04 米）。
+       幕布放正面 6.5 米、向另一侧偏 6 米，两者互不遮挡，玩家走到坊门口
+       第一眼看到的是在放的画。 */
+      const yingxiPose = districtScreenPose('yingxi-stage');
+      if (yingxiPose) {
+        yingxiScreen = screens.add({
+          id: 'yingxi',
+          position: [yingxiPose.x, 1.55, yingxiPose.z],
+          facing: yingxiPose.facing,
+          size: 'large',
+          title: '影戏院 · 内容台账',
+          subtitle: 'VIDEO / 内容运营',
+          tone: 'idle',
+          mount: (body) => {
+            yingxiPage = mountScreenPage(body, {
+              nodeKey: 'yingxi-stage',
+              overviewPath: '/video/overview',
+              overviewPermission: 'sys:video:content:list',
+              pages: [CONTENT_PAGE],
+              getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+              getPermissions: opts.getPermissions,
+              // 题头灯跟业务页状态走：概览陈旧/失败（服务未起、无凭据）时不该还亮绿灯
+              onTone: (tone) => yingxiScreen?.setTone(tone),
+              onTitle: (title, subtitle) => {
+                yingxiScreen?.setTitle(
+                  title ? `${title} · 内容台账` : '影戏院 · 内容台账',
+                  subtitle ?? 'VIDEO / 内容运营',
+                );
+              },
+            });
+            return () => {
+              yingxiPage?.dispose();
+              yingxiPage = null;
+            };
+          },
+        });
+      }
+
+      /* 幕布（视频纹理）：立在建筑侧前方 8.5 米、偏向另一侧 6.5 米。
+         位置从 PALACES 的 pos/yaw 现算，与屏风同一套 front/lateral 口径。
+         8.5 米是为了让开台基（半深 6.0 米）与屏风（正面 9.67 米 / 切向 +2.04 米）：
+         幕布在切向另一侧 6.5 米，两者相距 8.6 米，互不遮挡。
+         走远即停的重绘节流交给 stagescreen 自己，这里只负责建与挂。 */
+      const yingxiPalace = PALACES.find((item) => item.nodeKey === 'yingxi-stage');
+      if (yingxiPalace) {
+        const frontX = Math.sin(yingxiPalace.yaw);
+        const frontZ = Math.cos(yingxiPalace.yaw);
+        const sideX = Math.cos(yingxiPalace.yaw);
+        const sideZ = -Math.sin(yingxiPalace.yaw);
+        const stage = createStageScreen(6.4, 3.6);
+        stage.group.position.set(
+          yingxiPalace.x + 8.5 * frontX - 6.5 * sideX,
+          0.02,
+          yingxiPalace.z + 8.5 * frontZ - 6.5 * sideZ,
+        );
+        stage.group.rotation.y = yingxiPalace.yaw;
+        scene.add(stage.group);
+        stageScreen = stage;
+      }
+
       /* 枢密殿（AUTH）屏风页（S5 / T5.2）：屏风里是登录历史 ——
        谁、什么时候、用什么方式登录，失败了多少次。
 
@@ -5231,6 +5317,8 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
           return shiboPage;
         case 'yuefang':
           return yuefangPage;
+        case 'yingxi':
+          return yingxiPage;
         default:
           return hubuPage;
       }
@@ -5247,6 +5335,14 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
       /* 乐坊琴音目标增益：走到乐坊跟前 > 0，走远归 0（e2e 无法听，只能读状态） */
       stageGain: audio.stageGain(),
     });
+    /* 影戏院幕布探针：e2e 无法"看"，读帧计数（在涨=真的在放）、
+       放映方式（video=VideoTexture / canvas=降级）与走远是否已停。 */
+    window.__bwwStageScreen = () => {
+      if (!stageScreen) {
+        return null;
+      }
+      return { ...stageScreen.probe(), x: stageScreen.group.position.x, z: stageScreen.group.position.z };
+    };
     window.__bwwSound = () => toggleSound();
     /* 天象探针：e2e 无法"看"，只能读强度与可见性——真好不好看仍需人眼 */
     window.__bwwWeather = () => ({
@@ -5410,6 +5506,10 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     sayPanel?.destroy();
     speech?.dispose();
     audio.dispose();
+    /* 幕布要单独收：它的 MediaStream 与 <video> 不在场景图里，
+       scene.traverse 回收不到——漏了就是 qiankun 卸载后还在放、还在解码。 */
+    stageScreen?.dispose();
+    stageScreen = null;
     playerRig.dispose();
     npcs.dispose();
     channel.dispose();

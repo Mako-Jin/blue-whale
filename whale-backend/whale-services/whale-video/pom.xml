@@ -79,6 +79,12 @@
             <artifactId>whale-i18n-sdk</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- 三维王城概览 SDK（S7/T7.2）：影戏院屏风数据源，/video/overview -->
+        <dependency>
+            <groupId>com.bluewhale</groupId>
+            <artifactId>whale-overview-sdk</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <dependency>
             <groupId>com.bluewhale</groupId>
             <artifactId>whale-auth-sdk</artifactId>

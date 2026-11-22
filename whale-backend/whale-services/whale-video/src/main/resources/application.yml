@@ -66,6 +66,14 @@ whale:
   permission:
     header:
       enabled: true
+  # 三维王城概览（S7/T7.2）：影戏院屏风数据源。
+  # 路径带服务前缀（REQ-ARCH-003：网关不剥前缀）；TTL 30s 对应前端 30s 轮询。
+  # timeout 2s：七次索引 count + 一次播放量汇总，不碰描述大字段；
+  # 超过 2s 说明库已经不正常，早点降级比让屏风转圈强。
+  overview:
+    base-path: /video/overview
+    ttl: 30s
+    timeout: 2s
   # 国际化：BizException 文案键按请求 Locale 解析；启动时幂等创建 sys_i18n_message，
   # 属性文件回退源为 classpath:i18n/video/messages*。
   i18n:

@@ -79,6 +79,10 @@ export const OVERVIEW_HALLS: OverviewHallSpec[] = [
      权限码复用 2D 歌曲台账（sys:music:song:list），不为 3D 单发授权；
      艺人台账入口走自己的 sys:music:artist:list，在 provider link 里带。 */
   { nodeKey: 'yuefang-stage', path: '/music/overview', permission: 'sys:music:song:list' },
+  /* 影戏院（S7/T7.2）——外城九处第二处：内容运营。内容是主账，
+     权限码复用 2D 内容台账（sys:video:content:list），不为 3D 单发授权；
+     电影台账入口走自己的 sys:video:movie:manage，在 provider link 里带。 */
+  { nodeKey: 'yingxi-stage', path: '/video/overview', permission: 'sys:video:content:list' },
   /* 数枢殿总控（S5/T5.1）：服务端把在册各殿的概览汇成一屏。
      **不设权限码**——总控的可见范围就是"你在各殿能看到的范围"，
      缺凭据的殿在总控里显示为「无凭据」行，而不是整块 403。

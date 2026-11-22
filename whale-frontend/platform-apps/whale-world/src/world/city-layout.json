@@ -782,6 +782,41 @@
         "label": "乐坊",
         "subLabel": "MUSIC · 音乐工坊"
       }
+    },
+    {
+      "nodeKey": "yingxi-stage",
+      "parentKey": "outer-city",
+      "nodeType": "BUILDING",
+      "name": "影戏院",
+      "sub": "VIDEO · 影像放映",
+      "icon": "video",
+      "x": 81.41,
+      "z": 47.0,
+      "y": 0,
+      "w": 9,
+      "d": 7,
+      "scale": 0.75,
+      "rotationDeg": -120.0,
+      "roofColor": "#3f4f6b",
+      "bodyColor": "#2f3b52",
+      "modelKey": "palace-hall",
+      "collider": {
+        "halfX": 6.5,
+        "halfZ": 5.0
+      },
+      "sortNo": 28,
+      "entry": {
+        "type": "SYSTEM",
+        "path": "/video",
+        "permission": "sys:video:browse"
+      },
+      "portal": {
+        "x": 69.29,
+        "z": 40.0,
+        "color": "#7fd8ff",
+        "label": "影戏院",
+        "subLabel": "VIDEO · 影像放映"
+      }
     }
   ]
 }

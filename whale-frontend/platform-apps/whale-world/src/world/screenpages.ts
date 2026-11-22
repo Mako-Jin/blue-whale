@@ -1645,6 +1645,113 @@ export const SONG_PAGE: ScreenListPageSpec = {
 };
 
 /**
+ * 影戏院内容类型：列级字典。
+ *
+ * <p>短视频 / 视频 / 电影三类共存在一张 {@code vd_content} 表里，
+ * 类型是每行自己的属性；电影走单独的授权与下线规则（授权到期自动下线），
+ * 所以这三档不能并成一个"其它"——值班的人要靠这一列看出哪部片子受合同约束。</p>
+ */
+export const VIDEO_CONTENT_TYPE_STYLE: Record<string, ScreenStatusStyle> = {
+  SHORT_VIDEO: { label: '短视频', tone: 'flat' },
+  VIDEO: { label: '视频', tone: 'flat' },
+  MOVIE: { label: '电影', tone: 'good' },
+};
+
+/**
+ * 影戏院版权状态：列级字典。
+ *
+ * <p>与乐坊同理：下架（TAKEDOWN）给灰不给红——那是处置<b>出了结论</b>的结果，
+ * 可走版权复核恢复；有效（AUTHORIZED）才是能播的那一档。</p>
+ */
+export const VIDEO_COPYRIGHT_STYLE: Record<string, ScreenStatusStyle> = {
+  AUTHORIZED: { label: '有效', tone: 'good' },
+  TAKEDOWN: { label: '已下架', tone: 'bad' },
+};
+
+/**
+ * 影戏院内容发布状态：页面级字典。
+ *
+ * <p><b>待审给黄不给红。</b>待审是投稿人交了稿、运营还没过目——这是"欠账"
+ * 不是"事故"，黄灯提醒值班的人去看一眼；已发布绿（能播就是好事）；
+ * 草稿与已下线灰（投稿人自己的节奏、处置结果）。四态码值固定
+ * （{@code PublishState}），屏风不译码。</p>
+ */
+export const VIDEO_PUBLISH_STATE_STYLE: Record<string, ScreenStatusStyle> = {
+  DRAFT: { label: '草稿', tone: 'flat' },
+  PENDING_REVIEW: { label: '待审', tone: 'warn' },
+  PUBLISHED: { label: '已发布', tone: 'good' },
+  OFFLINE: { label: '已下线', tone: 'flat' },
+};
+
+/**
+ * 影戏院（VIDEO）内容台账页（S7 / T7.2）。
+ *
+ * <p><b>这一屏讲什么。</b>影戏院放片子，内容是主账：哪几部压在草稿没送审、
+ * 哪几部待审没人放行、哪几部版权已下架，是运营在屏风上要先看的东西。</p>
+ *
+ * <p><b>三个字典各归各位。</b>发布态占页面级字典（筛选走 {@code publishState}），
+ * 类型与版权是每行自己的属性，打到列上——同一页里既有电影也有短视频、
+ * 既有有效也有下架，共用页面级字典会互相盖掉。</p>
+ */
+export const CONTENT_PAGE: ScreenListPageSpec = {
+  key: 'contents',
+  title: '内容台账',
+  listPath: '/video/v1/admin/content/page',
+  permission: 'sys:video:content:list',
+  idKey: 'id',
+  keywordParam: 'keyword',
+  searchPlaceholder: '搜索片名…',
+  statusParam: 'publishState',
+  statuses: [
+    { value: '', label: '全部状态' },
+    { value: 'DRAFT', label: '草稿' },
+    { value: 'PENDING_REVIEW', label: '待审' },
+    { value: 'PUBLISHED', label: '已发布' },
+    { value: 'OFFLINE', label: '已下线' },
+  ],
+  statusMap: VIDEO_PUBLISH_STATE_STYLE,
+  /* 6 行/页：大屏 620px 里 KPI + 状态柱图 + 工具栏之后只剩约 230px */
+  pageSize: 6,
+  columns: [
+    { key: 'title', label: '片名', width: '22%' },
+    {
+      key: 'contentType',
+      label: '类型',
+      width: '10%',
+      format: 'status',
+      statusMap: VIDEO_CONTENT_TYPE_STYLE,
+    },
+    { key: 'publishState', label: '状态', width: '12%', format: 'status' },
+    {
+      key: 'copyrightState',
+      label: '版权',
+      width: '12%',
+      format: 'status',
+      statusMap: VIDEO_COPYRIGHT_STYLE,
+    },
+    { key: 'playCount', label: '播放', width: '10%' },
+    { key: 'createTime', label: '收录时间', width: '18%', format: 'datetime' },
+    { key: 'publishedAt', label: '上架时间', width: '16%', format: 'datetime' },
+  ],
+  detailFields: [
+    { key: 'title', label: '片名' },
+    { key: 'subtitle', label: '副题' },
+    { key: 'contentType', label: '类型', format: 'status', statusMap: VIDEO_CONTENT_TYPE_STYLE },
+    { key: 'publishState', label: '发布状态', format: 'status' },
+    { key: 'copyrightState', label: '版权', format: 'status', statusMap: VIDEO_COPYRIGHT_STYLE },
+    { key: 'visibility', label: '可见性' },
+    { key: 'durationMs', label: '时长（毫秒）' },
+    { key: 'playCount', label: '播放数' },
+    { key: 'likeCount', label: '点赞数' },
+    { key: 'favoriteCount', label: '收藏数' },
+    { key: 'commentCount', label: '评论数' },
+    { key: 'createTime', label: '收录时间', format: 'datetime' },
+    { key: 'publishedAt', label: '上架时间', format: 'datetime' },
+  ],
+  titleKey: 'title',
+};
+
+/**
  * 殿的连通状态：与后端 {@code HubHallState} 一一对应，前端只做展示。
  *
  * <p>「无凭据」单独一档而不是并进「未通」：前者要去要权限，后者要去查服务，

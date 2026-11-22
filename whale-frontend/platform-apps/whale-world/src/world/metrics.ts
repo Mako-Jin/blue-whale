@@ -300,6 +300,32 @@ const PROBES: ProbeSpec[] = [
       },
     ],
   },
+  {
+    // 影戏院 = VIDEO：S7/T7.2 起读契约 /video/overview，与屏风上半部四张牌同一份
+    // 快照。牌坊只放"能播多少 + 有多少欠账"两格，授权到期并进待办——
+    // 授权到期不续签就得下线，对值班的人来说与待审是同一类"今天要处理的事"。
+    nodeKey: 'yingxi-stage',
+    permission: 'sys:video:content:list',
+    url: '/video/overview',
+    extract: (d) => [
+      { label: '已发布', value: formatCount(kpiOf(d, 'published')) },
+      {
+        label: '待办',
+        value: formatCount(
+          num(kpiOf(d, 'pending-review')) +
+            num(kpiOf(d, 'comment-pending')) +
+            num(kpiOf(d, 'license-expiring')),
+        ),
+        tone:
+          num(kpiOf(d, 'pending-review')) +
+            num(kpiOf(d, 'comment-pending')) +
+            num(kpiOf(d, 'license-expiring')) >
+          0
+            ? 'warn'
+            : 'good',
+      },
+    ],
+  },
 ];
 
 /* ---------------------------------------------------------------- 持久化 */

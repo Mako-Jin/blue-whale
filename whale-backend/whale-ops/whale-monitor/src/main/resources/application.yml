@@ -154,3 +154,7 @@ whale:
           name: 乐坊
           url: http://bw-music:8096/music/overview
           permission: sys:music:song:list
+        - nodeKey: yingxi-stage
+          name: 影戏院
+          url: http://bw-video:8098/video/overview
+          permission: sys:video:content:list
