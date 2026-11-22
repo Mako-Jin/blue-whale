@@ -20,7 +20,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/crm")
+@RequestMapping(path = "/crm/v{version}", version = "1")
 @RequiredArgsConstructor
 public class CrmMetaController {
 

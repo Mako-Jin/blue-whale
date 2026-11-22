@@ -30,7 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/pdm/change/notice")
+@RequestMapping(path = "/pdm/v{version}/change/notice", version = "1")
 @RequiredArgsConstructor
 public class PdmChgNoticeController {
 

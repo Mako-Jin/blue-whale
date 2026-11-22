@@ -28,7 +28,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/crm/service")
+@RequestMapping(path = "/crm/v{version}/service", version = "1")
 @RequiredArgsConstructor
 public class CrmServiceConfigController {
 

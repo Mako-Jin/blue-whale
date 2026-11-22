@@ -267,114 +267,114 @@ export interface WorkItemQuery {
 
 /** 项目 */
 export const projectApi = {
-  page: (query: ProjectQuery) => http.get<PageResult<Project>>('/pm/project/page', { ...query }),
-  detail: (id: string) => http.get<Project>(`/pm/project/${id}`),
-  create: (body: Record<string, unknown>) => http.post<Project>('/pm/project', body),
+  page: (query: ProjectQuery) => http.get<PageResult<Project>>('/pm/v1/project/page', { ...query }),
+  detail: (id: string) => http.get<Project>(`/pm/v1/project/${id}`),
+  create: (body: Record<string, unknown>) => http.post<Project>('/pm/v1/project', body),
   update: (id: string, body: Record<string, unknown>) =>
-    http.put<Project>(`/pm/project/${id}`, body),
+    http.put<Project>(`/pm/v1/project/${id}`, body),
   changeStatus: (id: string, status: string) =>
-    http.put<Project>(`/pm/project/${id}/status`, { status }),
-  remove: (id: string) => http.del<void>(`/pm/project/${id}`),
+    http.put<Project>(`/pm/v1/project/${id}/status`, { status }),
+  remove: (id: string) => http.del<void>(`/pm/v1/project/${id}`),
 };
 
 /** 项目成员 */
 export const memberApi = {
-  list: (projectId: string) => http.get<ProjectMember[]>(`/pm/project/${projectId}/member`),
+  list: (projectId: string) => http.get<ProjectMember[]>(`/pm/v1/project/${projectId}/member`),
   add: (projectId: string, body: { userId: number; projectRole: string }) =>
-    http.post<ProjectMember>(`/pm/project/${projectId}/member`, body),
+    http.post<ProjectMember>(`/pm/v1/project/${projectId}/member`, body),
   updateRole: (id: string, projectRole: string) =>
-    http.put<ProjectMember>(`/pm/member/${id}`, { projectRole }),
-  remove: (id: string) => http.del<void>(`/pm/member/${id}`),
+    http.put<ProjectMember>(`/pm/v1/member/${id}`, { projectRole }),
+  remove: (id: string) => http.del<void>(`/pm/v1/member/${id}`),
 };
 
 /** 状态与流转配置 */
 export const workflowApi = {
-  statuses: (projectId: string) => http.get<Status[]>(`/pm/project/${projectId}/status`),
+  statuses: (projectId: string) => http.get<Status[]>(`/pm/v1/project/${projectId}/status`),
   addStatus: (projectId: string, body: Partial<Status>) =>
-    http.post<Status>(`/pm/project/${projectId}/status`, body),
-  updateStatus: (id: string, body: Partial<Status>) => http.put<Status>(`/pm/status/${id}`, body),
-  removeStatus: (id: string) => http.del<void>(`/pm/status/${id}`),
-  transitions: (projectId: string) => http.get<Transition[]>(`/pm/project/${projectId}/transition`),
+    http.post<Status>(`/pm/v1/project/${projectId}/status`, body),
+  updateStatus: (id: string, body: Partial<Status>) => http.put<Status>(`/pm/v1/status/${id}`, body),
+  removeStatus: (id: string) => http.del<void>(`/pm/v1/status/${id}`),
+  transitions: (projectId: string) => http.get<Transition[]>(`/pm/v1/project/${projectId}/transition`),
   addTransition: (projectId: string, body: Record<string, unknown>) =>
-    http.post<Transition>(`/pm/project/${projectId}/transition`, body),
-  removeTransition: (id: string) => http.del<void>(`/pm/transition/${id}`),
+    http.post<Transition>(`/pm/v1/project/${projectId}/transition`, body),
+  removeTransition: (id: string) => http.del<void>(`/pm/v1/transition/${id}`),
 };
 
 /** 工作项 */
 export const itemApi = {
   page: (query: WorkItemQuery) =>
-    http.get<PageResult<WorkItem>>('/pm/work-item/page', { ...query }),
-  detail: (id: string) => http.get<WorkItem>(`/pm/work-item/${id}`),
-  create: (body: Record<string, unknown>) => http.post<WorkItem>('/pm/work-item', body),
+    http.get<PageResult<WorkItem>>('/pm/v1/work-item/page', { ...query }),
+  detail: (id: string) => http.get<WorkItem>(`/pm/v1/work-item/${id}`),
+  create: (body: Record<string, unknown>) => http.post<WorkItem>('/pm/v1/work-item', body),
   update: (id: string, body: Record<string, unknown>) =>
-    http.put<WorkItem>(`/pm/work-item/${id}`, body),
-  remove: (id: string) => http.del<void>(`/pm/work-item/${id}`),
+    http.put<WorkItem>(`/pm/v1/work-item/${id}`, body),
+  remove: (id: string) => http.del<void>(`/pm/v1/work-item/${id}`),
   transition: (id: string, body: { targetStatusId: string; comment?: string }) =>
-    http.put<WorkItem>(`/pm/work-item/${id}/transition`, body),
+    http.put<WorkItem>(`/pm/v1/work-item/${id}/transition`, body),
   rank: (id: string, body: { beforeItemId?: string; afterItemId?: string }) =>
-    http.put<WorkItem>(`/pm/work-item/${id}/rank`, body),
-  activities: (id: string) => http.get<Activity[]>(`/pm/work-item/${id}/activity`),
+    http.put<WorkItem>(`/pm/v1/work-item/${id}/rank`, body),
+  activities: (id: string) => http.get<Activity[]>(`/pm/v1/work-item/${id}/activity`),
   projectActivities: (projectId: string) =>
-    http.get<Activity[]>(`/pm/project/${projectId}/activity`),
-  comments: (id: string) => http.get<Comment[]>(`/pm/work-item/${id}/comment`),
+    http.get<Activity[]>(`/pm/v1/project/${projectId}/activity`),
+  comments: (id: string) => http.get<Comment[]>(`/pm/v1/work-item/${id}/comment`),
   addComment: (id: string, body: { content: string; parentId?: string }) =>
-    http.post<Comment>(`/pm/work-item/${id}/comment`, body),
-  removeComment: (commentId: string) => http.del<void>(`/pm/comment/${commentId}`),
-  attachments: (id: string) => http.get<Attachment[]>(`/pm/work-item/${id}/attachment`),
+    http.post<Comment>(`/pm/v1/work-item/${id}/comment`, body),
+  removeComment: (commentId: string) => http.del<void>(`/pm/v1/comment/${commentId}`),
+  attachments: (id: string) => http.get<Attachment[]>(`/pm/v1/work-item/${id}/attachment`),
   addAttachment: (id: string, body: { fileId: number; fileName: string }) =>
-    http.post<Attachment>(`/pm/work-item/${id}/attachment`, body),
-  removeAttachment: (attachmentId: string) => http.del<void>(`/pm/attachment/${attachmentId}`),
-  links: (id: string) => http.get<WorkItemLink[]>(`/pm/work-item/${id}/link`),
+    http.post<Attachment>(`/pm/v1/work-item/${id}/attachment`, body),
+  removeAttachment: (attachmentId: string) => http.del<void>(`/pm/v1/attachment/${attachmentId}`),
+  links: (id: string) => http.get<WorkItemLink[]>(`/pm/v1/work-item/${id}/link`),
   addLink: (id: string, body: { targetItemId: number; linkType: string }) =>
-    http.post<WorkItemLink>(`/pm/work-item/${id}/link`, body),
-  removeLink: (linkId: string) => http.del<void>(`/pm/work-item/link/${linkId}`),
+    http.post<WorkItemLink>(`/pm/v1/work-item/${id}/link`, body),
+  removeLink: (linkId: string) => http.del<void>(`/pm/v1/work-item/link/${linkId}`),
 };
 
 /** 迭代 */
 export const sprintApi = {
   page: (query: { current?: number; size?: number; projectId: string; status?: string }) =>
-    http.get<PageResult<Sprint>>('/pm/sprint/page', { ...query }),
-  detail: (id: string) => http.get<Sprint>(`/pm/sprint/${id}`),
-  create: (body: Record<string, unknown>) => http.post<Sprint>('/pm/sprint', body),
-  update: (id: string, body: Record<string, unknown>) => http.put<Sprint>(`/pm/sprint/${id}`, body),
-  remove: (id: string) => http.del<void>(`/pm/sprint/${id}`),
-  start: (id: string) => http.put<Sprint>(`/pm/sprint/${id}/start`),
-  close: (id: string) => http.put<Sprint>(`/pm/sprint/${id}/close`),
-  items: (id: string) => http.get<WorkItem[]>(`/pm/sprint/${id}/item`),
+    http.get<PageResult<Sprint>>('/pm/v1/sprint/page', { ...query }),
+  detail: (id: string) => http.get<Sprint>(`/pm/v1/sprint/${id}`),
+  create: (body: Record<string, unknown>) => http.post<Sprint>('/pm/v1/sprint', body),
+  update: (id: string, body: Record<string, unknown>) => http.put<Sprint>(`/pm/v1/sprint/${id}`, body),
+  remove: (id: string) => http.del<void>(`/pm/v1/sprint/${id}`),
+  start: (id: string) => http.put<Sprint>(`/pm/v1/sprint/${id}/start`),
+  close: (id: string) => http.put<Sprint>(`/pm/v1/sprint/${id}/close`),
+  items: (id: string) => http.get<WorkItem[]>(`/pm/v1/sprint/${id}/item`),
   addItems: (id: string, itemIds: string[]) =>
-    http.post<number>(`/pm/sprint/${id}/item`, { itemIds: itemIds.map((value) => Number(value)) }),
-  removeItem: (id: string, itemId: string) => http.del<void>(`/pm/sprint/${id}/item/${itemId}`),
+    http.post<number>(`/pm/v1/sprint/${id}/item`, { itemIds: itemIds.map((value) => Number(value)) }),
+  removeItem: (id: string, itemId: string) => http.del<void>(`/pm/v1/sprint/${id}/item/${itemId}`),
 };
 
 /** 看板 */
 export const boardApi = {
-  list: (projectId: string) => http.get<Board[]>('/pm/board', { projectId }),
-  detail: (id: string) => http.get<Board>(`/pm/board/${id}`),
-  view: (id: string) => http.get<BoardView>(`/pm/board/${id}/view`),
+  list: (projectId: string) => http.get<Board[]>('/pm/v1/board', { projectId }),
+  detail: (id: string) => http.get<Board>(`/pm/v1/board/${id}`),
+  view: (id: string) => http.get<BoardView>(`/pm/v1/board/${id}/view`),
   create: (body: { projectId: number; name: string; boardType?: string }) =>
-    http.post<Board>('/pm/board', body),
+    http.post<Board>('/pm/v1/board', body),
   update: (id: string, body: { projectId: number; name: string; boardType?: string }) =>
-    http.put<Board>(`/pm/board/${id}`, body),
-  remove: (id: string) => http.del<void>(`/pm/board/${id}`),
+    http.put<Board>(`/pm/v1/board/${id}`, body),
+  remove: (id: string) => http.del<void>(`/pm/v1/board/${id}`),
   addColumn: (id: string, body: Record<string, unknown>) =>
-    http.post<Board>(`/pm/board/${id}/column`, body),
+    http.post<Board>(`/pm/v1/board/${id}/column`, body),
   updateColumn: (id: string, columnId: string, body: Record<string, unknown>) =>
-    http.put<Board>(`/pm/board/${id}/column/${columnId}`, body),
+    http.put<Board>(`/pm/v1/board/${id}/column/${columnId}`, body),
   removeColumn: (id: string, columnId: string) =>
-    http.del<void>(`/pm/board/${id}/column/${columnId}`),
+    http.del<void>(`/pm/v1/board/${id}/column/${columnId}`),
   drag: (id: string, body: { workItemId: number; targetStatusId: number; comment?: string }) =>
-    http.put<BoardView>(`/pm/board/${id}/drag`, body),
+    http.put<BoardView>(`/pm/v1/board/${id}/drag`, body),
 };
 
 /** 报表 */
 export const reportApi = {
   burndown: (projectId: string, sprintId?: string) =>
-    http.get<Burndown>('/pm/report/burndown', { projectId, sprintId }),
+    http.get<Burndown>('/pm/v1/report/burndown', { projectId, sprintId }),
   velocity: (projectId: string, limit?: number) =>
-    http.get<Velocity>('/pm/report/velocity', { projectId, limit }),
+    http.get<Velocity>('/pm/v1/report/velocity', { projectId, limit }),
   cumulativeFlow: (
     projectId: string,
     params?: { sprintId?: string; startDate?: string; endDate?: string },
-  ) => http.get<CumulativeFlow>('/pm/report/cumulative-flow', { projectId, ...params }),
-  workload: (projectId: string) => http.get<Workload>('/pm/report/workload', { projectId }),
+  ) => http.get<CumulativeFlow>('/pm/v1/report/cumulative-flow', { projectId, ...params }),
+  workload: (projectId: string) => http.get<Workload>('/pm/v1/report/workload', { projectId }),
 };

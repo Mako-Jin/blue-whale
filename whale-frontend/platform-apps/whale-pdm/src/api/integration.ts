@@ -75,47 +75,47 @@ export interface ReconcileQuery {
 
 /** 分页查询同步日志 */
 export function pageSyncLogs(query: SyncLogQuery): Promise<PageResult<SyncLog>> {
-  return http.get<PageResult<SyncLog>>('/pdm/integration/sync/page', { ...query });
+  return http.get<PageResult<SyncLog>>('/pdm/v1/integration/sync/page', { ...query });
 }
 
 /** 重试失败同步 */
 export function retrySync(id: number): Promise<SyncLog> {
-  return http.post<SyncLog>(`/pdm/integration/sync/${id}/retry`);
+  return http.post<SyncLog>(`/pdm/v1/integration/sync/${id}/retry`);
 }
 
 /** 分页查询对账结果 */
 export function pageReconcile(query: ReconcileQuery): Promise<PageResult<ReconcileRow>> {
-  return http.get<PageResult<ReconcileRow>>('/pdm/integration/reconcile/page', { ...query });
+  return http.get<PageResult<ReconcileRow>>('/pdm/v1/integration/reconcile/page', { ...query });
 }
 
 /** 执行 BOM 对账 */
 export function runBomReconcile(): Promise<ReconcileRow[]> {
-  return http.post<ReconcileRow[]>('/pdm/integration/reconcile/bom/run');
+  return http.post<ReconcileRow[]>('/pdm/v1/integration/reconcile/bom/run');
 }
 
 /** 执行 MES 路线对账 */
 export function runRouteReconcile(): Promise<ReconcileRow[]> {
-  return http.post<ReconcileRow[]>('/pdm/integration/reconcile/route/run');
+  return http.post<ReconcileRow[]>('/pdm/v1/integration/reconcile/route/run');
 }
 
 /** 执行 OA 审批对账 */
 export function runOaReconcile(): Promise<ReconcileRow[]> {
-  return http.post<ReconcileRow[]>('/pdm/integration/reconcile/oa/run');
+  return http.post<ReconcileRow[]>('/pdm/v1/integration/reconcile/oa/run');
 }
 
 /** 重新通知 ERP 拉取 BOM 快照 */
 export function notifyBom(bomNo: string, versionNo: string): Promise<SyncLog> {
-  return http.post<SyncLog>(`/pdm/integration/reconcile/bom/${bomNo}/versions/${versionNo}/notify`);
+  return http.post<SyncLog>(`/pdm/v1/integration/reconcile/bom/${bomNo}/versions/${versionNo}/notify`);
 }
 
 /** 重推 MES 工艺路线 */
 export function repushRoute(routeId: number): Promise<unknown> {
-  return http.post<unknown>(`/pdm/integration/reconcile/route/${routeId}/repush`);
+  return http.post<unknown>(`/pdm/v1/integration/reconcile/route/${routeId}/repush`);
 }
 
 /** OA 审批状态补偿 */
 export function compensateOa(bizType: 'REQUEST' | 'ORDER', bizId: number): Promise<ReconcileRow> {
-  return http.post<ReconcileRow>(`/pdm/integration/reconcile/oa/${bizType}/${bizId}/compensate`);
+  return http.post<ReconcileRow>(`/pdm/v1/integration/reconcile/oa/${bizType}/${bizId}/compensate`);
 }
 
 /** 推送零件到 ERP */
@@ -132,5 +132,5 @@ export function syncPartToErp(partId: number): Promise<{
     created: boolean;
     status: SyncStatus;
     lastError?: string;
-  }>('/pdm/integration/erp/part/' + partId + '/sync');
+  }>('/pdm/v1/integration/erp/part/' + partId + '/sync');
 }

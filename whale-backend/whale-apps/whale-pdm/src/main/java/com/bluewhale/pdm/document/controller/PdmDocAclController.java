@@ -31,7 +31,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/pdm/acl")
+@RequestMapping(path = "/pdm/v{version}/acl", version = "1")
 @RequiredArgsConstructor
 public class PdmDocAclController {
 

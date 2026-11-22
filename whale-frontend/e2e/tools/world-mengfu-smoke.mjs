@@ -75,7 +75,7 @@ const OVERVIEW = {
     { level: 'info', text: '有 3 份合同起草后一直没提交，纸面上还什么都没有', count: 3 },
     { level: 'info', text: '有 3 份合同被驳回或撤回，这版没成得重来', count: 3 },
   ],
-  links: [{ key: 'contracts', label: '合同台账', path: '/contract/page', permission: 'sys:contract:list' }],
+  links: [{ key: 'contracts', label: '合同台账', path: '/contract/v1/page', permission: 'sys:contract:list' }],
   notes: ['口径：在途 = 审批中 + 已批待签 + 签署中 + 已签待生效；本月到期与 2D 台账 expiringSoon 同为 30 天窗口；已过期仍生效 = 到期日早于今天但状态仍是 EFFECTIVE；金额图只合计 CNY'],
 };
 
@@ -132,7 +132,7 @@ await page.route('**/contract/overview**', async (route) => {
 
 /* 详情路由先注册、列表路由后注册：Playwright 后注册的优先匹配。
    盟府不配 detailPath，这条路由只用来断言"点行不会打详情接口"。 */
-await page.route('**/contract/*', async (route) => {
+await page.route('**/contract/v1/*', async (route) => {
   const url = new URL(route.request().url());
   if (url.pathname.endsWith('/page') || url.pathname.endsWith('/overview')) {
     await route.fallback();
@@ -142,7 +142,7 @@ await page.route('**/contract/*', async (route) => {
   await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(json(null)) });
 });
 
-await page.route('**/contract/page**', async (route) => {
+await page.route('**/contract/v1/page**', async (route) => {
   const url = new URL(route.request().url());
   const current = Number(url.searchParams.get('current') ?? '1');
   const size = Number(url.searchParams.get('size') ?? '6');
@@ -396,7 +396,7 @@ check('退出后回到 3D 尺寸（不是糊满整个镜头）', exited.w > 0 &&
 await page.route('**/contract/overview**', (route) =>
   route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }),
 );
-await page.route('**/contract/page**', (route) =>
+await page.route('**/contract/v1/page**', (route) =>
   route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }),
 );
 await page.evaluate(() => {

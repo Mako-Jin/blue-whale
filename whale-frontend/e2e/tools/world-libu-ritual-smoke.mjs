@@ -7,10 +7,10 @@
 //   ② 客户台账**有搜索框**（`CustomerPageParams.keyword` 真支持），且发出去的参数名
 //      必须就是 `keyword`；等级列与状态列是**两套码值**，靠列级字典分开译；
 //   ③ 等级要兼容存量 `KEY / NORMAL / POTENTIAL`——不映射就会在列里看到英文 KEY；
-//   ④ 列表行即详情（不配 detailPath）：`/crm/customer/page` 返回的已是整行明细；
+//   ④ 列表行即详情（不配 detailPath）：`/crm/v1/customer/page` 返回的已是整行明细；
 //   ⑤ 接口全挂时不白屏：标 stale + 给一句人话。
 //
-// 数据来源：page.route 拦 /crm/overview 与 /crm/customer/page，返回与后端同形状的信封。
+// 数据来源：page.route 拦 /crm/overview 与 /crm/v1/customer/page，返回与后端同形状的信封。
 
 import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
@@ -66,9 +66,9 @@ const OVERVIEW = {
     { level: 'info', text: '按加权管道测算，本月目标还差 ¥10.0万', count: null },
   ],
   links: [
-    { key: 'customers', label: '客户台账', path: '/crm/customer/page', permission: 'sys:crm:customer:list' },
+    { key: 'customers', label: '客户台账', path: '/crm/v1/customer/page', permission: 'sys:crm:customer:list' },
   ],
-  notes: ['口径：CRM 销售看板 /crm/analytics/dashboard，与 2D 同源；数据范围按角色（管理员看全租户，其余看本人）'],
+  notes: ['口径：CRM 销售看板 /crm/v1/analytics/dashboard，与 2D 同源；数据范围按角色（管理员看全租户，其余看本人）'],
 };
 
 /**
@@ -123,7 +123,7 @@ await page.route('**/crm/overview**', async (route) => {
 
 /* 详情路由先注册、列表路由后注册：Playwright 后注册的优先匹配。
    礼部坊不配 detailPath，这条路由只用来断言"点行不会打详情接口"。 */
-await page.route('**/crm/customer/*', async (route) => {
+await page.route('**/crm/v1/customer/*', async (route) => {
   const url = new URL(route.request().url());
   if (url.pathname.endsWith('/page')) {
     await route.fallback();
@@ -133,7 +133,7 @@ await page.route('**/crm/customer/*', async (route) => {
   await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(json(null)) });
 });
 
-await page.route('**/crm/customer/page**', async (route) => {
+await page.route('**/crm/v1/customer/page**', async (route) => {
   const url = new URL(route.request().url());
   const current = Number(url.searchParams.get('current') ?? '1');
   const size = Number(url.searchParams.get('size') ?? '6');
@@ -361,7 +361,7 @@ check('退出后回到 3D 尺寸（不是糊满整个镜头）', exited.w > 0 &&
 await page.route('**/crm/overview**', (route) =>
   route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }),
 );
-await page.route('**/crm/customer/page**', (route) =>
+await page.route('**/crm/v1/customer/page**', (route) =>
   route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }),
 );
 await page.locator('[data-screen-id="libu-ritual"]').click();

@@ -1,7 +1,7 @@
 // PDM 子应用请求层：基于 @bluewhale/http，token 从基座通过 qiankun props 注入
 //
 // 后端统一返回 `Result` 信封：{ code, message, data }，code === 0 表示成功。
-// 所有请求走相对路径（如 `/pdm/document/page`），由基座 / Nginx 经网关 8080 代理。
+// 所有请求走相对路径（如 `/pdm/v1/document/page`），由基座 / Nginx 经网关 8080 代理。
 
 import { createHttpClient, type DownloadResult, type HttpOptions } from '@bluewhale/http';
 

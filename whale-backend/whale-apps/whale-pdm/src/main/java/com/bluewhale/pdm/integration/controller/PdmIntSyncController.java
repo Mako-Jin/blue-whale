@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/pdm/integration/sync")
+@RequestMapping(path = "/pdm/v{version}/integration/sync", version = "1")
 @RequiredArgsConstructor
 public class PdmIntSyncController {
 

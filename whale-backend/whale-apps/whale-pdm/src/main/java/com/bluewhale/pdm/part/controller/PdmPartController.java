@@ -39,7 +39,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/pdm/part")
+@RequestMapping(path = "/pdm/v{version}/part", version = "1")
 @RequiredArgsConstructor
 public class PdmPartController {
 

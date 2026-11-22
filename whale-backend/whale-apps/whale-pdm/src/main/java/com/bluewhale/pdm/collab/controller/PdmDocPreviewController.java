@@ -35,7 +35,7 @@ import java.nio.charset.StandardCharsets;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/pdm/collab/preview")
+@RequestMapping(path = "/pdm/v{version}/collab/preview", version = "1")
 @RequiredArgsConstructor
 public class PdmDocPreviewController {
 

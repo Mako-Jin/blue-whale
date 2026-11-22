@@ -95,12 +95,12 @@ function segment(value: string | number): string {
  */
 export function createMapClient(request: MapRequest): MapClient {
   return {
-    geocode: (params) => request<GeocodeVO>('/map/geocode', { method: 'POST', body: params }),
+    geocode: (params) => request<GeocodeVO>('/map/v1/geocode', { method: 'POST', body: params }),
 
-    regeo: (params) => request<RegeoVO>('/map/regeo', { method: 'POST', body: params }),
+    regeo: (params) => request<RegeoVO>('/map/v1/regeo', { method: 'POST', body: params }),
 
     searchPoi: (keyword, options = {}) =>
-      request<PoiPageVO>('/map/poi/search', {
+      request<PoiPageVO>('/map/v1/poi/search', {
         method: 'GET',
         query: {
           keyword,
@@ -110,28 +110,28 @@ export function createMapClient(request: MapRequest): MapClient {
         },
       }),
 
-    route: (params) => request<RouteVO>('/map/route', { method: 'POST', body: params }),
+    route: (params) => request<RouteVO>('/map/v1/route', { method: 'POST', body: params }),
 
-    distance: (params) => request<DistanceVO[]>('/map/distance', { method: 'POST', body: params }),
+    distance: (params) => request<DistanceVO[]>('/map/v1/distance', { method: 'POST', body: params }),
 
     saveLocation: (bizType, bizId, params) =>
-      request<MapLocationVO>(`/map/location/${segment(bizType)}/${segment(bizId)}`, {
+      request<MapLocationVO>(`/map/v1/location/${segment(bizType)}/${segment(bizId)}`, {
         method: 'PUT',
         body: params,
       }),
 
     getLocation: (bizType, bizId) =>
-      request<MapLocationVO | null>(`/map/location/${segment(bizType)}/${segment(bizId)}`, {
+      request<MapLocationVO | null>(`/map/v1/location/${segment(bizType)}/${segment(bizId)}`, {
         method: 'GET',
       }),
 
     removeLocation: (bizType, bizId) =>
-      request<void>(`/map/location/${segment(bizType)}/${segment(bizId)}/remove`, {
+      request<void>(`/map/v1/location/${segment(bizType)}/${segment(bizId)}/remove`, {
         method: 'POST',
       }),
 
     nearby: (params) =>
-      request<MapLocationVO[]>('/map/location/nearby', {
+      request<MapLocationVO[]>('/map/v1/location/nearby', {
         method: 'GET',
         query: {
           lng: params.lng,
@@ -143,10 +143,10 @@ export function createMapClient(request: MapRequest): MapClient {
         },
       }),
 
-    saveFence: (params) => request<FenceVO>('/map/fence', { method: 'POST', body: params }),
+    saveFence: (params) => request<FenceVO>('/map/v1/fence', { method: 'POST', body: params }),
 
     pageFence: (query = {}) =>
-      request<PageResult<FenceVO>>('/map/fence/page', {
+      request<PageResult<FenceVO>>('/map/v1/fence/page', {
         method: 'GET',
         query: {
           name: query.name,
@@ -158,16 +158,16 @@ export function createMapClient(request: MapRequest): MapClient {
         },
       }),
 
-    getFence: (id) => request<FenceVO>(`/map/fence/${segment(id)}`, { method: 'GET' }),
+    getFence: (id) => request<FenceVO>(`/map/v1/fence/${segment(id)}`, { method: 'GET' }),
 
-    removeFence: (id) => request<void>(`/map/fence/${segment(id)}/remove`, { method: 'POST' }),
+    removeFence: (id) => request<void>(`/map/v1/fence/${segment(id)}/remove`, { method: 'POST' }),
 
     fenceContains: (id, params) =>
-      request<FenceHitVO>(`/map/fence/${segment(id)}/contains`, { method: 'POST', body: params }),
+      request<FenceHitVO>(`/map/v1/fence/${segment(id)}/contains`, { method: 'POST', body: params }),
 
     fenceMatch: (params) =>
-      request<FenceHitVO[]>('/map/fence/match', { method: 'POST', body: params }),
+      request<FenceHitVO[]>('/map/v1/fence/match', { method: 'POST', body: params }),
 
-    providerHealth: () => request<ProviderHealthVO[]>('/map/provider/health', { method: 'GET' }),
+    providerHealth: () => request<ProviderHealthVO[]>('/map/v1/provider/health', { method: 'GET' }),
   };
 }

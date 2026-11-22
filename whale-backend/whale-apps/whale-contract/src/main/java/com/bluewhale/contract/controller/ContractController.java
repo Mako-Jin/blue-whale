@@ -36,7 +36,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/contract")
+@RequestMapping(path = "/contract/v{version}", version = "1")
 @RequiredArgsConstructor
 public class ContractController {
 

@@ -293,128 +293,128 @@ export interface BomRelease {
 
 /** 零件分页查询 */
 export function listParts(params: PartQuery): Promise<PageResult<PdmPart>> {
-  return http.get<PageResult<PdmPart>>('/pdm/part/page', params as Record<string, unknown>);
+  return http.get<PageResult<PdmPart>>('/pdm/v1/part/page', params as Record<string, unknown>);
 }
 
 /** 零件详情 */
 export function getPart(id: string): Promise<PdmPart> {
-  return http.get<PdmPart>(`/pdm/part/${id}`);
+  return http.get<PdmPart>(`/pdm/v1/part/${id}`);
 }
 
 /** 保存零件（无 id 走新增） */
 export function savePart(input: PartInput, id?: string): Promise<PdmPart> {
-  return id ? http.put<PdmPart>(`/pdm/part/${id}`, input) : http.post<PdmPart>('/pdm/part', input);
+  return id ? http.put<PdmPart>(`/pdm/v1/part/${id}`, input) : http.post<PdmPart>('/pdm/v1/part', input);
 }
 
 /** 删除零件 */
 export function deletePart(id: string): Promise<void> {
-  return http.del<void>(`/pdm/part/${id}`);
+  return http.del<void>(`/pdm/v1/part/${id}`);
 }
 
 /** 零件使用处 */
 export function listWhereUsed(id: string): Promise<PartWhereUsed[]> {
-  return http.get<PartWhereUsed[]>(`/pdm/part/${id}/where-used`);
+  return http.get<PartWhereUsed[]>(`/pdm/v1/part/${id}/where-used`);
 }
 
 /** 零件去重候选 */
 export function listDedupCandidates(): Promise<PartDedupGroup[]> {
-  return http.get<PartDedupGroup[]>('/pdm/part/dedup/candidates');
+  return http.get<PartDedupGroup[]>('/pdm/v1/part/dedup/candidates');
 }
 
 /** 人工合并零件（源件停用，草稿 BOM 引用改写） */
 export function mergeParts(input: PartMergeInput): Promise<PartMergeResult> {
-  return http.post<PartMergeResult>('/pdm/part/merge', input);
+  return http.post<PartMergeResult>('/pdm/v1/part/merge', input);
 }
 
 /** 零件对应的 ERP 物料与库存（ERP 不可用时后端降级返回） */
 export function getPartErpStock(id: string): Promise<PartErpStock> {
-  return http.get<PartErpStock>(`/pdm/part/${id}/erp-stock`);
+  return http.get<PartErpStock>(`/pdm/v1/part/${id}/erp-stock`);
 }
 
 /** 物料分类树 */
 export function getCategoryTree(): Promise<PartCategory[]> {
-  return http.get<PartCategory[]>('/pdm/part/category/tree');
+  return http.get<PartCategory[]>('/pdm/v1/part/category/tree');
 }
 
 /** 保存物料分类（无 id 走新增） */
 export function saveCategory(input: CategoryInput, id?: string): Promise<PartCategory> {
   return id
-    ? http.put<PartCategory>(`/pdm/part/category/${id}`, input)
-    : http.post<PartCategory>('/pdm/part/category', input);
+    ? http.put<PartCategory>(`/pdm/v1/part/category/${id}`, input)
+    : http.post<PartCategory>('/pdm/v1/part/category', input);
 }
 
 /** 删除物料分类 */
 export function deleteCategory(id: string): Promise<void> {
-  return http.del<void>(`/pdm/part/category/${id}`);
+  return http.del<void>(`/pdm/v1/part/category/${id}`);
 }
 
 /** BOM 分页查询 */
 export function listBoms(params: BomQuery): Promise<PageResult<PdmBom>> {
-  return http.get<PageResult<PdmBom>>('/pdm/bom/page', params as Record<string, unknown>);
+  return http.get<PageResult<PdmBom>>('/pdm/v1/bom/page', params as Record<string, unknown>);
 }
 
 /** BOM 详情 */
 export function getBom(id: string): Promise<PdmBom> {
-  return http.get<PdmBom>(`/pdm/bom/${id}`);
+  return http.get<PdmBom>(`/pdm/v1/bom/${id}`);
 }
 
 /** 新建 BOM 版本 */
 export function createBom(input: BomInput): Promise<PdmBom> {
-  return http.post<PdmBom>('/pdm/bom', input);
+  return http.post<PdmBom>('/pdm/v1/bom', input);
 }
 
 /** 删除草稿 BOM */
 export function deleteBom(id: string): Promise<void> {
-  return http.del<void>(`/pdm/bom/${id}`);
+  return http.del<void>(`/pdm/v1/bom/${id}`);
 }
 
 /** 新增 BOM 行 */
 export function addBomLine(id: string, input: BomLineInput): Promise<PdmBom> {
-  return http.post<PdmBom>(`/pdm/bom/${id}/lines`, input);
+  return http.post<PdmBom>(`/pdm/v1/bom/${id}/lines`, input);
 }
 
 /** 更新 BOM 行 */
 export function updateBomLine(id: string, lineId: string, input: BomLineInput): Promise<PdmBom> {
-  return http.put<PdmBom>(`/pdm/bom/${id}/lines/${lineId}`, input);
+  return http.put<PdmBom>(`/pdm/v1/bom/${id}/lines/${lineId}`, input);
 }
 
 /** 删除 BOM 行 */
 export function deleteBomLine(id: string, lineId: string): Promise<PdmBom> {
-  return http.del<PdmBom>(`/pdm/bom/${id}/lines/${lineId}`);
+  return http.del<PdmBom>(`/pdm/v1/bom/${id}/lines/${lineId}`);
 }
 
 /** 发布 BOM */
 export function releaseBom(id: string): Promise<BomRelease> {
-  return http.post<BomRelease>(`/pdm/bom/${id}/release`);
+  return http.post<BomRelease>(`/pdm/v1/bom/${id}/release`);
 }
 
 /** BOM 发布记录 */
 export function listBomReleases(bomNo: string): Promise<BomRelease[]> {
-  return http.get<BomRelease[]>(`/pdm/bom/${bomNo}/releases`);
+  return http.get<BomRelease[]>(`/pdm/v1/bom/${bomNo}/releases`);
 }
 
 /** 从 EBOM 派生 PBOM/MBOM */
 export function deriveBom(id: string, input: BomDeriveInput): Promise<PdmBom> {
-  return http.post<PdmBom>(`/pdm/bom/${id}/derive`, input);
+  return http.post<PdmBom>(`/pdm/v1/bom/${id}/derive`, input);
 }
 
 /** 对比两个 BOM（同一产品） */
 export function diffBoms(baseId: string, targetId: string): Promise<BomDiff> {
-  return http.get<BomDiff>('/pdm/bom/diff', { baseId, targetId });
+  return http.get<BomDiff>('/pdm/v1/bom/diff', { baseId, targetId });
 }
 
 /** 创建 BOM 异步对比任务（不限行数） */
 export function createBomDiffTask(baseId: string, targetId: string): Promise<BomDiffTask> {
   const query = `baseId=${encodeURIComponent(baseId)}&targetId=${encodeURIComponent(targetId)}`;
-  return http.post<BomDiffTask>(`/pdm/bom/diff/tasks?${query}`);
+  return http.post<BomDiffTask>(`/pdm/v1/bom/diff/tasks?${query}`);
 }
 
 /** 查询 BOM 异步对比任务 */
 export function getBomDiffTask(id: string): Promise<BomDiffTask> {
-  return http.get<BomDiffTask>(`/pdm/bom/diff/tasks/${encodeURIComponent(id)}`);
+  return http.get<BomDiffTask>(`/pdm/v1/bom/diff/tasks/${encodeURIComponent(id)}`);
 }
 
 /** 导出 BOM Excel */
 export function exportBom(id: string): Promise<DownloadResult> {
-  return download(`/pdm/bom/${id}/export`);
+  return download(`/pdm/v1/bom/${id}/export`);
 }

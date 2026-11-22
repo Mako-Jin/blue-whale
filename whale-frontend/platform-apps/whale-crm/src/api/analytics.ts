@@ -149,32 +149,32 @@ export interface AnalyticsExport {
 
 /** 看板 */
 export function getDashboard(): Promise<DashboardData> {
-  return http.get<DashboardData>('/crm/analytics/dashboard');
+  return http.get<DashboardData>('/crm/v1/analytics/dashboard');
 }
 
 /** 漏斗分析 */
 export function getFunnel(startDate?: string, endDate?: string): Promise<FunnelViewData> {
-  return http.get<FunnelViewData>('/crm/analytics/funnel', { startDate, endDate });
+  return http.get<FunnelViewData>('/crm/v1/analytics/funnel', { startDate, endDate });
 }
 
 /** 客户分析 */
 export function getCustomerAnalysis(statDate?: string): Promise<CustomerAnalysisData> {
-  return http.get<CustomerAnalysisData>('/crm/analytics/customer', { statDate });
+  return http.get<CustomerAnalysisData>('/crm/v1/analytics/customer', { statDate });
 }
 
 /** 销售排行 */
 export function getRanking(startDate?: string, endDate?: string): Promise<RankingRow[]> {
-  return http.get<RankingRow[]>('/crm/analytics/ranking', { startDate, endDate });
+  return http.get<RankingRow[]>('/crm/v1/analytics/ranking', { startDate, endDate });
 }
 
 /** 回款分析 */
 export function getCollectionAnalysis(statDate?: string): Promise<CollectionAnalysisData> {
-  return http.get<CollectionAnalysisData>('/crm/analytics/collection', { statDate });
+  return http.get<CollectionAnalysisData>('/crm/v1/analytics/collection', { statDate });
 }
 
 /** 生成指标快照 */
 export function generateSnapshot(statDate?: string): Promise<number> {
-  return http.post<number>('/crm/analytics/snapshot', undefined, { statDate });
+  return http.post<number>('/crm/v1/analytics/snapshot', undefined, { statDate });
 }
 
 /** 指标快照分页 */
@@ -185,38 +185,38 @@ export function pageSnapshots(query: {
   current?: number;
   size?: number;
 }): Promise<PageResult<MetricSnapshot>> {
-  return http.get<PageResult<MetricSnapshot>>('/crm/analytics/snapshot/page', query);
+  return http.get<PageResult<MetricSnapshot>>('/crm/v1/analytics/snapshot/page', query);
 }
 
 /** 行动项分页 */
 export function pageActionItems(query: ActionItemQuery): Promise<PageResult<ActionItem>> {
   return http.get<PageResult<ActionItem>>(
-    '/crm/action-plan/page',
+    '/crm/v1/action-plan/page',
     query as Record<string, unknown>,
   );
 }
 
 /** 生成行动项 */
 export function generateActionItems(): Promise<number> {
-  return http.post<number>('/crm/action-plan/generate');
+  return http.post<number>('/crm/v1/action-plan/generate');
 }
 
 /** 关闭行动项 */
 export function closeActionItem(id: number, reason: string): Promise<ActionItem> {
-  return http.post<ActionItem>(`/crm/action-plan/${id}/close`, { reason });
+  return http.post<ActionItem>(`/crm/v1/action-plan/${id}/close`, { reason });
 }
 
 /** 查询行动规则 */
 export function listActionRules(): Promise<ActionRule[]> {
-  return http.get<ActionRule[]>('/crm/action-rule');
+  return http.get<ActionRule[]>('/crm/v1/action-rule');
 }
 
 /** 创建导出任务 */
 export function createExport(exportType: string, filtersJson?: string): Promise<AnalyticsExport> {
-  return http.post<AnalyticsExport>('/crm/analytics/export', { exportType, filtersJson });
+  return http.post<AnalyticsExport>('/crm/v1/analytics/export', { exportType, filtersJson });
 }
 
 /** 代理下载导出文件（V13 起走 whale-file；历史导出回退 CSV 内容） */
 export function downloadExport(id: number) {
-  return download(`/crm/analytics/export/${id}/download`);
+  return download(`/crm/v1/analytics/export/${id}/download`);
 }

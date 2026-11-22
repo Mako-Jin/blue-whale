@@ -26,7 +26,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/pdm/part/category")
+@RequestMapping(path = "/pdm/v{version}/part/category", version = "1")
 @RequiredArgsConstructor
 public class PdmPartCategoryController {
 

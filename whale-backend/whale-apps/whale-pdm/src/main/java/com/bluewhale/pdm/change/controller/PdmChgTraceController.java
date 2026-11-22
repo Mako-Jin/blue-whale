@@ -22,7 +22,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/pdm/change/trace")
+@RequestMapping(path = "/pdm/v{version}/change/trace", version = "1")
 @RequiredArgsConstructor
 public class PdmChgTraceController {
 

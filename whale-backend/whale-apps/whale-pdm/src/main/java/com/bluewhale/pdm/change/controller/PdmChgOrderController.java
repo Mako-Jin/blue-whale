@@ -32,7 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/pdm/change/order")
+@RequestMapping(path = "/pdm/v{version}/change/order", version = "1")
 @RequiredArgsConstructor
 public class PdmChgOrderController {
 

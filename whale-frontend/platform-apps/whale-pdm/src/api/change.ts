@@ -51,47 +51,47 @@ export interface ChgRequestInput {
 /** 分页查询变更申请 */
 export function pageChgRequests(query: ChgRequestQuery): Promise<PageResult<ChgRequest>> {
   return http.get<PageResult<ChgRequest>>(
-    '/pdm/change/request/page',
+    '/pdm/v1/change/request/page',
     query as Record<string, unknown>,
   );
 }
 
 /** 变更申请详情 */
 export function getChgRequest(id: string): Promise<ChgRequest> {
-  return http.get<ChgRequest>(`/pdm/change/request/${id}`);
+  return http.get<ChgRequest>(`/pdm/v1/change/request/${id}`);
 }
 
 /** 新建变更申请 */
 export function createChgRequest(input: ChgRequestInput): Promise<ChgRequest> {
-  return http.post<ChgRequest>('/pdm/change/request', input);
+  return http.post<ChgRequest>('/pdm/v1/change/request', input);
 }
 
 /** 修改草稿变更申请 */
 export function updateChgRequest(id: string, input: ChgRequestInput): Promise<ChgRequest> {
-  return http.put<ChgRequest>(`/pdm/change/request/${id}`, input);
+  return http.put<ChgRequest>(`/pdm/v1/change/request/${id}`, input);
 }
 
 /** 删除草稿变更申请 */
 export function deleteChgRequest(id: string): Promise<void> {
-  return http.del<void>(`/pdm/change/request/${id}`);
+  return http.del<void>(`/pdm/v1/change/request/${id}`);
 }
 
 /** 提交变更申请 */
 export function submitChgRequest(id: string): Promise<ChgRequest> {
-  return http.post<ChgRequest>(`/pdm/change/request/${id}/submit`);
+  return http.post<ChgRequest>(`/pdm/v1/change/request/${id}/submit`);
 }
 
 /** 审批通过 */
 export function approveChgRequest(id: string, comment?: string): Promise<ChgRequest> {
-  return http.post<ChgRequest>(`/pdm/change/request/${id}/approve`, { comment });
+  return http.post<ChgRequest>(`/pdm/v1/change/request/${id}/approve`, { comment });
 }
 
 /** 审批驳回（意见必填） */
 export function rejectChgRequest(id: string, comment: string): Promise<ChgRequest> {
-  return http.post<ChgRequest>(`/pdm/change/request/${id}/reject`, { comment });
+  return http.post<ChgRequest>(`/pdm/v1/change/request/${id}/reject`, { comment });
 }
 
 /** 关闭变更申请 */
 export function closeChgRequest(id: string): Promise<ChgRequest> {
-  return http.post<ChgRequest>(`/pdm/change/request/${id}/close`);
+  return http.post<ChgRequest>(`/pdm/v1/change/request/${id}/close`);
 }

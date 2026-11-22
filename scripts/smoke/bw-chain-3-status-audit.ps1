@@ -60,7 +60,7 @@ $script:token = $login.data.accessToken
 $script:h = @{ Authorization = "Bearer $($script:token)" }
 
 # 2) CRM 状态机留痕
-$crmDetail = Invoke-SmokeApi -Method Get -Path "/crm/order/$crmId"
+$crmDetail = Invoke-SmokeApi -Method Get -Path "/crm/v1/order/$crmId"
 Check '2.crmOrder' $crmDetail
 $crm = $crmDetail.data
 Assert '2a.crmPushed' ($null -ne $crm.erpOrderNo) "erpOrderNo=$($crm.erpOrderNo)"

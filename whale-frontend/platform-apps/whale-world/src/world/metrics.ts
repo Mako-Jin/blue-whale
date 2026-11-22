@@ -208,7 +208,7 @@ const PROBES: ProbeSpec[] = [
     // 礼部 = CRM：新客、目标达成、风险商机
     nodeKey: 'libu-ritual-hall',
     permission: 'sys:crm:analytics:dashboard',
-    url: '/crm/analytics/dashboard',
+    url: '/crm/v1/analytics/dashboard',
     extract: (d) => [
       { label: '今日新客', value: formatCount(dig(d, 'todayNewLeads')) },
       { label: '目标达成', value: formatPercent(dig(d, 'targetCompletionRate')) },

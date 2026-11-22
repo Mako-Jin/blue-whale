@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/pdm/integration/erp")
+@RequestMapping(path = "/pdm/v{version}/integration/erp", version = "1")
 @RequiredArgsConstructor
 public class PdmIntErpController {
 

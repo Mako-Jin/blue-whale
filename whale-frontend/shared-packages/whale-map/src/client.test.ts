@@ -20,7 +20,7 @@ describe('createMapClient 路径与参数', () => {
   it('geocode 走 POST /map/geocode 且 body 原样透传', async () => {
     const { calls, client } = recorder({ lng: 1, lat: 2, coordType: 'GCJ02' });
     await client.geocode({ address: '天安门', city: '北京' });
-    expect(calls[0].path).toBe('/map/geocode');
+    expect(calls[0].path).toBe('/map/v1/geocode');
     expect(calls[0].options?.method).toBe('POST');
     expect(calls[0].options?.body).toEqual({ address: '天安门', city: '北京' });
   });
@@ -34,7 +34,7 @@ describe('createMapClient 路径与参数', () => {
       provider: 'tencent',
     });
     const page = await client.searchPoi('天安门', { city: '北京', page: 2, size: 20 });
-    expect(calls[0].path).toBe('/map/poi/search');
+    expect(calls[0].path).toBe('/map/v1/poi/search');
     expect(calls[0].options?.method).toBe('GET');
     expect(calls[0].options?.query).toMatchObject({
       keyword: '天安门',
@@ -52,14 +52,14 @@ describe('createMapClient 路径与参数', () => {
       lat: 39.9,
       coordType: 'GCJ02',
     });
-    expect(calls[0].path).toBe('/map/location/CRM_CONTACT/a%2Fb%201');
+    expect(calls[0].path).toBe('/map/v1/location/CRM_CONTACT/a%2Fb%201');
     expect(calls[0].options?.method).toBe('PUT');
   });
 
   it('取消打点走 POST .../remove', async () => {
     const { calls, client } = recorder(null);
     await client.removeLocation('CRM_CONTACT', 42);
-    expect(calls[0].path).toBe('/map/location/CRM_CONTACT/42/remove');
+    expect(calls[0].path).toBe('/map/v1/location/CRM_CONTACT/42/remove');
     expect(calls[0].options?.method).toBe('POST');
   });
 
@@ -72,7 +72,7 @@ describe('createMapClient 路径与参数', () => {
       radiusMeters: 500,
       limit: 20,
     });
-    expect(calls[0].path).toBe('/map/location/nearby');
+    expect(calls[0].path).toBe('/map/v1/location/nearby');
     expect(calls[0].options?.query).toMatchObject({ radiusMeters: 500, limit: 20 });
   });
 
@@ -80,14 +80,14 @@ describe('createMapClient 路径与参数', () => {
     const { calls, client } = recorder({ id: 1, inside: true, distanceMeters: 10 });
     await client.fenceContains(7, { lng: 116.4, lat: 39.9, coordType: 'GCJ02' });
     await client.fenceMatch({ lng: 116.4, lat: 39.9, coordType: 'GCJ02' });
-    expect(calls[0].path).toBe('/map/fence/7/contains');
-    expect(calls[1].path).toBe('/map/fence/match');
+    expect(calls[0].path).toBe('/map/v1/fence/7/contains');
+    expect(calls[1].path).toBe('/map/v1/fence/match');
   });
 
   it('围栏分页走 GET /map/fence/page', async () => {
     const { calls, client } = recorder({ records: [], total: 0, size: 20, current: 1 });
     await client.pageFence({ bizType: 'OA_ATTEND', page: 1, size: 20 });
-    expect(calls[0].path).toBe('/map/fence/page');
+    expect(calls[0].path).toBe('/map/v1/fence/page');
     expect(calls[0].options?.method).toBe('GET');
   });
 
@@ -110,8 +110,8 @@ describe('createMapClient 路径与参数', () => {
       originLat: 39.9,
       targets: [{ lng: 116.5, lat: 39.95 }],
     });
-    expect(calls[0].path).toBe('/map/route');
-    expect(calls[1].path).toBe('/map/distance');
+    expect(calls[0].path).toBe('/map/v1/route');
+    expect(calls[1].path).toBe('/map/v1/distance');
     expect(calls[0].options?.method).toBe('POST');
     expect(calls[1].options?.method).toBe('POST');
   });

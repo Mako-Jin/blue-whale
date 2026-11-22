@@ -111,17 +111,17 @@ export interface ContractSaveInput {
 
 /** 合同接口 */
 export const contractApi = {
-  page: (query: ContractQuery) => http.get<PageResult<Contract>>('/contract/page', { ...query }),
-  detail: (id: string) => http.get<Contract>(`/contract/${id}`),
+  page: (query: ContractQuery) => http.get<PageResult<Contract>>('/contract/v1/page', { ...query }),
+  detail: (id: string) => http.get<Contract>(`/contract/v1/${id}`),
   create: (input: ContractSaveInput) => http.post<Contract>('/contract', input),
-  update: (id: string, input: ContractSaveInput) => http.put<Contract>(`/contract/${id}`, input),
-  remove: (id: string) => http.del<void>(`/contract/${id}`),
-  submit: (id: string) => http.post<Contract>(`/contract/${id}/submit`),
-  withdraw: (id: string) => http.post<Contract>(`/contract/${id}/withdraw`),
-  terminate: (id: string) => http.post<Contract>(`/contract/${id}/terminate`),
-  effective: (id: string) => http.post<Contract>(`/contract/${id}/effective`),
-  archive: (id: string) => http.post<Contract>(`/contract/${id}/archive`),
-  versions: (id: string) => http.get<ContractVersion[]>(`/contract/${id}/versions`),
+  update: (id: string, input: ContractSaveInput) => http.put<Contract>(`/contract/v1/${id}`, input),
+  remove: (id: string) => http.del<void>(`/contract/v1/${id}`),
+  submit: (id: string) => http.post<Contract>(`/contract/v1/${id}/submit`),
+  withdraw: (id: string) => http.post<Contract>(`/contract/v1/${id}/withdraw`),
+  terminate: (id: string) => http.post<Contract>(`/contract/v1/${id}/terminate`),
+  effective: (id: string) => http.post<Contract>(`/contract/v1/${id}/effective`),
+  archive: (id: string) => http.post<Contract>(`/contract/v1/${id}/archive`),
+  versions: (id: string) => http.get<ContractVersion[]>(`/contract/v1/${id}/versions`),
   createVersion: (id: string, input: { fileId?: number; sha256?: string; changeNote?: string }) =>
-    http.post<ContractVersion>(`/contract/${id}/versions`, input),
+    http.post<ContractVersion>(`/contract/v1/${id}/versions`, input),
 };

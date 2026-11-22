@@ -30,7 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/crm/analytics/export")
+@RequestMapping(path = "/crm/v{version}/analytics/export", version = "1")
 @RequiredArgsConstructor
 public class CrmAnalyticsExportController {
 

@@ -313,7 +313,7 @@ export interface ProfileSaveInput {
 
 /** 客户分页 */
 export function pageCustomers(query: CustomerPageQuery): Promise<PageResult<CustomerView>> {
-  return http.get<PageResult<CustomerView>>('/crm/customer/page', { ...query });
+  return http.get<PageResult<CustomerView>>('/crm/v1/customer/page', { ...query });
 }
 
 /** 客户查重 */
@@ -325,49 +325,49 @@ export function duplicateCheck(params: {
   email?: string;
   excludeId?: number;
 }): Promise<PageResult<DuplicateCandidateView>> {
-  return http.get<PageResult<DuplicateCandidateView>>('/crm/customer/duplicate-check', {
+  return http.get<PageResult<DuplicateCandidateView>>('/crm/v1/customer/duplicate-check', {
     ...params,
   });
 }
 
 /** 客户详情（档案 + 联系人 + 地址 + 画像） */
 export function getCustomerDetail(id: number): Promise<CustomerDetailView> {
-  return http.get<CustomerDetailView>(`/crm/customer/${id}`);
+  return http.get<CustomerDetailView>(`/crm/v1/customer/${id}`);
 }
 
 /** 客户 360 视图 */
 export function getCustomer360(id: number): Promise<Customer360View> {
-  return http.get<Customer360View>(`/crm/customer/${id}/360`);
+  return http.get<Customer360View>(`/crm/v1/customer/${id}/360`);
 }
 
 /** 新建客户 */
 export function createCustomer(input: CustomerSaveInput): Promise<CustomerView> {
-  return http.post<CustomerView>('/crm/customer', input);
+  return http.post<CustomerView>('/crm/v1/customer', input);
 }
 
 /** 编辑客户 */
 export function updateCustomer(id: number, input: CustomerSaveInput): Promise<CustomerView> {
-  return http.put<CustomerView>(`/crm/customer/${id}`, input);
+  return http.put<CustomerView>(`/crm/v1/customer/${id}`, input);
 }
 
 /** 变更客户状态（ACTIVE / INACTIVE） */
 export function changeCustomerStatus(id: number, status: string): Promise<CustomerView> {
-  return http.put<CustomerView>(`/crm/customer/${id}/status`, { status });
+  return http.put<CustomerView>(`/crm/v1/customer/${id}/status`, { status });
 }
 
 /** 变更客户等级（A/B/C/D） */
 export function changeCustomerLevel(id: number, level: string): Promise<CustomerView> {
-  return http.put<CustomerView>(`/crm/customer/${id}/level`, { level });
+  return http.put<CustomerView>(`/crm/v1/customer/${id}/level`, { level });
 }
 
 /** 逻辑删除客户 */
 export function deleteCustomer(id: number): Promise<void> {
-  return http.del<void>(`/crm/customer/${id}`);
+  return http.del<void>(`/crm/v1/customer/${id}`);
 }
 
 /** 查询客户画像 */
 export function getCustomerProfile(id: number): Promise<CustomerProfileView> {
-  return http.get<CustomerProfileView>(`/crm/customer/${id}/profile`);
+  return http.get<CustomerProfileView>(`/crm/v1/customer/${id}/profile`);
 }
 
 /** 保存客户画像 */
@@ -375,32 +375,32 @@ export function saveCustomerProfile(
   id: number,
   input: ProfileSaveInput,
 ): Promise<CustomerProfileView> {
-  return http.put<CustomerProfileView>(`/crm/customer/${id}/profile`, input);
+  return http.put<CustomerProfileView>(`/crm/v1/customer/${id}/profile`, input);
 }
 
 /** 查询客户联系人 */
 export function listContacts(customerId: number): Promise<ContactView[]> {
-  return http.get<ContactView[]>(`/crm/customer/${customerId}/contact`);
+  return http.get<ContactView[]>(`/crm/v1/customer/${customerId}/contact`);
 }
 
 /** 新建联系人 */
 export function createContact(customerId: number, input: ContactSaveInput): Promise<ContactView> {
-  return http.post<ContactView>(`/crm/customer/${customerId}/contact`, input);
+  return http.post<ContactView>(`/crm/v1/customer/${customerId}/contact`, input);
 }
 
 /** 编辑联系人 */
 export function updateContact(contactId: number, input: ContactSaveInput): Promise<ContactView> {
-  return http.put<ContactView>(`/crm/customer/contact/${contactId}`, input);
+  return http.put<ContactView>(`/crm/v1/customer/contact/${contactId}`, input);
 }
 
 /** 删除联系人 */
 export function deleteContact(contactId: number): Promise<void> {
-  return http.del<void>(`/crm/customer/contact/${contactId}`);
+  return http.del<void>(`/crm/v1/customer/contact/${contactId}`);
 }
 
 /** 查询客户地址 */
 export function listAddresses(customerId: number): Promise<CustomerAddressView[]> {
-  return http.get<CustomerAddressView[]>(`/crm/customer/${customerId}/address`);
+  return http.get<CustomerAddressView[]>(`/crm/v1/customer/${customerId}/address`);
 }
 
 /** 新建客户地址 */
@@ -408,7 +408,7 @@ export function createAddress(
   customerId: number,
   input: AddressSaveInput,
 ): Promise<CustomerAddressView> {
-  return http.post<CustomerAddressView>(`/crm/customer/${customerId}/address`, input);
+  return http.post<CustomerAddressView>(`/crm/v1/customer/${customerId}/address`, input);
 }
 
 /** 编辑客户地址 */
@@ -416,12 +416,12 @@ export function updateAddress(
   addressId: number,
   input: AddressSaveInput,
 ): Promise<CustomerAddressView> {
-  return http.put<CustomerAddressView>(`/crm/customer/address/${addressId}`, input);
+  return http.put<CustomerAddressView>(`/crm/v1/customer/address/${addressId}`, input);
 }
 
 /** 删除客户地址 */
 export function deleteAddress(addressId: number): Promise<void> {
-  return http.del<void>(`/crm/customer/address/${addressId}`);
+  return http.del<void>(`/crm/v1/customer/address/${addressId}`);
 }
 
 /** 客户跟进分页 */
@@ -430,7 +430,7 @@ export function pageFollowUps(
   current: number,
   size: number,
 ): Promise<PageResult<FollowUpView>> {
-  return http.get<PageResult<FollowUpView>>('/crm/follow-up/page', {
+  return http.get<PageResult<FollowUpView>>('/crm/v1/follow-up/page', {
     customerId,
     current,
     size,
@@ -439,52 +439,52 @@ export function pageFollowUps(
 
 /** 新增跟进记录 */
 export function createFollowUp(input: FollowUpCreateInput): Promise<FollowUpView> {
-  return http.post<FollowUpView>('/crm/follow-up', input);
+  return http.post<FollowUpView>('/crm/v1/follow-up', input);
 }
 
 /** 公海分页 */
 export function pagePoolCustomers(query: CustomerPageQuery): Promise<PageResult<CustomerView>> {
-  return http.get<PageResult<CustomerView>>('/crm/pool/page', { ...query });
+  return http.get<PageResult<CustomerView>>('/crm/v1/pool/page', { ...query });
 }
 
 /** 领取公海客户 */
 export function claimPoolCustomer(id: number): Promise<CustomerView> {
-  return http.post<CustomerView>(`/crm/pool/${id}/claim`);
+  return http.post<CustomerView>(`/crm/v1/pool/${id}/claim`);
 }
 
 /** 释放客户到公海（remark 为后端 @RequestParam） */
 export function releasePoolCustomer(id: number, remark?: string): Promise<CustomerView> {
-  return http.post<CustomerView>(`/crm/pool/${id}/release`, undefined, { remark });
+  return http.post<CustomerView>(`/crm/v1/pool/${id}/release`, undefined, { remark });
 }
 
 /** 分配客户负责人 */
 export function assignPoolCustomer(id: number, input: PoolAssignInput): Promise<CustomerView> {
-  return http.post<CustomerView>(`/crm/pool/${id}/assign`, input);
+  return http.post<CustomerView>(`/crm/v1/pool/${id}/assign`, input);
 }
 
 /** 按规则回收客户到公海 */
 export function recyclePool(): Promise<PoolRecycleResultView> {
-  return http.post<PoolRecycleResultView>('/crm/pool/recycle');
+  return http.post<PoolRecycleResultView>('/crm/v1/pool/recycle');
 }
 
 /** 查询公海规则 */
 export function getPoolRule(): Promise<PoolRuleView> {
-  return http.get<PoolRuleView>('/crm/pool/rule');
+  return http.get<PoolRuleView>('/crm/v1/pool/rule');
 }
 
 /** 保存公海规则 */
 export function savePoolRule(input: PoolRuleSaveInput): Promise<PoolRuleView> {
-  return http.put<PoolRuleView>('/crm/pool/rule', input);
+  return http.put<PoolRuleView>('/crm/v1/pool/rule', input);
 }
 
 /** 查询客户负责人变更历史 */
 export function listOwnerLogs(id: number): Promise<OwnerLogView[]> {
-  return http.get<OwnerLogView[]>(`/crm/pool/${id}/owner-logs`);
+  return http.get<OwnerLogView[]>(`/crm/v1/pool/${id}/owner-logs`);
 }
 
 /** 查询 CRM 门禁状态 */
 export function getCrmMeta(): Promise<CrmMetaView> {
-  return http.get<CrmMetaView>('/crm/meta');
+  return http.get<CrmMetaView>('/crm/v1/meta');
 }
 
 // ---------------------------------------------------------------------------
@@ -609,7 +609,7 @@ export interface LeadActivityCreateInput {
 
 /** 线索分页 */
 export function pageLeads(query: LeadPageQuery): Promise<PageResult<LeadView>> {
-  return http.get<PageResult<LeadView>>('/crm/lead/page', { ...query });
+  return http.get<PageResult<LeadView>>('/crm/v1/lead/page', { ...query });
 }
 
 /** 线索查重（电话 / 邮箱） */
@@ -617,42 +617,42 @@ export function checkLeadDuplicates(params: {
   phone?: string;
   email?: string;
 }): Promise<LeadView[]> {
-  return http.get<LeadView[]>('/crm/lead/duplicate-check', { ...params });
+  return http.get<LeadView[]>('/crm/v1/lead/duplicate-check', { ...params });
 }
 
 /** 线索详情 */
 export function getLeadDetail(id: number): Promise<LeadView> {
-  return http.get<LeadView>(`/crm/lead/${id}`);
+  return http.get<LeadView>(`/crm/v1/lead/${id}`);
 }
 
 /** 新建线索 */
 export function createLead(input: LeadSaveInput): Promise<LeadView> {
-  return http.post<LeadView>('/crm/lead', input);
+  return http.post<LeadView>('/crm/v1/lead', input);
 }
 
 /** 编辑线索 */
 export function updateLead(id: number, input: LeadSaveInput): Promise<LeadView> {
-  return http.put<LeadView>(`/crm/lead/${id}`, input);
+  return http.put<LeadView>(`/crm/v1/lead/${id}`, input);
 }
 
 /** 推进线索状态（仅 CONTACTED / QUALIFIED） */
 export function advanceLeadStatus(id: number, status: string): Promise<LeadView> {
-  return http.put<LeadView>(`/crm/lead/${id}/status`, { status });
+  return http.put<LeadView>(`/crm/v1/lead/${id}/status`, { status });
 }
 
 /** 分配线索负责人 */
 export function assignLead(id: number, input: LeadAssignInput): Promise<LeadView> {
-  return http.post<LeadView>(`/crm/lead/${id}/assign`, input);
+  return http.post<LeadView>(`/crm/v1/lead/${id}/assign`, input);
 }
 
 /** 标记线索无效 */
 export function invalidateLead(id: number, reason: string): Promise<LeadView> {
-  return http.post<LeadView>(`/crm/lead/${id}/invalid`, { reason });
+  return http.post<LeadView>(`/crm/v1/lead/${id}/invalid`, { reason });
 }
 
 /** 线索转化（未指定 customerId 时按线索信息新建客户） */
 export function convertLead(id: number, input: LeadConvertInput): Promise<LeadConvertResultView> {
-  return http.post<LeadConvertResultView>(`/crm/lead/${id}/convert`, input);
+  return http.post<LeadConvertResultView>(`/crm/v1/lead/${id}/convert`, input);
 }
 
 /** 线索活动分页 */
@@ -661,7 +661,7 @@ export function pageLeadActivities(
   current: number,
   size: number,
 ): Promise<PageResult<LeadActivityView>> {
-  return http.get<PageResult<LeadActivityView>>(`/crm/lead/${id}/activity`, { current, size });
+  return http.get<PageResult<LeadActivityView>>(`/crm/v1/lead/${id}/activity`, { current, size });
 }
 
 /** 追加线索活动 */
@@ -669,7 +669,7 @@ export function addLeadActivity(
   id: number,
   input: LeadActivityCreateInput,
 ): Promise<LeadActivityView> {
-  return http.post<LeadActivityView>(`/crm/lead/${id}/activity`, input);
+  return http.post<LeadActivityView>(`/crm/v1/lead/${id}/activity`, input);
 }
 
 /** 商机视图（OpportunityView） */
@@ -764,7 +764,7 @@ export interface OpportunityStageInput {
 export function pageOpportunities(
   query: OpportunityPageQuery,
 ): Promise<PageResult<OpportunityView>> {
-  return http.get<PageResult<OpportunityView>>('/crm/opportunity/page', { ...query });
+  return http.get<PageResult<OpportunityView>>('/crm/v1/opportunity/page', { ...query });
 }
 
 /** 销售漏斗 */
@@ -773,22 +773,22 @@ export function getOpportunityFunnel(query: {
   expectedCloseFrom?: string;
   expectedCloseTo?: string;
 }): Promise<FunnelView> {
-  return http.get<FunnelView>('/crm/opportunity/funnel', { ...query });
+  return http.get<FunnelView>('/crm/v1/opportunity/funnel', { ...query });
 }
 
 /** 商机详情 */
 export function getOpportunity(id: number): Promise<OpportunityView> {
-  return http.get<OpportunityView>(`/crm/opportunity/${id}`);
+  return http.get<OpportunityView>(`/crm/v1/opportunity/${id}`);
 }
 
 /** 商机阶段历史 */
 export function listOpportunityStageHistory(id: number): Promise<OpportunityStageHistoryView[]> {
-  return http.get<OpportunityStageHistoryView[]>(`/crm/opportunity/${id}/history`);
+  return http.get<OpportunityStageHistoryView[]>(`/crm/v1/opportunity/${id}/history`);
 }
 
 /** 新建商机 */
 export function createOpportunity(input: OpportunitySaveInput): Promise<OpportunityView> {
-  return http.post<OpportunityView>('/crm/opportunity', input);
+  return http.post<OpportunityView>('/crm/v1/opportunity', input);
 }
 
 /** 编辑商机 */
@@ -796,7 +796,7 @@ export function updateOpportunity(
   id: number,
   input: OpportunitySaveInput,
 ): Promise<OpportunityView> {
-  return http.put<OpportunityView>(`/crm/opportunity/${id}`, input);
+  return http.put<OpportunityView>(`/crm/v1/opportunity/${id}`, input);
 }
 
 /** 商机阶段流转 */
@@ -804,7 +804,7 @@ export function changeOpportunityStage(
   id: number,
   input: OpportunityStageInput,
 ): Promise<OpportunityView> {
-  return http.post<OpportunityView>(`/crm/opportunity/${id}/stage`, input);
+  return http.post<OpportunityView>(`/crm/v1/opportunity/${id}/stage`, input);
 }
 
 /** 报价行视图（QuoteLineView） */
@@ -887,32 +887,32 @@ export interface QuoteSaveInput {
 
 /** 报价分页 */
 export function pageQuotes(query: QuotePageQuery): Promise<PageResult<QuoteView>> {
-  return http.get<PageResult<QuoteView>>('/crm/quote/page', { ...query });
+  return http.get<PageResult<QuoteView>>('/crm/v1/quote/page', { ...query });
 }
 
 /** 报价详情（含报价行） */
 export function getQuote(id: number): Promise<QuoteView> {
-  return http.get<QuoteView>(`/crm/quote/${id}`);
+  return http.get<QuoteView>(`/crm/v1/quote/${id}`);
 }
 
 /** 新建报价 */
 export function createQuote(input: QuoteSaveInput): Promise<QuoteView> {
-  return http.post<QuoteView>('/crm/quote', input);
+  return http.post<QuoteView>('/crm/v1/quote', input);
 }
 
 /** 编辑草稿报价 */
 export function updateQuote(id: number, input: QuoteSaveInput): Promise<QuoteView> {
-  return http.put<QuoteView>(`/crm/quote/${id}`, input);
+  return http.put<QuoteView>(`/crm/v1/quote/${id}`, input);
 }
 
 /** 提交报价审批 */
 export function submitQuote(id: number): Promise<QuoteView> {
-  return http.post<QuoteView>(`/crm/quote/${id}/submit`);
+  return http.post<QuoteView>(`/crm/v1/quote/${id}/submit`);
 }
 
 /** 改价（生成新版本草稿） */
 export function reviseQuote(id: number): Promise<QuoteView> {
-  return http.post<QuoteView>(`/crm/quote/${id}/revise`);
+  return http.post<QuoteView>(`/crm/v1/quote/${id}/revise`);
 }
 
 /** 销售预测快照视图（ForecastSnapshotView） */
@@ -977,22 +977,22 @@ export interface ForecastAdjustInput {
 
 /** 预测快照分页 */
 export function pageForecasts(query: ForecastPageQuery): Promise<PageResult<ForecastSnapshotView>> {
-  return http.get<PageResult<ForecastSnapshotView>>('/crm/forecast/page', { ...query });
+  return http.get<PageResult<ForecastSnapshotView>>('/crm/v1/forecast/page', { ...query });
 }
 
 /** 预测快照详情 */
 export function getForecast(id: number): Promise<ForecastSnapshotView> {
-  return http.get<ForecastSnapshotView>(`/crm/forecast/${id}`);
+  return http.get<ForecastSnapshotView>(`/crm/v1/forecast/${id}`);
 }
 
 /** 预测调整记录 */
 export function listForecastAdjustments(id: number): Promise<ForecastAdjustmentView[]> {
-  return http.get<ForecastAdjustmentView[]>(`/crm/forecast/${id}/adjustments`);
+  return http.get<ForecastAdjustmentView[]>(`/crm/v1/forecast/${id}/adjustments`);
 }
 
 /** 生成 / 重算预测快照 */
 export function generateForecast(input: ForecastGenerateInput): Promise<ForecastSnapshotView> {
-  return http.post<ForecastSnapshotView>('/crm/forecast/generate', input);
+  return http.post<ForecastSnapshotView>('/crm/v1/forecast/generate', input);
 }
 
 /** 手工调整预测金额 */
@@ -1000,7 +1000,7 @@ export function adjustForecast(
   id: number,
   input: ForecastAdjustInput,
 ): Promise<ForecastSnapshotView> {
-  return http.put<ForecastSnapshotView>(`/crm/forecast/${id}/adjust`, input);
+  return http.put<ForecastSnapshotView>(`/crm/v1/forecast/${id}/adjust`, input);
 }
 
 /** 销售目标视图（SalesTargetView） */
@@ -1075,27 +1075,27 @@ export interface SalesTargetUpdateInput {
 export function pageSalesTargets(
   query: SalesTargetPageQuery,
 ): Promise<PageResult<SalesTargetView>> {
-  return http.get<PageResult<SalesTargetView>>('/crm/sales-target/page', { ...query });
+  return http.get<PageResult<SalesTargetView>>('/crm/v1/sales-target/page', { ...query });
 }
 
 /** 销售目标详情 */
 export function getSalesTarget(id: number): Promise<SalesTargetView> {
-  return http.get<SalesTargetView>(`/crm/sales-target/${id}`);
+  return http.get<SalesTargetView>(`/crm/v1/sales-target/${id}`);
 }
 
 /** 销售目标完成情况 */
 export function getSalesTargetCompletion(id: number): Promise<TargetCompletionView> {
-  return http.get<TargetCompletionView>(`/crm/sales-target/${id}/completion`);
+  return http.get<TargetCompletionView>(`/crm/v1/sales-target/${id}/completion`);
 }
 
 /** 销售目标调整记录 */
 export function listSalesTargetAdjustments(id: number): Promise<SalesTargetAdjustmentView[]> {
-  return http.get<SalesTargetAdjustmentView[]>(`/crm/sales-target/${id}/adjustments`);
+  return http.get<SalesTargetAdjustmentView[]>(`/crm/v1/sales-target/${id}/adjustments`);
 }
 
 /** 新建销售目标 */
 export function createSalesTarget(input: SalesTargetSaveInput): Promise<SalesTargetView> {
-  return http.post<SalesTargetView>('/crm/sales-target', input);
+  return http.post<SalesTargetView>('/crm/v1/sales-target', input);
 }
 
 /** 调整销售目标（周期与范围不可变更） */
@@ -1103,10 +1103,10 @@ export function updateSalesTarget(
   id: number,
   input: SalesTargetUpdateInput,
 ): Promise<SalesTargetView> {
-  return http.put<SalesTargetView>(`/crm/sales-target/${id}`, input);
+  return http.put<SalesTargetView>(`/crm/v1/sales-target/${id}`, input);
 }
 
 /** 删除销售目标 */
 export function deleteSalesTarget(id: number): Promise<void> {
-  return http.del<void>(`/crm/sales-target/${id}`);
+  return http.del<void>(`/crm/v1/sales-target/${id}`);
 }

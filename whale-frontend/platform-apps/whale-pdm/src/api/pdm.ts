@@ -36,7 +36,7 @@ interface PageResult<T> {
 
 /** 查询产品/图纸列表 */
 export async function listPdmProducts(): Promise<PdmProduct[]> {
-  const page = await http.get<PageResult<PdmProduct>>('/pdm/product/page?current=1&size=200');
+  const page = await http.get<PageResult<PdmProduct>>('/pdm/v1/product/page?current=1&size=200');
   return page.records;
 }
 
@@ -44,6 +44,6 @@ export async function listPdmProducts(): Promise<PdmProduct[]> {
 export function savePdmProduct(input: PdmProductInput): Promise<PdmProduct> {
   const { id, ...body } = input;
   return id
-    ? http.put<PdmProduct>(`/pdm/product/${id}`, body)
-    : http.post<PdmProduct>('/pdm/product', body);
+    ? http.put<PdmProduct>(`/pdm/v1/product/${id}`, body)
+    : http.post<PdmProduct>('/pdm/v1/product', body);
 }

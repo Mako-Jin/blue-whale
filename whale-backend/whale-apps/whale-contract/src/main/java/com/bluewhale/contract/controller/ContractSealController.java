@@ -42,7 +42,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/contract/seal")
+@RequestMapping(path = "/contract/v{version}/seal", version = "1")
 @RequiredArgsConstructor
 public class ContractSealController {
 

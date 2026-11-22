@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/pm/member")
+@RequestMapping(path = "/pm/v{version}/member", version = "1")
 @RequiredArgsConstructor
 public class ProjectMemberController {
 

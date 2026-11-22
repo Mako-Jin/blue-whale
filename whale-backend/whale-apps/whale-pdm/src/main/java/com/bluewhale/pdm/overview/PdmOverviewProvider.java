@@ -4,7 +4,6 @@ import com.bluewhale.overview.OverviewContext;
 import com.bluewhale.overview.OverviewProvider;
 import com.bluewhale.overview.model.OverviewAlertLevel;
 import com.bluewhale.overview.model.OverviewFormat;
-import com.bluewhale.overview.model.OverviewKpi;
 import com.bluewhale.overview.model.OverviewSeries;
 import com.bluewhale.overview.model.OverviewSnapshot;
 import com.bluewhale.overview.model.OverviewTone;
@@ -45,7 +44,7 @@ public class PdmOverviewProvider implements OverviewProvider {
     private static final String PERMISSION = "sys:pdm:part:list";
 
     /** 物料台账列表接口：屏风页直接取这个路径，不再单发一套只读接口 */
-    private static final String PART_PAGE_PATH = "/pdm/part/page";
+    private static final String PART_PAGE_PATH = "/pdm/v1/part/page";
 
     /** 将作统计口径 */
     private final PdmOverviewStatsService statsService;

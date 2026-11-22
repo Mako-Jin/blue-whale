@@ -129,7 +129,7 @@ class PdmOverviewProviderTest {
         List<OverviewLink> links = provider.build(null).links();
 
         assertThat(links).singleElement().satisfies(link -> {
-            assertThat(link.path()).isEqualTo("/pdm/part/page");
+            assertThat(link.path()).isEqualTo("/pdm/v1/part/page");
             assertThat(link.permission()).isEqualTo("sys:pdm:part:list");
         });
     }

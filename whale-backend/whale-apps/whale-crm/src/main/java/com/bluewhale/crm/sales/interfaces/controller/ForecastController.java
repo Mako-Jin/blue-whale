@@ -34,7 +34,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/crm/forecast")
+@RequestMapping(path = "/crm/v{version}/forecast", version = "1")
 @RequiredArgsConstructor
 public class ForecastController {
 

@@ -29,7 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/crm/marketing-send")
+@RequestMapping(path = "/crm/v{version}/marketing-send", version = "1")
 @RequiredArgsConstructor
 public class CrmMarketingSendController {
 

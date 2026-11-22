@@ -35,7 +35,7 @@ import java.io.IOException;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/pdm/integration/cad")
+@RequestMapping(path = "/pdm/v{version}/integration/cad", version = "1")
 @RequiredArgsConstructor
 public class PdmIntCadController {
 

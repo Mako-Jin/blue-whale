@@ -62,7 +62,7 @@ public class CrmOverviewProvider implements OverviewProvider {
     private static final String PERMISSION = CrmPermissions.ANALYTICS_DASHBOARD;
 
     /** 客户台账列表接口：屏风页直接取这个路径，不再单发一套只读接口 */
-    private static final String CUSTOMER_PAGE_PATH = "/crm/customer/page";
+    private static final String CUSTOMER_PAGE_PATH = "/crm/v1/customer/page";
 
     /** 百分比口径的除数：契约要比率（0.94），2D 看板给的是百分数（94） */
     private static final BigDecimal HUNDRED = new BigDecimal("100");

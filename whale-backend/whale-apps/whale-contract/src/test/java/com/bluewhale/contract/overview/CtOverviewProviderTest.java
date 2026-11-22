@@ -142,7 +142,7 @@ class CtOverviewProviderTest {
         List<OverviewLink> links = provider.build(null).links();
 
         assertThat(links).singleElement().satisfies(link -> {
-            assertThat(link.path()).isEqualTo("/contract/page");
+            assertThat(link.path()).isEqualTo("/contract/v1/page");
             assertThat(link.permission()).isEqualTo("sys:contract:list");
         });
     }

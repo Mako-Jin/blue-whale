@@ -30,7 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/crm/quote")
+@RequestMapping(path = "/crm/v{version}/quote", version = "1")
 @RequiredArgsConstructor
 public class QuoteController {
 

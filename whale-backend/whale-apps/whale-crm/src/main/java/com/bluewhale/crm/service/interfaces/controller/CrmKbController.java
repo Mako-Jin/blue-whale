@@ -33,7 +33,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/crm/kb")
+@RequestMapping(path = "/crm/v{version}/kb", version = "1")
 @RequiredArgsConstructor
 public class CrmKbController {
 

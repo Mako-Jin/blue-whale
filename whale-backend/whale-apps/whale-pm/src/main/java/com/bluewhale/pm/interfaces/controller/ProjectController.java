@@ -40,7 +40,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/pm/project")
+@RequestMapping(path = "/pm/v{version}/project", version = "1")
 @RequiredArgsConstructor
 public class ProjectController {
 

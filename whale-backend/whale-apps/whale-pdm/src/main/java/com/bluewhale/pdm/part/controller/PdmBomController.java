@@ -42,7 +42,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/pdm/bom")
+@RequestMapping(path = "/pdm/v{version}/bom", version = "1")
 @RequiredArgsConstructor
 public class PdmBomController {
 

@@ -69,25 +69,25 @@ export interface CustomerImportResult {
 
 /** 合并预览 */
 export function previewMerge(input: CustomerMergeInput): Promise<CustomerMergePreview> {
-  return http.post<CustomerMergePreview>('/crm/customer/merge/preview', input);
+  return http.post<CustomerMergePreview>('/crm/v1/customer/merge/preview', input);
 }
 
 /** 执行合并 */
 export function mergeCustomer(input: CustomerMergeInput): Promise<CustomerMergeResult> {
-  return http.post<CustomerMergeResult>('/crm/customer/merge', input);
+  return http.post<CustomerMergeResult>('/crm/v1/customer/merge', input);
 }
 
 /** 导入预检 */
 export function previewImport(content: string): Promise<CustomerImportPreview> {
-  return http.post<CustomerImportPreview>('/crm/customer/import/preview', { content });
+  return http.post<CustomerImportPreview>('/crm/v1/customer/import/preview', { content });
 }
 
 /** 执行导入 */
 export function executeImport(content: string): Promise<CustomerImportResult> {
-  return http.post<CustomerImportResult>('/crm/customer/import/execute', { content });
+  return http.post<CustomerImportResult>('/crm/v1/customer/import/execute', { content });
 }
 
 /** 导出 CSV */
 export function exportCustomers(query?: Record<string, unknown>): Promise<string> {
-  return http.get<string>('/crm/customer/export', query);
+  return http.get<string>('/crm/v1/customer/export', query);
 }

@@ -32,7 +32,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/pm/sprint")
+@RequestMapping(path = "/pm/v{version}/sprint", version = "1")
 @RequiredArgsConstructor
 public class SprintController {
 

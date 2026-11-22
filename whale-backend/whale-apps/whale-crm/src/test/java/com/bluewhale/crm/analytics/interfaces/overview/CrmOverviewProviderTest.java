@@ -175,7 +175,7 @@ class CrmOverviewProviderTest {
         List<OverviewLink> links = provider.build(context("crm_sales")).links();
 
         assertThat(links).singleElement().satisfies(link -> {
-            assertThat(link.path()).isEqualTo("/crm/customer/page");
+            assertThat(link.path()).isEqualTo("/crm/v1/customer/page");
             assertThat(link.permission()).isEqualTo("sys:crm:customer:list");
         });
     }

@@ -33,7 +33,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/map")
+@RequestMapping(path = "/map/v{version}", version = "1")
 @RequiredArgsConstructor
 public class MapGeoController {
 

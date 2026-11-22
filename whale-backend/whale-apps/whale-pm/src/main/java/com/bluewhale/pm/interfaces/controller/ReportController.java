@@ -24,7 +24,7 @@ import java.time.LocalDate;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/pm/report")
+@RequestMapping(path = "/pm/v{version}/report", version = "1")
 @RequiredArgsConstructor
 public class ReportController {
 

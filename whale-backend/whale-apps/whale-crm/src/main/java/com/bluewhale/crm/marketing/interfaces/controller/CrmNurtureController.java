@@ -32,7 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/crm/nurture")
+@RequestMapping(path = "/crm/v{version}/nurture", version = "1")
 @RequiredArgsConstructor
 public class CrmNurtureController {
 

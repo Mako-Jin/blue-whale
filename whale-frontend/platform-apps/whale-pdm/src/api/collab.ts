@@ -55,17 +55,17 @@ export interface DeliverableInput {
 
 /** 分页查询交付物 */
 export function pageDeliverables(query: DeliverableQuery): Promise<PageResult<Deliverable>> {
-  return http.get<PageResult<Deliverable>>('/pdm/collab/deliverable/page', { ...query });
+  return http.get<PageResult<Deliverable>>('/pdm/v1/collab/deliverable/page', { ...query });
 }
 
 /** 归档已发布对象版本 */
 export function archiveDeliverable(input: DeliverableInput): Promise<Deliverable> {
-  return http.post<Deliverable>('/pdm/collab/deliverable', input);
+  return http.post<Deliverable>('/pdm/v1/collab/deliverable', input);
 }
 
 /** 取消归档 */
 export function deleteDeliverable(id: number): Promise<void> {
-  return http.del<void>(`/pdm/collab/deliverable/${id}`);
+  return http.del<void>(`/pdm/v1/collab/deliverable/${id}`);
 }
 
 /** 评审类型 */
@@ -131,22 +131,22 @@ export interface ReviewInput {
 
 /** 分页查询评审 */
 export function pageReviews(query: ReviewQuery): Promise<PageResult<Review>> {
-  return http.get<PageResult<Review>>('/pdm/collab/review/page', { ...query });
+  return http.get<PageResult<Review>>('/pdm/v1/collab/review/page', { ...query });
 }
 
 /** 评审详情 */
 export function getReview(id: number): Promise<Review> {
-  return http.get<Review>(`/pdm/collab/review/${id}`);
+  return http.get<Review>(`/pdm/v1/collab/review/${id}`);
 }
 
 /** 新建评审 */
 export function createReview(input: ReviewInput): Promise<Review> {
-  return http.post<Review>('/pdm/collab/review', input);
+  return http.post<Review>('/pdm/v1/collab/review', input);
 }
 
 /** 更新草稿评审 */
 export function updateReview(id: number, input: ReviewInput): Promise<Review> {
-  return http.put<Review>(`/pdm/collab/review/${id}`, input);
+  return http.put<Review>(`/pdm/v1/collab/review/${id}`, input);
 }
 
 /** 关闭评审并写入结论 */
@@ -155,12 +155,12 @@ export function closeReview(
   conclusion: ReviewConclusion,
   conclusionComment?: string,
 ): Promise<Review> {
-  return http.post<Review>(`/pdm/collab/review/${id}/close`, { conclusion, conclusionComment });
+  return http.post<Review>(`/pdm/v1/collab/review/${id}/close`, { conclusion, conclusionComment });
 }
 
 /** 删除草稿评审 */
 export function deleteReview(id: number): Promise<void> {
-  return http.del<void>(`/pdm/collab/review/${id}`);
+  return http.del<void>(`/pdm/v1/collab/review/${id}`);
 }
 
 /** 预览类型 */
@@ -200,7 +200,7 @@ export function pagePreviewJobs(query: {
   documentId?: number;
   versionId?: number;
 }): Promise<PageResult<PreviewJob>> {
-  return http.get<PageResult<PreviewJob>>('/pdm/collab/preview/page', { ...query });
+  return http.get<PageResult<PreviewJob>>('/pdm/v1/collab/preview/page', { ...query });
 }
 
 /** 创建（或复用）预览任务 */
@@ -209,17 +209,17 @@ export function createPreview(
   versionId: number,
   previewType: PreviewType,
 ): Promise<PreviewJob> {
-  return http.post<PreviewJob>(`/pdm/collab/preview/${documentId}/versions/${versionId}`, {
+  return http.post<PreviewJob>(`/pdm/v1/collab/preview/${documentId}/versions/${versionId}`, {
     previewType,
   });
 }
 
 /** 重试预览任务 */
 export function retryPreview(jobId: number): Promise<PreviewJob> {
-  return http.post<PreviewJob>(`/pdm/collab/preview/${jobId}/retry`);
+  return http.post<PreviewJob>(`/pdm/v1/collab/preview/${jobId}/retry`);
 }
 
 /** 读取预览内容（inline 字节流） */
 export function downloadPreviewContent(jobId: number): Promise<{ blob: Blob; filename: string }> {
-  return download(`/pdm/collab/preview/${jobId}/content`);
+  return download(`/pdm/v1/collab/preview/${jobId}/content`);
 }

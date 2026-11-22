@@ -72,7 +72,7 @@ const OVERVIEW = {
     { level: 'info', text: '有 3 个迭代还没启动，启动前工作项只排不办', count: null },
     { level: 'info', text: '有 2 个项目已归档，其工作项不再更新', count: null },
   ],
-  links: [{ key: 'projects', label: '项目台账', path: '/pm/project/page', permission: 'sys:pm:project:list' }],
+  links: [{ key: 'projects', label: '项目台账', path: '/pm/v1/project/page', permission: 'sys:pm:project:list' }],
   notes: ['口径：在建项目 = status ACTIVE；活跃迭代 = ACTIVE；未完成 = 状态分类非 DONE（各项目自定义状态按分类归并）；逾期 = 截止日早于今天且未完成'],
 };
 
@@ -129,7 +129,7 @@ await page.route('**/pm/overview**', async (route) => {
 
 /* 详情路由先注册、列表路由后注册：Playwright 后注册的优先匹配。
    营造坊不配 detailPath，这条路由只用来断言"点行不会打详情接口"。 */
-await page.route('**/pm/project/*', async (route) => {
+await page.route('**/pm/v1/project/*', async (route) => {
   const url = new URL(route.request().url());
   if (url.pathname.endsWith('/page')) {
     await route.fallback();
@@ -139,7 +139,7 @@ await page.route('**/pm/project/*', async (route) => {
   await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(json(null)) });
 });
 
-await page.route('**/pm/project/page**', async (route) => {
+await page.route('**/pm/v1/project/page**', async (route) => {
   const url = new URL(route.request().url());
   const current = Number(url.searchParams.get('current') ?? '1');
   const size = Number(url.searchParams.get('size') ?? '6');
@@ -410,7 +410,7 @@ check('退出后回到 3D 尺寸（不是糊满整个镜头）', exited.w > 0 &&
 await page.route('**/pm/overview**', (route) =>
   route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }),
 );
-await page.route('**/pm/project/page**', (route) =>
+await page.route('**/pm/v1/project/page**', (route) =>
   route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }),
 );
 await page.evaluate(() => {

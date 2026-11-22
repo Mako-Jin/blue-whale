@@ -29,7 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/pdm/change/request")
+@RequestMapping(path = "/pdm/v{version}/change/request", version = "1")
 @RequiredArgsConstructor
 public class PdmChgRequestController {
 

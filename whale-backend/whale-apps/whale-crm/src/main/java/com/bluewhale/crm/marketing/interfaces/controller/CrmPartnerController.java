@@ -35,7 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/crm/partner")
+@RequestMapping(path = "/crm/v{version}/partner", version = "1")
 @RequiredArgsConstructor
 public class CrmPartnerController {
 

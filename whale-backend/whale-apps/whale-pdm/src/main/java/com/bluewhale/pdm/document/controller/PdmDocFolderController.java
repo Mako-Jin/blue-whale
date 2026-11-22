@@ -26,7 +26,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/pdm/folder")
+@RequestMapping(path = "/pdm/v{version}/folder", version = "1")
 @RequiredArgsConstructor
 public class PdmDocFolderController {
 

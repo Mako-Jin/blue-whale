@@ -39,7 +39,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/crm/collection")
+@RequestMapping(path = "/crm/v{version}/collection", version = "1")
 @RequiredArgsConstructor
 public class CrmCollectionController {
 

@@ -122,34 +122,34 @@ export interface ProcessSopInput {
 /** 路线分页查询 */
 export function listProcessRoutes(params: ProcessRouteQuery): Promise<PageResult<ProcessRoute>> {
   return http.get<PageResult<ProcessRoute>>(
-    '/pdm/process/route/page',
+    '/pdm/v1/process/route/page',
     params as Record<string, unknown>,
   );
 }
 
 /** 路线详情 */
 export function getProcessRoute(id: string): Promise<ProcessRoute> {
-  return http.get<ProcessRoute>(`/pdm/process/route/${id}`);
+  return http.get<ProcessRoute>(`/pdm/v1/process/route/${id}`);
 }
 
 /** 新建路线版本 */
 export function createProcessRoute(input: ProcessRouteInput): Promise<ProcessRoute> {
-  return http.post<ProcessRoute>('/pdm/process/route', input);
+  return http.post<ProcessRoute>('/pdm/v1/process/route', input);
 }
 
 /** 更新草稿路线 */
 export function updateProcessRoute(id: string, input: ProcessRouteInput): Promise<ProcessRoute> {
-  return http.put<ProcessRoute>(`/pdm/process/route/${id}`, input);
+  return http.put<ProcessRoute>(`/pdm/v1/process/route/${id}`, input);
 }
 
 /** 删除草稿路线 */
 export function deleteProcessRoute(id: string): Promise<void> {
-  return http.del<void>(`/pdm/process/route/${id}`);
+  return http.del<void>(`/pdm/v1/process/route/${id}`);
 }
 
 /** 新增工序 */
 export function addProcessStep(id: string, input: ProcessStepInput): Promise<ProcessRoute> {
-  return http.post<ProcessRoute>(`/pdm/process/route/${id}/steps`, input);
+  return http.post<ProcessRoute>(`/pdm/v1/process/route/${id}/steps`, input);
 }
 
 /** 更新工序 */
@@ -158,45 +158,45 @@ export function updateProcessStep(
   stepId: string,
   input: ProcessStepInput,
 ): Promise<ProcessRoute> {
-  return http.put<ProcessRoute>(`/pdm/process/route/${id}/steps/${stepId}`, input);
+  return http.put<ProcessRoute>(`/pdm/v1/process/route/${id}/steps/${stepId}`, input);
 }
 
 /** 删除工序 */
 export function deleteProcessStep(id: string, stepId: string): Promise<ProcessRoute> {
-  return http.del<ProcessRoute>(`/pdm/process/route/${id}/steps/${stepId}`);
+  return http.del<ProcessRoute>(`/pdm/v1/process/route/${id}/steps/${stepId}`);
 }
 
 /** 新增工装 */
 export function addProcessTooling(id: string, input: ProcessToolingInput): Promise<ProcessRoute> {
-  return http.post<ProcessRoute>(`/pdm/process/route/${id}/toolings`, input);
+  return http.post<ProcessRoute>(`/pdm/v1/process/route/${id}/toolings`, input);
 }
 
 /** 删除工装 */
 export function deleteProcessTooling(id: string, toolingId: string): Promise<ProcessRoute> {
-  return http.del<ProcessRoute>(`/pdm/process/route/${id}/toolings/${toolingId}`);
+  return http.del<ProcessRoute>(`/pdm/v1/process/route/${id}/toolings/${toolingId}`);
 }
 
 /** 保存工序 SOP */
 export function saveProcessSop(id: string, input: ProcessSopInput): Promise<ProcessRoute> {
-  return http.post<ProcessRoute>(`/pdm/process/route/${id}/sop`, input);
+  return http.post<ProcessRoute>(`/pdm/v1/process/route/${id}/sop`, input);
 }
 
 /** 删除工序 SOP */
 export function deleteProcessSop(id: string, sopId: string): Promise<ProcessRoute> {
-  return http.del<ProcessRoute>(`/pdm/process/route/${id}/sop/${sopId}`);
+  return http.del<ProcessRoute>(`/pdm/v1/process/route/${id}/sop/${sopId}`);
 }
 
 /** 发布路线并下发 MES */
 export function releaseProcessRoute(id: string): Promise<ProcessRoute> {
-  return http.post<ProcessRoute>(`/pdm/process/route/${id}/release`);
+  return http.post<ProcessRoute>(`/pdm/v1/process/route/${id}/release`);
 }
 
 /** 重试 MES 下发 */
 export function retryProcessPublish(id: string): Promise<ProcessRoute> {
-  return http.post<ProcessRoute>(`/pdm/process/route/${id}/publish/retry`);
+  return http.post<ProcessRoute>(`/pdm/v1/process/route/${id}/publish/retry`);
 }
 
 /** 撤回路线 */
 export function withdrawProcessRoute(id: string): Promise<ProcessRoute> {
-  return http.post<ProcessRoute>(`/pdm/process/route/${id}/withdraw`);
+  return http.post<ProcessRoute>(`/pdm/v1/process/route/${id}/withdraw`);
 }

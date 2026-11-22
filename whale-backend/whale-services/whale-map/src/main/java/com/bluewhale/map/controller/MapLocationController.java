@@ -27,7 +27,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/map/location")
+@RequestMapping(path = "/map/v{version}/location", version = "1")
 @RequiredArgsConstructor
 public class MapLocationController {
 

@@ -151,87 +151,87 @@ export interface ServiceCalendarInput {
 
 /** 工单分页 */
 export function pageTickets(query: TicketPageQuery): Promise<PageResult<TicketView>> {
-  return http.get<PageResult<TicketView>>('/crm/ticket/page', query as Record<string, unknown>);
+  return http.get<PageResult<TicketView>>('/crm/v1/ticket/page', query as Record<string, unknown>);
 }
 
 /** 工单详情（含处理时间线） */
 export function getTicket(id: number): Promise<TicketView> {
-  return http.get<TicketView>(`/crm/ticket/${id}`);
+  return http.get<TicketView>(`/crm/v1/ticket/${id}`);
 }
 
 /** 新建工单 */
 export function createTicket(payload: TicketCreateInput): Promise<TicketView> {
-  return http.post<TicketView>('/crm/ticket', payload);
+  return http.post<TicketView>('/crm/v1/ticket', payload);
 }
 
 /** 分派处理人 */
 export function assignTicket(id: number, payload: TicketAssignInput): Promise<TicketView> {
-  return http.post<TicketView>(`/crm/ticket/${id}/assign`, payload);
+  return http.post<TicketView>(`/crm/v1/ticket/${id}/assign`, payload);
 }
 
 /** 记录处理进展 */
 export function processTicket(id: number, payload: TicketHandleInput): Promise<TicketView> {
-  return http.post<TicketView>(`/crm/ticket/${id}/process`, payload);
+  return http.post<TicketView>(`/crm/v1/ticket/${id}/process`, payload);
 }
 
 /** 追加备注 */
 export function commentTicket(id: number, payload: TicketHandleInput): Promise<TicketView> {
-  return http.post<TicketView>(`/crm/ticket/${id}/comment`, payload);
+  return http.post<TicketView>(`/crm/v1/ticket/${id}/comment`, payload);
 }
 
 /** 暂停工单（等待客户） */
 export function pauseTicket(id: number, payload: TicketHandleInput): Promise<TicketView> {
-  return http.post<TicketView>(`/crm/ticket/${id}/pause`, payload);
+  return http.post<TicketView>(`/crm/v1/ticket/${id}/pause`, payload);
 }
 
 /** 恢复工单 */
 export function resumeTicket(id: number, payload?: TicketHandleInput): Promise<TicketView> {
-  return http.post<TicketView>(`/crm/ticket/${id}/resume`, payload);
+  return http.post<TicketView>(`/crm/v1/ticket/${id}/resume`, payload);
 }
 
 /** 升级优先级 */
 export function escalateTicket(id: number, payload?: TicketHandleInput): Promise<TicketView> {
-  return http.post<TicketView>(`/crm/ticket/${id}/escalate`, payload);
+  return http.post<TicketView>(`/crm/v1/ticket/${id}/escalate`, payload);
 }
 
 /** 标记已解决 */
 export function resolveTicket(id: number, payload: TicketHandleInput): Promise<TicketView> {
-  return http.post<TicketView>(`/crm/ticket/${id}/resolve`, payload);
+  return http.post<TicketView>(`/crm/v1/ticket/${id}/resolve`, payload);
 }
 
 /** 关闭工单 */
 export function closeTicket(id: number, payload: TicketHandleInput): Promise<TicketView> {
-  return http.post<TicketView>(`/crm/ticket/${id}/close`, payload);
+  return http.post<TicketView>(`/crm/v1/ticket/${id}/close`, payload);
 }
 
 /** 重开工单 */
 export function reopenTicket(id: number, payload: TicketHandleInput): Promise<TicketView> {
-  return http.post<TicketView>(`/crm/ticket/${id}/reopen`, payload);
+  return http.post<TicketView>(`/crm/v1/ticket/${id}/reopen`, payload);
 }
 
 /** 取消工单 */
 export function cancelTicket(id: number, payload: TicketHandleInput): Promise<TicketView> {
-  return http.post<TicketView>(`/crm/ticket/${id}/cancel`, payload);
+  return http.post<TicketView>(`/crm/v1/ticket/${id}/cancel`, payload);
 }
 
 /** 查询 SLA 策略 */
 export function listSlaPolicies(): Promise<SlaPolicyView[]> {
-  return http.get<SlaPolicyView[]>('/crm/service/sla');
+  return http.get<SlaPolicyView[]>('/crm/v1/service/sla');
 }
 
 /** 保存 SLA 策略 */
 export function saveSlaPolicies(payload: SlaPoliciesInput): Promise<SlaPolicyView[]> {
-  return http.put<SlaPolicyView[]>('/crm/service/sla', payload);
+  return http.put<SlaPolicyView[]>('/crm/v1/service/sla', payload);
 }
 
 /** 查询工作日历 */
 export function getServiceCalendar(): Promise<ServiceCalendarView> {
-  return http.get<ServiceCalendarView>('/crm/service/calendar');
+  return http.get<ServiceCalendarView>('/crm/v1/service/calendar');
 }
 
 /** 保存工作日历 */
 export function saveServiceCalendar(payload: ServiceCalendarInput): Promise<ServiceCalendarView> {
-  return http.put<ServiceCalendarView>('/crm/service/calendar', payload);
+  return http.put<ServiceCalendarView>('/crm/v1/service/calendar', payload);
 }
 
 // ---------------------------------------------------------------------------
@@ -281,37 +281,37 @@ export interface KbPageQuery {
 
 /** 分页查询知识引用 */
 export function pageKbRefs(query: KbPageQuery): Promise<PageResult<KbRefView>> {
-  return http.get<PageResult<KbRefView>>('/crm/kb/page', query as Record<string, unknown>);
+  return http.get<PageResult<KbRefView>>('/crm/v1/kb/page', query as Record<string, unknown>);
 }
 
 /** 按标题 / 标签检索启用中的知识引用 */
 export function searchKbRefs(keyword?: string): Promise<KbRefView[]> {
-  return http.get<KbRefView[]>('/crm/kb/search', { keyword });
+  return http.get<KbRefView[]>('/crm/v1/kb/search', { keyword });
 }
 
 /** 知识引用详情 */
 export function getKbRef(id: number): Promise<KbRefView> {
-  return http.get<KbRefView>(`/crm/kb/${id}`);
+  return http.get<KbRefView>(`/crm/v1/kb/${id}`);
 }
 
 /** 新建知识引用 */
 export function createKbRef(payload: KbRefInput): Promise<KbRefView> {
-  return http.post<KbRefView>('/crm/kb', payload);
+  return http.post<KbRefView>('/crm/v1/kb', payload);
 }
 
 /** 更新知识引用 */
 export function updateKbRef(id: number, payload: KbRefInput): Promise<KbRefView> {
-  return http.put<KbRefView>(`/crm/kb/${id}`, payload);
+  return http.put<KbRefView>(`/crm/v1/kb/${id}`, payload);
 }
 
 /** 逻辑删除知识引用 */
 export function deleteKbRef(id: number): Promise<void> {
-  return http.del<void>(`/crm/kb/${id}`);
+  return http.del<void>(`/crm/v1/kb/${id}`);
 }
 
 /** 记录一次引用命中 */
 export function hitKbRef(id: number): Promise<KbRefView> {
-  return http.post<KbRefView>(`/crm/kb/${id}/hit`);
+  return http.post<KbRefView>(`/crm/v1/kb/${id}/hit`);
 }
 
 // ---------------------------------------------------------------------------
@@ -378,36 +378,36 @@ export interface SurveyStatsView {
 /** 分页查询问卷 */
 export function pageSurveys(query: SurveyPageQuery): Promise<PageResult<SatisfactionSurveyView>> {
   return http.get<PageResult<SatisfactionSurveyView>>(
-    '/crm/satisfaction/page',
+    '/crm/v1/satisfaction/page',
     query as Record<string, unknown>,
   );
 }
 
 /** 满意度统计 */
 export function getSurveyStats(): Promise<SurveyStatsView> {
-  return http.get<SurveyStatsView>('/crm/satisfaction/stats');
+  return http.get<SurveyStatsView>('/crm/v1/satisfaction/stats');
 }
 
 /** 问卷详情（含答卷） */
 export function getSurvey(id: number): Promise<SatisfactionSurveyView> {
-  return http.get<SatisfactionSurveyView>(`/crm/satisfaction/${id}`);
+  return http.get<SatisfactionSurveyView>(`/crm/v1/satisfaction/${id}`);
 }
 
 /** 按工单生成或重发问卷 */
 export function sendSurvey(payload: SatisfactionSurveyInput): Promise<SatisfactionSurveyView> {
-  return http.post<SatisfactionSurveyView>('/crm/satisfaction/send', payload);
+  return http.post<SatisfactionSurveyView>('/crm/v1/satisfaction/send', payload);
 }
 
 /** 按一次性令牌提交答卷 */
 export function submitSurveyResponse(
   payload: SurveyResponseInput,
 ): Promise<SatisfactionSurveyView> {
-  return http.post<SatisfactionSurveyView>('/crm/satisfaction/response', payload);
+  return http.post<SatisfactionSurveyView>('/crm/v1/satisfaction/response', payload);
 }
 
 /** 作废问卷 */
 export function revokeSurvey(id: number): Promise<void> {
-  return http.post<void>(`/crm/satisfaction/${id}/revoke`);
+  return http.post<void>(`/crm/v1/satisfaction/${id}/revoke`);
 }
 
 // ---------------------------------------------------------------------------
@@ -486,42 +486,42 @@ export interface ReturnPageQuery {
 /** 退换货申请分页 */
 export function pageReturns(query: ReturnPageQuery): Promise<PageResult<ReturnRequestView>> {
   return http.get<PageResult<ReturnRequestView>>(
-    '/crm/return/page',
+    '/crm/v1/return/page',
     query as Record<string, unknown>,
   );
 }
 
 /** 退换货申请详情 */
 export function getReturn(id: number): Promise<ReturnRequestView> {
-  return http.get<ReturnRequestView>(`/crm/return/${id}`);
+  return http.get<ReturnRequestView>(`/crm/v1/return/${id}`);
 }
 
 /** 新建退换货申请 */
 export function createReturn(payload: ReturnRequestInput): Promise<ReturnRequestView> {
-  return http.post<ReturnRequestView>('/crm/return', payload);
+  return http.post<ReturnRequestView>('/crm/v1/return', payload);
 }
 
 /** 编辑草稿退换货申请 */
 export function updateReturn(id: number, payload: ReturnRequestInput): Promise<ReturnRequestView> {
-  return http.put<ReturnRequestView>(`/crm/return/${id}`, payload);
+  return http.put<ReturnRequestView>(`/crm/v1/return/${id}`, payload);
 }
 
 /** 提交退换货审批 */
 export function submitReturn(id: number): Promise<ReturnRequestView> {
-  return http.post<ReturnRequestView>(`/crm/return/${id}/submit`);
+  return http.post<ReturnRequestView>(`/crm/v1/return/${id}/submit`);
 }
 
 /** 重试下发 ERP 退货 */
 export function retryReturn(id: number): Promise<ReturnRequestView> {
-  return http.post<ReturnRequestView>(`/crm/return/${id}/retry`);
+  return http.post<ReturnRequestView>(`/crm/v1/return/${id}/retry`);
 }
 
 /** 取消退换货申请 */
 export function cancelReturn(id: number): Promise<ReturnRequestView> {
-  return http.post<ReturnRequestView>(`/crm/return/${id}/cancel`);
+  return http.post<ReturnRequestView>(`/crm/v1/return/${id}/cancel`);
 }
 
 /** 对账单张申请的 ERP 退货状态 */
 export function reconcileReturn(id: number): Promise<ReturnRequestView> {
-  return http.post<ReturnRequestView>(`/crm/return/${id}/reconcile`);
+  return http.post<ReturnRequestView>(`/crm/v1/return/${id}/reconcile`);
 }

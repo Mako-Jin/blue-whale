@@ -30,7 +30,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/pdm/integration/reconcile")
+@RequestMapping(path = "/pdm/v{version}/integration/reconcile", version = "1")
 @RequiredArgsConstructor
 public class PdmIntReconcileController {
 

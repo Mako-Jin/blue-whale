@@ -29,7 +29,7 @@ import java.time.LocalDate;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/crm/ar")
+@RequestMapping(path = "/crm/v{version}/ar", version = "1")
 @RequiredArgsConstructor
 public class CrmArController {
 

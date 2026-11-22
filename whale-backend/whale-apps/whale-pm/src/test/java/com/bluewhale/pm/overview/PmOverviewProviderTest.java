@@ -142,7 +142,7 @@ class PmOverviewProviderTest {
         List<OverviewLink> links = provider.build(null).links();
 
         assertThat(links).singleElement().satisfies(link -> {
-            assertThat(link.path()).isEqualTo("/pm/project/page");
+            assertThat(link.path()).isEqualTo("/pm/v1/project/page");
             assertThat(link.permission()).isEqualTo("sys:pm:project:list");
         });
     }

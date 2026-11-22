@@ -140,57 +140,57 @@ export interface AclSavePayload {
 
 /** 查询目录树（首次访问时后端自动初始化默认目录） */
 export function listFolders(): Promise<DocFolder[]> {
-  return http.get<DocFolder[]>('/pdm/folder/tree');
+  return http.get<DocFolder[]>('/pdm/v1/folder/tree');
 }
 
 /** 新建目录 */
 export function createFolder(input: FolderInput): Promise<DocFolder> {
-  return http.post<DocFolder>('/pdm/folder', input);
+  return http.post<DocFolder>('/pdm/v1/folder', input);
 }
 
 /** 更新目录（改名 / 移动 / 排序） */
 export function updateFolder(id: number, input: FolderInput): Promise<DocFolder> {
-  return http.put<DocFolder>(`/pdm/folder/${id}`, input);
+  return http.put<DocFolder>(`/pdm/v1/folder/${id}`, input);
 }
 
 /** 删除目录（要求空目录且无文档） */
 export function deleteFolder(id: number): Promise<void> {
-  return http.del<void>(`/pdm/folder/${id}`);
+  return http.del<void>(`/pdm/v1/folder/${id}`);
 }
 
 /** 分页查询文档 */
 export function pageDocuments(query: DocumentQuery): Promise<PageResult<PdmDocument>> {
-  return http.get<PageResult<PdmDocument>>('/pdm/document/page', { ...query });
+  return http.get<PageResult<PdmDocument>>('/pdm/v1/document/page', { ...query });
 }
 
 /** 导出文档列表（CSV，复用列表查询条件与 ACL 过滤，上限 5000 行） */
 export function exportDocuments(query: DocumentQuery): Promise<DownloadResult> {
-  return download('/pdm/document/export', { ...query });
+  return download('/pdm/v1/document/export', { ...query });
 }
 
 /** 文档详情 */
 export function getDocument(id: number): Promise<PdmDocument> {
-  return http.get<PdmDocument>(`/pdm/document/${id}`);
+  return http.get<PdmDocument>(`/pdm/v1/document/${id}`);
 }
 
 /** 文档版本列表 */
 export function listVersions(id: number): Promise<PdmDocumentVersion[]> {
-  return http.get<PdmDocumentVersion[]>(`/pdm/document/${id}/versions`);
+  return http.get<PdmDocumentVersion[]>(`/pdm/v1/document/${id}/versions`);
 }
 
 /** 新建文档 */
 export function createDocument(input: DocumentInput): Promise<PdmDocument> {
-  return http.post<PdmDocument>('/pdm/document', input);
+  return http.post<PdmDocument>('/pdm/v1/document', input);
 }
 
 /** 更新文档元数据 */
 export function updateDocument(id: number, input: DocumentInput): Promise<PdmDocument> {
-  return http.put<PdmDocument>(`/pdm/document/${id}`, input);
+  return http.put<PdmDocument>(`/pdm/v1/document/${id}`, input);
 }
 
 /** 删除文档 */
 export function deleteDocument(id: number): Promise<void> {
-  return http.del<void>(`/pdm/document/${id}`);
+  return http.del<void>(`/pdm/v1/document/${id}`);
 }
 
 /** 上传新草稿版本 */
@@ -202,12 +202,12 @@ export function uploadVersion(
   const form = new FormData();
   form.append('file', file);
   const query = changeNote ? `?changeNote=${encodeURIComponent(changeNote)}` : '';
-  return upload<PdmDocumentVersion>(`/pdm/document/${id}/versions${query}`, form);
+  return upload<PdmDocumentVersion>(`/pdm/v1/document/${id}/versions${query}`, form);
 }
 
 /** 检出文档（加编辑锁） */
 export function checkOut(id: number): Promise<PdmDocument> {
-  return http.post<PdmDocument>(`/pdm/document/${id}/checkout`);
+  return http.post<PdmDocument>(`/pdm/v1/document/${id}/checkout`);
 }
 
 /** 检入文档（仅检出人本人可操作） */
@@ -215,17 +215,17 @@ export function checkIn(id: number, file: File, changeNote?: string): Promise<Pd
   const form = new FormData();
   form.append('file', file);
   const query = changeNote ? `?changeNote=${encodeURIComponent(changeNote)}` : '';
-  return upload<PdmDocumentVersion>(`/pdm/document/${id}/checkin${query}`, form);
+  return upload<PdmDocumentVersion>(`/pdm/v1/document/${id}/checkin${query}`, form);
 }
 
 /** 发布草稿版本 */
 export function releaseVersion(id: number, versionId: number): Promise<PdmDocumentVersion> {
-  return http.post<PdmDocumentVersion>(`/pdm/document/${id}/versions/${versionId}/release`);
+  return http.post<PdmDocumentVersion>(`/pdm/v1/document/${id}/versions/${versionId}/release`);
 }
 
 /** 以历史版本为基线生成新草稿 */
 export function rollbackVersion(id: number, versionId: number): Promise<PdmDocumentVersion> {
-  return http.post<PdmDocumentVersion>(`/pdm/document/${id}/versions/${versionId}/rollback`);
+  return http.post<PdmDocumentVersion>(`/pdm/v1/document/${id}/versions/${versionId}/rollback`);
 }
 
 /** 下载指定版本内容 */
@@ -233,20 +233,20 @@ export function downloadVersion(
   id: number,
   versionId: number,
 ): Promise<{ blob: Blob; filename: string }> {
-  return download(`/pdm/document/${id}/versions/${versionId}/content`);
+  return download(`/pdm/v1/document/${id}/versions/${versionId}/content`);
 }
 
 /** 查询目录或文档的 ACL 规则 */
 export function listAcl(resourceType: AclResourceType, resourceId: number): Promise<PdmDocAcl[]> {
-  return http.get<PdmDocAcl[]>('/pdm/acl', { resourceType, resourceId });
+  return http.get<PdmDocAcl[]>('/pdm/v1/acl', { resourceType, resourceId });
 }
 
 /** 新增 ACL 规则（唯一键重复时幂等返回既有规则） */
 export function saveAcl(payload: AclSavePayload): Promise<PdmDocAcl> {
-  return http.put<PdmDocAcl>('/pdm/acl', payload);
+  return http.put<PdmDocAcl>('/pdm/v1/acl', payload);
 }
 
 /** 删除 ACL 规则 */
 export function deleteAcl(id: number): Promise<void> {
-  return http.del<void>(`/pdm/acl/${id}`);
+  return http.del<void>(`/pdm/v1/acl/${id}`);
 }

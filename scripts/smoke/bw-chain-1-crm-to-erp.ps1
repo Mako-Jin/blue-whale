@@ -93,14 +93,14 @@ $customer = Invoke-SmokeApi -Method Post -Path '/erp/v1/master-data/customer' -B
 }
 Check '5.createErpCustomer' $customer
 
-$crmCustomer = Invoke-SmokeApi -Method Post -Path '/crm/customer' -Body @{
+$crmCustomer = Invoke-SmokeApi -Method Post -Path '/crm/v1/customer' -Body @{
     customerCode = $customerCode
     name = "链路冒烟客户 $stamp"
 }
 Check '6.createCrmCustomer' $crmCustomer
 
 # 4) CRM 建单
-$order = Invoke-SmokeApi -Method Post -Path '/crm/order' -Body @{
+$order = Invoke-SmokeApi -Method Post -Path '/crm/v1/order' -Body @{
     sourceType = 'MANUAL'
     customerId = $crmCustomer.data.id
     title = "M1 链路冒烟 $stamp"
@@ -124,7 +124,7 @@ Assert '7a.crmOrderDraft' ($order.data.status -eq 'DRAFT') "status=$($order.data
 # 5) 提交审批（未配置审批定义时显式跳过）
 $submit = $null
 try {
-    $submit = Invoke-SmokeApi -Method Post -Path "/crm/order/$crmOrderId/submit"
+    $submit = Invoke-SmokeApi -Method Post -Path "/crm/v1/order/$crmOrderId/submit"
 } catch {
     Skip-Smoke "CRM 提交审批失败（可能未配置 WHALE_CRM_ORDER_DEFINITION_ID）：$($_.Exception.Message)"
 }
@@ -155,7 +155,7 @@ Assert '11a.instanceFinished' ($instance.data.status -eq 1) "status=$($instance.
 
 # 7) 等待审批对账任务回填 APPROVED（crm.approval.reconcile 默认每 2 分钟）
 $approvedOrder = Wait-SmokeUntil -Label "12.crmApproved" -TimeoutSeconds $WaitSeconds -IntervalSeconds 5 -Probe {
-    $detail = Invoke-SmokeApi -Method Get -Path "/crm/order/$crmOrderId"
+    $detail = Invoke-SmokeApi -Method Get -Path "/crm/v1/order/$crmOrderId"
     if ($detail.code -ne 0) { return $null }
     if ($detail.data.status -eq 'APPROVED' -or $detail.data.status -eq 'PUSHED') { return $detail.data }
     if ($detail.data.status -eq 'REJECTED') {
@@ -167,7 +167,7 @@ Assert '12a.approvedAt' ($null -ne $approvedOrder.approvedAt) "approvedAt=$($app
 
 # 8) 等待 outbox 下发 ERP（crm.order.push 默认每分钟）
 $pushedOrder = Wait-SmokeUntil -Label "13.erpOrderPushed" -TimeoutSeconds $WaitSeconds -IntervalSeconds 5 -Probe {
-    $detail = Invoke-SmokeApi -Method Get -Path "/crm/order/$crmOrderId"
+    $detail = Invoke-SmokeApi -Method Get -Path "/crm/v1/order/$crmOrderId"
     if ($detail.code -ne 0) { return $null }
     if ($detail.data.erpOrderNo) { return $detail.data }
     if ($detail.data.lastPushError -and "$($detail.data.lastPushError)" -match '未启用') {
@@ -185,9 +185,9 @@ Assert '14b.itemCode' ($erpOrder.data.lines[0].itemCode -eq $itemCode) "itemCode
 Assert '14c.quantity' ([decimal]$erpOrder.data.lines[0].quantity -eq [decimal]10) "quantity=$($erpOrder.data.lines[0].quantity)"
 
 # 10) 幂等：重试下发不重复建单
-$retry = Invoke-SmokeApi -Method Post -Path "/crm/order/$crmOrderId/retry"
+$retry = Invoke-SmokeApi -Method Post -Path "/crm/v1/order/$crmOrderId/retry"
 if ($retry.code -eq 0) {
-    $afterRetry = Invoke-SmokeApi -Method Get -Path "/crm/order/$crmOrderId"
+    $afterRetry = Invoke-SmokeApi -Method Get -Path "/crm/v1/order/$crmOrderId"
     Assert '15.idempotentErpOrderNo' ($afterRetry.data.erpOrderNo -eq $pushedOrder.erpOrderNo) `
         "before=$($pushedOrder.erpOrderNo) after=$($afterRetry.data.erpOrderNo)"
 } else {

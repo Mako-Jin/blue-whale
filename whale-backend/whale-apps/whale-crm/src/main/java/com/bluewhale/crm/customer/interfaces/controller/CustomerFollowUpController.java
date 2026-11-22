@@ -28,7 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/crm/follow-up")
+@RequestMapping(path = "/crm/v{version}/follow-up", version = "1")
 @RequiredArgsConstructor
 public class CustomerFollowUpController {
 

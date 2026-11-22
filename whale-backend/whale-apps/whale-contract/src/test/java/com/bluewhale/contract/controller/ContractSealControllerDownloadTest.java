@@ -39,7 +39,9 @@ class ContractSealControllerDownloadTest {
     @BeforeEach
     void setUp() {
         sealService = mock(SealService.class);
-        mockMvc = MockMvcBuilders.standaloneSetup(new ContractSealController(sealService)).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(new ContractSealController(sealService))
+                .setApiVersionStrategy(ApiVersionTestSupport.strategy())
+                .build();
     }
 
     /**
@@ -68,7 +70,7 @@ class ContractSealControllerDownloadTest {
         when(sealService.downloadImage(5L)).thenReturn(new SealService.SealImage(
                 png, "image/png", "seal-5.png"));
 
-        mockMvc.perform(get("/contract/seal/5/download"))
+        mockMvc.perform(get("/contract/v1/seal/5/download"))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Disposition", containsString("attachment")))
                 .andExpect(header().string("Content-Disposition", containsString("seal-5.png")))

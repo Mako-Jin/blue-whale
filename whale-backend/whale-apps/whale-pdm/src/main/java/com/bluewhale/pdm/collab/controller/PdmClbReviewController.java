@@ -31,7 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/pdm/collab/review")
+@RequestMapping(path = "/pdm/v{version}/collab/review", version = "1")
 @RequiredArgsConstructor
 public class PdmClbReviewController {
 

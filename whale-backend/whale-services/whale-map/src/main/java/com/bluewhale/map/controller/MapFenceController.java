@@ -30,7 +30,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/map/fence")
+@RequestMapping(path = "/map/v{version}/fence", version = "1")
 @RequiredArgsConstructor
 public class MapFenceController {
 

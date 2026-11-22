@@ -71,7 +71,7 @@ const OVERVIEW = {
     { level: 'info', text: '有 2 张变更单正在执行，完成前以旧版 BOM / 图纸为准', count: null },
     { level: 'info', text: '有 5 份 BOM 草稿还没发布，发布前车间看不到', count: null },
   ],
-  links: [{ key: 'parts', label: '物料台账', path: '/pdm/part/page', permission: 'sys:pdm:part:list' }],
+  links: [{ key: 'parts', label: '物料台账', path: '/pdm/v1/part/page', permission: 'sys:pdm:part:list' }],
   notes: ['口径：在册物料 = pdm_product ENABLED；生效 BOM = RELEASED 版本；未关闭变更 = 未进 完成/关闭/驳回/取消 的变更单；借出 = 图纸被检出未还'],
 };
 
@@ -128,7 +128,7 @@ await page.route('**/pdm/overview**', async (route) => {
 
 /* 详情路由先注册、列表路由后注册：Playwright 后注册的优先匹配。
    将作坊不配 detailPath，这条路由只用来断言"点行不会打详情接口"。 */
-await page.route('**/pdm/part/*', async (route) => {
+await page.route('**/pdm/v1/part/*', async (route) => {
   const url = new URL(route.request().url());
   if (url.pathname.endsWith('/page')) {
     await route.fallback();
@@ -138,7 +138,7 @@ await page.route('**/pdm/part/*', async (route) => {
   await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(json(null)) });
 });
 
-await page.route('**/pdm/part/page**', async (route) => {
+await page.route('**/pdm/v1/part/page**', async (route) => {
   const url = new URL(route.request().url());
   const current = Number(url.searchParams.get('current') ?? '1');
   const size = Number(url.searchParams.get('size') ?? '6');
@@ -380,7 +380,7 @@ check('退出后回到 3D 尺寸（不是糊满整个镜头）', exited.w > 0 &&
 await page.route('**/pdm/overview**', (route) =>
   route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }),
 );
-await page.route('**/pdm/part/page**', (route) =>
+await page.route('**/pdm/v1/part/page**', (route) =>
   route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }),
 );
 await page.locator('[data-screen-id="jiangzuo"]').click();

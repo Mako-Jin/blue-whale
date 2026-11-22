@@ -58,57 +58,57 @@ export interface ChgNotifyLog {
 /** 分页查询变更通知 */
 export function pageChgNotices(query: ChgNoticeQuery): Promise<PageResult<ChgNotice>> {
   return http.get<PageResult<ChgNotice>>(
-    '/pdm/change/notice/page',
+    '/pdm/v1/change/notice/page',
     query as Record<string, unknown>,
   );
 }
 
 /** 变更通知详情 */
 export function getChgNotice(id: string): Promise<ChgNotice> {
-  return http.get<ChgNotice>(`/pdm/change/notice/${id}`);
+  return http.get<ChgNotice>(`/pdm/v1/change/notice/${id}`);
 }
 
 /** 创建变更通知 */
 export function createChgNotice(input: ChgNoticeInput): Promise<ChgNotice> {
-  return http.post<ChgNotice>('/pdm/change/notice', input);
+  return http.post<ChgNotice>('/pdm/v1/change/notice', input);
 }
 
 /** 修改草稿变更通知 */
 export function updateChgNotice(id: string, input: ChgNoticeInput): Promise<ChgNotice> {
-  return http.put<ChgNotice>(`/pdm/change/notice/${id}`, input);
+  return http.put<ChgNotice>(`/pdm/v1/change/notice/${id}`, input);
 }
 
 /** 删除草稿变更通知 */
 export function deleteChgNotice(id: string): Promise<void> {
-  return http.del<void>(`/pdm/change/notice/${id}`);
+  return http.del<void>(`/pdm/v1/change/notice/${id}`);
 }
 
 /** 发送通知 */
 export function notifyChgNotice(id: string): Promise<ChgNotice> {
-  return http.post<ChgNotice>(`/pdm/change/notice/${id}/notify`);
+  return http.post<ChgNotice>(`/pdm/v1/change/notice/${id}/notify`);
 }
 
 /** 生效 */
 export function effectiveChgNotice(id: string): Promise<ChgNotice> {
-  return http.post<ChgNotice>(`/pdm/change/notice/${id}/effective`);
+  return http.post<ChgNotice>(`/pdm/v1/change/notice/${id}/effective`);
 }
 
 /** 关闭 */
 export function closeChgNotice(id: string): Promise<ChgNotice> {
-  return http.post<ChgNotice>(`/pdm/change/notice/${id}/close`);
+  return http.post<ChgNotice>(`/pdm/v1/change/notice/${id}/close`);
 }
 
 /** 取消 */
 export function cancelChgNotice(id: string): Promise<ChgNotice> {
-  return http.post<ChgNotice>(`/pdm/change/notice/${id}/cancel`);
+  return http.post<ChgNotice>(`/pdm/v1/change/notice/${id}/cancel`);
 }
 
 /** 重试失败投递 */
 export function retryChgNotice(id: string): Promise<ChgNotice> {
-  return http.post<ChgNotice>(`/pdm/change/notice/${id}/retry-notify`);
+  return http.post<ChgNotice>(`/pdm/v1/change/notice/${id}/retry-notify`);
 }
 
 /** 通知投递日志 */
 export function pageChgNotifyLogs(id: string): Promise<PageResult<ChgNotifyLog>> {
-  return http.get<PageResult<ChgNotifyLog>>(`/pdm/change/notice/${id}/notify-logs`, { size: 100 });
+  return http.get<PageResult<ChgNotifyLog>>(`/pdm/v1/change/notice/${id}/notify-logs`, { size: 100 });
 }

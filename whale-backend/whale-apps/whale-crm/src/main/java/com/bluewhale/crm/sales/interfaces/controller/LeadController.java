@@ -42,7 +42,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/crm/lead")
+@RequestMapping(path = "/crm/v{version}/lead", version = "1")
 @RequiredArgsConstructor
 public class LeadController {
 

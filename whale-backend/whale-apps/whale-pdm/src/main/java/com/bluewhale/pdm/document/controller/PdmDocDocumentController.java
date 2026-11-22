@@ -51,7 +51,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/pdm/document")
+@RequestMapping(path = "/pdm/v{version}/document", version = "1")
 @RequiredArgsConstructor
 public class PdmDocDocumentController {
 

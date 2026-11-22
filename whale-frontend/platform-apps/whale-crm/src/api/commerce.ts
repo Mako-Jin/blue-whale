@@ -134,22 +134,22 @@ export interface CollectionActionView {
 
 /** 合同台账分页 */
 export function pageContracts(query: ContractPageQuery): Promise<PageResult<ContractView>> {
-  return http.get<PageResult<ContractView>>('/crm/contract/page', query as Record<string, unknown>);
+  return http.get<PageResult<ContractView>>('/crm/v1/contract/page', query as Record<string, unknown>);
 }
 
 /** 合同台账详情 */
 export function getContract(id: number): Promise<ContractView> {
-  return http.get<ContractView>(`/crm/contract/${id}`);
+  return http.get<ContractView>(`/crm/v1/contract/${id}`);
 }
 
 /** 到期提醒 */
 export function expiringContracts(days?: number): Promise<ContractView[]> {
-  return http.get<ContractView[]>('/crm/contract/expiring', { days });
+  return http.get<ContractView[]>('/crm/v1/contract/expiring', { days });
 }
 
 /** 按客户同步合同投影 */
 export function syncContracts(customerId: number): Promise<number> {
-  return http.post<number>('/crm/contract/sync', undefined, { customerId });
+  return http.post<number>('/crm/v1/contract/sync', undefined, { customerId });
 }
 
 /** 标记合同续约 */
@@ -157,7 +157,7 @@ export function markContractRenewal(
   id: number,
   payload: ContractRenewalInput,
 ): Promise<ContractView> {
-  return http.put<ContractView>(`/crm/contract/${id}/renewal`, payload);
+  return http.put<ContractView>(`/crm/v1/contract/${id}/renewal`, payload);
 }
 
 /** 回款计划分页 */
@@ -165,21 +165,21 @@ export function pageCollections(
   query: CollectionPageQuery,
 ): Promise<PageResult<CollectionPlanView>> {
   return http.get<PageResult<CollectionPlanView>>(
-    '/crm/collection/page',
+    '/crm/v1/collection/page',
     query as Record<string, unknown>,
   );
 }
 
 /** 回款计划详情 */
 export function getCollection(id: number): Promise<CollectionPlanView> {
-  return http.get<CollectionPlanView>(`/crm/collection/${id}`);
+  return http.get<CollectionPlanView>(`/crm/v1/collection/${id}`);
 }
 
 /** 按合同整批保存回款分期 */
 export function saveCollectionPlan(
   payload: CollectionPlanSaveInput,
 ): Promise<CollectionPlanView[]> {
-  return http.put<CollectionPlanView[]>('/crm/collection/plan', payload);
+  return http.put<CollectionPlanView[]>('/crm/v1/collection/plan', payload);
 }
 
 /** 登记承诺还款 */
@@ -187,7 +187,7 @@ export function promiseCollection(
   id: number,
   payload: CollectionPromiseInput,
 ): Promise<CollectionPlanView> {
-  return http.post<CollectionPlanView>(`/crm/collection/${id}/promise`, payload);
+  return http.post<CollectionPlanView>(`/crm/v1/collection/${id}/promise`, payload);
 }
 
 /** 追加催收记录 */
@@ -195,12 +195,12 @@ export function addCollectionAction(
   id: number,
   payload: CollectionActionInput,
 ): Promise<CollectionActionView> {
-  return http.post<CollectionActionView>(`/crm/collection/${id}/action`, payload);
+  return http.post<CollectionActionView>(`/crm/v1/collection/${id}/action`, payload);
 }
 
 /** 查询催收记录 */
 export function listCollectionActions(id: number): Promise<CollectionActionView[]> {
-  return http.get<CollectionActionView[]>(`/crm/collection/${id}/actions`);
+  return http.get<CollectionActionView[]>(`/crm/v1/collection/${id}/actions`);
 }
 
 // ---------------------------------------------------------------------
@@ -304,42 +304,42 @@ export interface SalesOrderPageQuery {
 
 /** 订单分页 */
 export function pageOrders(query: SalesOrderPageQuery): Promise<PageResult<SalesOrderView>> {
-  return http.get<PageResult<SalesOrderView>>('/crm/order/page', query as Record<string, unknown>);
+  return http.get<PageResult<SalesOrderView>>('/crm/v1/order/page', query as Record<string, unknown>);
 }
 
 /** 订单详情 */
 export function getOrder(id: number): Promise<SalesOrderView> {
-  return http.get<SalesOrderView>(`/crm/order/${id}`);
+  return http.get<SalesOrderView>(`/crm/v1/order/${id}`);
 }
 
 /** 新建订单 */
 export function createOrder(payload: SalesOrderCreateInput): Promise<SalesOrderView> {
-  return http.post<SalesOrderView>('/crm/order', payload);
+  return http.post<SalesOrderView>('/crm/v1/order', payload);
 }
 
 /** 编辑草稿订单 */
 export function updateOrder(id: number, payload: SalesOrderUpdateInput): Promise<SalesOrderView> {
-  return http.put<SalesOrderView>(`/crm/order/${id}`, payload);
+  return http.put<SalesOrderView>(`/crm/v1/order/${id}`, payload);
 }
 
 /** 提交订单审批 */
 export function submitOrder(id: number): Promise<SalesOrderView> {
-  return http.post<SalesOrderView>(`/crm/order/${id}/submit`);
+  return http.post<SalesOrderView>(`/crm/v1/order/${id}/submit`);
 }
 
 /** 取消订单 */
 export function cancelOrder(id: number): Promise<SalesOrderView> {
-  return http.post<SalesOrderView>(`/crm/order/${id}/cancel`);
+  return http.post<SalesOrderView>(`/crm/v1/order/${id}/cancel`);
 }
 
 /** 重试下发 ERP */
 export function retryOrder(id: number): Promise<SalesOrderView> {
-  return http.post<SalesOrderView>(`/crm/order/${id}/retry`);
+  return http.post<SalesOrderView>(`/crm/v1/order/${id}/retry`);
 }
 
 /** 手动对账 */
 export function reconcileOrders(): Promise<number> {
-  return http.post<number>('/crm/order/reconcile');
+  return http.post<number>('/crm/v1/order/reconcile');
 }
 
 // ---------------------------------------------------------------------
@@ -509,55 +509,55 @@ export interface ArSyncResultView {
 
 /** 开票申请分页 */
 export function pageInvoices(query: InvoicePageQuery): Promise<PageResult<InvoiceView>> {
-  return http.get<PageResult<InvoiceView>>('/crm/invoice/page', query as Record<string, unknown>);
+  return http.get<PageResult<InvoiceView>>('/crm/v1/invoice/page', query as Record<string, unknown>);
 }
 
 /** 开票申请详情 */
 export function getInvoice(id: number): Promise<InvoiceView> {
-  return http.get<InvoiceView>(`/crm/invoice/${id}`);
+  return http.get<InvoiceView>(`/crm/v1/invoice/${id}`);
 }
 
 /** 新建开票申请 */
 export function createInvoice(payload: InvoiceSaveInput): Promise<InvoiceView> {
-  return http.post<InvoiceView>('/crm/invoice', payload);
+  return http.post<InvoiceView>('/crm/v1/invoice', payload);
 }
 
 /** 编辑草稿开票申请 */
 export function updateInvoice(id: number, payload: InvoiceSaveInput): Promise<InvoiceView> {
-  return http.put<InvoiceView>(`/crm/invoice/${id}`, payload);
+  return http.put<InvoiceView>(`/crm/v1/invoice/${id}`, payload);
 }
 
 /** 提交开票审批 */
 export function submitInvoice(id: number): Promise<InvoiceView> {
-  return http.post<InvoiceView>(`/crm/invoice/${id}/submit`);
+  return http.post<InvoiceView>(`/crm/v1/invoice/${id}/submit`);
 }
 
 /** 登记开票记录 */
 export function issueInvoice(id: number, payload: InvoiceIssueInput): Promise<InvoiceView> {
-  return http.post<InvoiceView>(`/crm/invoice/${id}/issue`, payload);
+  return http.post<InvoiceView>(`/crm/v1/invoice/${id}/issue`, payload);
 }
 
 /** 登记发票寄送 */
 export function sendInvoice(id: number, payload: InvoiceSendInput): Promise<InvoiceView> {
-  return http.post<InvoiceView>(`/crm/invoice/${id}/send`, payload);
+  return http.post<InvoiceView>(`/crm/v1/invoice/${id}/send`, payload);
 }
 
 /** 发票红冲 */
 export function redFlushInvoice(id: number, payload: InvoiceRedFlushInput): Promise<InvoiceView> {
-  return http.post<InvoiceView>(`/crm/invoice/${id}/red-flush`, payload);
+  return http.post<InvoiceView>(`/crm/v1/invoice/${id}/red-flush`, payload);
 }
 
 /** 取消开票申请 */
 export function cancelInvoice(id: number): Promise<InvoiceView> {
-  return http.post<InvoiceView>(`/crm/invoice/${id}/cancel`);
+  return http.post<InvoiceView>(`/crm/v1/invoice/${id}/cancel`);
 }
 
 /** 应收快照分页 */
 export function pageArSnapshots(query: ArSnapshotPageQuery): Promise<PageResult<ArSnapshotView>> {
-  return http.get<PageResult<ArSnapshotView>>('/crm/ar/page', query as Record<string, unknown>);
+  return http.get<PageResult<ArSnapshotView>>('/crm/v1/ar/page', query as Record<string, unknown>);
 }
 
 /** 手动同步应收快照 */
 export function syncArSnapshots(): Promise<ArSyncResultView> {
-  return http.post<ArSyncResultView>('/crm/ar/sync');
+  return http.post<ArSyncResultView>('/crm/v1/ar/sync');
 }

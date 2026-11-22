@@ -33,7 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/crm/invoice")
+@RequestMapping(path = "/crm/v{version}/invoice", version = "1")
 @RequiredArgsConstructor
 public class CrmInvoiceController {
 

@@ -34,7 +34,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/pm/board")
+@RequestMapping(path = "/pm/v{version}/board", version = "1")
 @RequiredArgsConstructor
 public class BoardController {
 

@@ -907,9 +907,9 @@ export const CUSTOMER_LEVEL_STYLE: Record<string, ScreenStatusStyle> = {
  * `keyword`（编码 / 名称 / 简称模糊匹配）与 `status / level / source / industry`
  * 四个筛选位。给搜索框之前先确认后端认这个参数名，是 S5 起立的规矩。</p>
  *
- * <p><b>不配 detailPath。</b>`/crm/customer/page` 返回的 `CustomerView` 已经是整行明细
+ * <p><b>不配 detailPath。</b>`/crm/v1/customer/page` 返回的 `CustomerView` 已经是整行明细
  * （含税号、地址、公海状态、跟进时间），列表行就是详情；再请求一次
- * `/crm/customer/{id}` 只会多一次往返，还可能因数据权限差异拿到不同的行。</p>
+ * `/crm/v1/customer/{id}` 只会多一次往返，还可能因数据权限差异拿到不同的行。</p>
  *
  * <p>等级列用列级 {@link ScreenColumn#statusMap} 覆盖页面级字典：页面级是"
  * 客户状态（有效/停用）"，等级是另一套码值（A/B/C/D）。两套混用会把"有效"
@@ -918,7 +918,7 @@ export const CUSTOMER_LEVEL_STYLE: Record<string, ScreenStatusStyle> = {
 export const CUSTOMER_PAGE: ScreenListPageSpec = {
   key: 'customers',
   title: '客户台账',
-  listPath: '/crm/customer/page',
+  listPath: '/crm/v1/customer/page',
   permission: 'sys:crm:customer:list',
   idKey: 'id',
   keywordParam: 'keyword',
@@ -1129,7 +1129,7 @@ export const PART_TYPE_STYLE: Record<string, ScreenStatusStyle> = {
 export const PART_PAGE: ScreenListPageSpec = {
   key: 'parts',
   title: '物料台账',
-  listPath: '/pdm/part/page',
+  listPath: '/pdm/v1/part/page',
   permission: 'sys:pdm:part:list',
   idKey: 'id',
   keywordParam: 'name',
@@ -1184,7 +1184,7 @@ export const PROJECT_TYPE_STYLE: Record<string, ScreenStatusStyle> = {
  * 项目是三本账（项目 / 迭代 / 工作项）里的底账——迭代和工作项都挂在项目上，
  * 所以坊里只摆这一页。</p>
  *
- * <p><b>工作项不单摆一页。</b>后端的 `/pm/work-item/page` 强制按项目过滤
+ * <p><b>工作项不单摆一页。</b>后端的 `/pm/v1/work-item/page` 强制按项目过滤
  * （projectId @NotNull），租户级的工作项清单在 2D 后台也不存在；
  * 硬凑一页只会把"按项目逐个点"伪装成"租户总账"。</p>
  *
@@ -1198,7 +1198,7 @@ export const PROJECT_TYPE_STYLE: Record<string, ScreenStatusStyle> = {
 export const PROJECT_PAGE: ScreenListPageSpec = {
   key: 'projects',
   title: '项目台账',
-  listPath: '/pm/project/page',
+  listPath: '/pm/v1/project/page',
   permission: 'sys:pm:project:list',
   idKey: 'id',
   keywordParam: 'keyword',
@@ -1277,7 +1277,7 @@ export const CONTRACT_CATEGORY_STYLE: Record<string, ScreenStatusStyle> = {
 export const CONTRACT_PAGE: ScreenListPageSpec = {
   key: 'contracts',
   title: '合同台账',
-  listPath: '/contract/page',
+  listPath: '/contract/v1/page',
   permission: 'sys:contract:list',
   idKey: 'id',
   statusParam: 'status',

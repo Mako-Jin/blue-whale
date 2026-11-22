@@ -36,7 +36,7 @@ export interface ChgTraceQuery {
 
 /** 分页查询追溯 */
 export function pageChgTraces(query: ChgTraceQuery): Promise<PageResult<ChgTrace>> {
-  return http.get<PageResult<ChgTrace>>('/pdm/change/trace/page', query as Record<string, unknown>);
+  return http.get<PageResult<ChgTrace>>('/pdm/v1/change/trace/page', query as Record<string, unknown>);
 }
 
 /** 按对象查询时间线 */
@@ -44,5 +44,5 @@ export function getChgTraceTimeline(
   objectType: ChgTraceObjectType,
   objectId: number,
 ): Promise<ChgTrace[]> {
-  return http.get<ChgTrace[]>('/pdm/change/trace/timeline', { objectType, objectId });
+  return http.get<ChgTrace[]>('/pdm/v1/change/trace/timeline', { objectType, objectId });
 }

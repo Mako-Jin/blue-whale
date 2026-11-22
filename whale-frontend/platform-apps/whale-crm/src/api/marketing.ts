@@ -296,27 +296,27 @@ export interface PartnerReportCreateInput {
 
 /** 分页查询活动 */
 export function pageCampaigns(query: CampaignQuery): Promise<PageResult<CampaignView>> {
-  return http.get<PageResult<CampaignView>>('/crm/campaign/page', query as Record<string, unknown>);
+  return http.get<PageResult<CampaignView>>('/crm/v1/campaign/page', query as Record<string, unknown>);
 }
 
 /** 活动详情 */
 export function getCampaign(id: number): Promise<CampaignView> {
-  return http.get<CampaignView>(`/crm/campaign/${id}`);
+  return http.get<CampaignView>(`/crm/v1/campaign/${id}`);
 }
 
 /** 新建活动 */
 export function createCampaign(input: CampaignSaveInput): Promise<CampaignView> {
-  return http.post<CampaignView>('/crm/campaign', input);
+  return http.post<CampaignView>('/crm/v1/campaign', input);
 }
 
 /** 编辑活动 */
 export function updateCampaign(id: number, input: CampaignSaveInput): Promise<CampaignView> {
-  return http.put<CampaignView>(`/crm/campaign/${id}`, input);
+  return http.put<CampaignView>(`/crm/v1/campaign/${id}`, input);
 }
 
 /** 变更活动状态 */
 export function changeCampaignStatus(id: number, status: string): Promise<CampaignView> {
-  return http.post<CampaignView>(`/crm/campaign/${id}/status`, { status });
+  return http.post<CampaignView>(`/crm/v1/campaign/${id}/status`, { status });
 }
 
 /** 回填活动 ROI */
@@ -324,7 +324,7 @@ export function updateCampaignRoi(
   id: number,
   input: { attributedLeadCount?: number; attributedWonAmount?: number; actualCost?: number },
 ): Promise<CampaignView> {
-  return http.post<CampaignView>(`/crm/campaign/${id}/roi`, input);
+  return http.post<CampaignView>(`/crm/v1/campaign/${id}/roi`, input);
 }
 
 /** 人群预览 */
@@ -332,7 +332,7 @@ export function previewAudience(
   id: number,
   criteria: AudienceCriteria,
 ): Promise<AudiencePreviewView> {
-  return http.post<AudiencePreviewView>(`/crm/campaign/${id}/audience/preview`, { criteria });
+  return http.post<AudiencePreviewView>(`/crm/v1/campaign/${id}/audience/preview`, { criteria });
 }
 
 /** 锁定人群快照 */
@@ -340,68 +340,68 @@ export function lockAudience(
   id: number,
   criteria: AudienceCriteria,
 ): Promise<CampaignAudienceView> {
-  return http.post<CampaignAudienceView>(`/crm/campaign/${id}/audience/lock`, { criteria });
+  return http.post<CampaignAudienceView>(`/crm/v1/campaign/${id}/audience/lock`, { criteria });
 }
 
 /** 分页查询培育任务 */
 export function pageNurture(query: NurtureQuery): Promise<PageResult<NurtureTaskView>> {
   return http.get<PageResult<NurtureTaskView>>(
-    '/crm/nurture/page',
+    '/crm/v1/nurture/page',
     query as Record<string, unknown>,
   );
 }
 
 /** 新建培育任务 */
 export function createNurture(input: NurtureSaveInput): Promise<NurtureTaskView> {
-  return http.post<NurtureTaskView>('/crm/nurture', input);
+  return http.post<NurtureTaskView>('/crm/v1/nurture', input);
 }
 
 /** 编辑培育任务 */
 export function updateNurture(id: number, input: NurtureSaveInput): Promise<NurtureTaskView> {
-  return http.put<NurtureTaskView>(`/crm/nurture/${id}`, input);
+  return http.put<NurtureTaskView>(`/crm/v1/nurture/${id}`, input);
 }
 
 /** 变更培育任务状态 */
 export function changeNurtureStatus(id: number, status: string): Promise<NurtureTaskView> {
-  return http.post<NurtureTaskView>(`/crm/nurture/${id}/status`, { status });
+  return http.post<NurtureTaskView>(`/crm/v1/nurture/${id}/status`, { status });
 }
 
 /** 分页查询触达任务 */
 export function pageSends(query: MarketingSendQuery): Promise<PageResult<MarketingSendView>> {
   return http.get<PageResult<MarketingSendView>>(
-    '/crm/marketing-send/page',
+    '/crm/v1/marketing-send/page',
     query as Record<string, unknown>,
   );
 }
 
 /** 触达任务详情 */
 export function getSend(id: number): Promise<MarketingSendView> {
-  return http.get<MarketingSendView>(`/crm/marketing-send/${id}`);
+  return http.get<MarketingSendView>(`/crm/v1/marketing-send/${id}`);
 }
 
 /** 创建触达任务 */
 export function createSend(input: MarketingSendCreateInput): Promise<MarketingSendView> {
-  return http.post<MarketingSendView>('/crm/marketing-send', input);
+  return http.post<MarketingSendView>('/crm/v1/marketing-send', input);
 }
 
 /** 执行触达任务 */
 export function executeSend(id: number): Promise<MarketingSendView> {
-  return http.post<MarketingSendView>(`/crm/marketing-send/${id}/execute`);
+  return http.post<MarketingSendView>(`/crm/v1/marketing-send/${id}/execute`);
 }
 
 /** 分页查询渠道伙伴 */
 export function pagePartners(query: PartnerQuery): Promise<PageResult<PartnerView>> {
-  return http.get<PageResult<PartnerView>>('/crm/partner/page', query as Record<string, unknown>);
+  return http.get<PageResult<PartnerView>>('/crm/v1/partner/page', query as Record<string, unknown>);
 }
 
 /** 新建渠道伙伴 */
 export function createPartner(input: PartnerSaveInput): Promise<PartnerView> {
-  return http.post<PartnerView>('/crm/partner', input);
+  return http.post<PartnerView>('/crm/v1/partner', input);
 }
 
 /** 编辑渠道伙伴 */
 export function updatePartner(id: number, input: PartnerSaveInput): Promise<PartnerView> {
-  return http.put<PartnerView>(`/crm/partner/${id}`, input);
+  return http.put<PartnerView>(`/crm/v1/partner/${id}`, input);
 }
 
 /** 分页查询渠道报单 */
@@ -409,14 +409,14 @@ export function pagePartnerReports(
   query: PartnerReportQuery,
 ): Promise<PageResult<PartnerReportView>> {
   return http.get<PageResult<PartnerReportView>>(
-    '/crm/partner/report/page',
+    '/crm/v1/partner/report/page',
     query as Record<string, unknown>,
   );
 }
 
 /** 新建渠道报单 */
 export function createPartnerReport(input: PartnerReportCreateInput): Promise<PartnerReportView> {
-  return http.post<PartnerReportView>('/crm/partner/report', input);
+  return http.post<PartnerReportView>('/crm/v1/partner/report', input);
 }
 
 /** 裁决渠道报单冲突 */
@@ -424,5 +424,5 @@ export function resolvePartnerReport(
   id: number,
   input: { status: string; approvedAmount?: number | null },
 ): Promise<PartnerReportView> {
-  return http.post<PartnerReportView>(`/crm/partner/report/${id}/resolve`, input);
+  return http.post<PartnerReportView>(`/crm/v1/partner/report/${id}/resolve`, input);
 }

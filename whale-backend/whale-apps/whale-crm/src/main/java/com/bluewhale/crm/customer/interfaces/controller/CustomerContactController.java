@@ -31,7 +31,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/crm/customer")
+@RequestMapping(path = "/crm/v{version}/customer", version = "1")
 @RequiredArgsConstructor
 public class CustomerContactController {
 

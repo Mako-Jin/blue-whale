@@ -47,7 +47,7 @@ public class PmOverviewProvider implements OverviewProvider {
     private static final String PERMISSION = "sys:pm:project:list";
 
     /** 项目台账列表接口：屏风页直接取这个路径，不再单发一套只读接口 */
-    private static final String PROJECT_PAGE_PATH = "/pm/project/page";
+    private static final String PROJECT_PAGE_PATH = "/pm/v1/project/page";
 
     /** 营造统计口径 */
     private final PmOverviewStatsService statsService;

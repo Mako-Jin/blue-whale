@@ -34,7 +34,9 @@ class ContractSignControllerWillingnessTest {
     @BeforeEach
     void setUp() {
         signService = mock(SignService.class);
-        mockMvc = MockMvcBuilders.standaloneSetup(new ContractSignController(signService)).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(new ContractSignController(signService))
+                .setApiVersionStrategy(ApiVersionTestSupport.strategy())
+                .build();
     }
 
     /**
@@ -44,7 +46,7 @@ class ContractSignControllerWillingnessTest {
      */
     @Test
     void rejectsMissingWillingness() throws Exception {
-        mockMvc.perform(post("/contract/sign-task/1/sign")
+        mockMvc.perform(post("/contract/v1/sign-task/1/sign")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"sealId\":1}"))
                 .andExpect(status().isBadRequest());
@@ -57,7 +59,7 @@ class ContractSignControllerWillingnessTest {
      */
     @Test
     void rejectsUncheckedWillingness() throws Exception {
-        mockMvc.perform(post("/contract/sign-task/1/sign")
+        mockMvc.perform(post("/contract/v1/sign-task/1/sign")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"sealId\":1,\"confirmWillingness\":false}"))
                 .andExpect(status().isBadRequest());
@@ -72,7 +74,7 @@ class ContractSignControllerWillingnessTest {
     void acceptsConfirmedWillingness() throws Exception {
         when(signService.sign(anyLong(), any(SignExecuteRequest.class), any(), any())).thenReturn(null);
 
-        mockMvc.perform(post("/contract/sign-task/1/sign")
+        mockMvc.perform(post("/contract/v1/sign-task/1/sign")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"sealId\":1,\"confirmWillingness\":true}"))
                 .andExpect(status().isOk());

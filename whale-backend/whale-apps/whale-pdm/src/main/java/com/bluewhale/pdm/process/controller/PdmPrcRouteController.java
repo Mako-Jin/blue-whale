@@ -33,7 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/pdm/process/route")
+@RequestMapping(path = "/pdm/v{version}/process/route", version = "1")
 @RequiredArgsConstructor
 public class PdmPrcRouteController {
 

@@ -161,28 +161,28 @@ export interface SignExecuteInput {
 /** 印章与授权接口 */
 export const sealApi = {
   page: (query: { current?: number; size?: number; keyword?: string; status?: string }) =>
-    http.get<PageResult<Seal>>('/contract/seal/page', query),
-  create: (input: SealSaveInput) => http.post<Seal>('/contract/seal', input),
-  update: (id: string, input: SealSaveInput) => http.put<Seal>(`/contract/seal/${id}`, input),
-  remove: (id: string) => http.del<void>(`/contract/seal/${id}`),
+    http.get<PageResult<Seal>>('/contract/v1/seal/page', query),
+  create: (input: SealSaveInput) => http.post<Seal>('/contract/v1/seal', input),
+  update: (id: string, input: SealSaveInput) => http.put<Seal>(`/contract/v1/seal/${id}`, input),
+  remove: (id: string) => http.del<void>(`/contract/v1/seal/${id}`),
   grant: (id: string, input: SealGrantInput) =>
-    http.post<SealGrant>(`/contract/seal/${id}/grant`, input),
-  grants: (id: string) => http.get<SealGrant[]>(`/contract/seal/${id}/grants`),
-  preview: (id: string) => requestBlob(`/contract/seal/${id}/preview`),
-  download: (id: string) => requestBlob(`/contract/seal/${id}/download`),
+    http.post<SealGrant>(`/contract/v1/seal/${id}/grant`, input),
+  grants: (id: string) => http.get<SealGrant[]>(`/contract/v1/seal/${id}/grants`),
+  preview: (id: string) => requestBlob(`/contract/v1/seal/${id}/preview`),
+  download: (id: string) => requestBlob(`/contract/v1/seal/${id}/download`),
 };
 
 /** 签署与证据链接口 */
 export const signApi = {
   start: (id: string, input?: SignStartInput) =>
-    http.post<SignTask[]>(`/contract/${id}/sign/start`, input ?? {}),
-  tasks: (id: string) => http.get<SignTask[]>(`/contract/${id}/sign/tasks`),
-  pending: () => http.get<SignTask[]>('/contract/sign/pending'),
+    http.post<SignTask[]>(`/contract/v1/${id}/sign/start`, input ?? {}),
+  tasks: (id: string) => http.get<SignTask[]>(`/contract/v1/${id}/sign/tasks`),
+  pending: () => http.get<SignTask[]>('/contract/v1/sign/pending'),
   sign: (taskId: string, input: SignExecuteInput) =>
-    http.post<SignResult>(`/contract/sign-task/${taskId}/sign`, input),
+    http.post<SignResult>(`/contract/v1/sign-task/${taskId}/sign`, input),
   refuse: (taskId: string, reason: string) =>
-    http.post<void>(`/contract/sign-task/${taskId}/refuse`, { reason }),
-  evidence: (id: string) => http.get<Evidence>(`/contract/${id}/evidence`),
-  verify: (id: string) => http.post<VerifyResult>(`/contract/${id}/verify`),
-  void: (id: string) => http.post<void>(`/contract/${id}/void`),
+    http.post<void>(`/contract/v1/sign-task/${taskId}/refuse`, { reason }),
+  evidence: (id: string) => http.get<Evidence>(`/contract/v1/${id}/evidence`),
+  verify: (id: string) => http.post<VerifyResult>(`/contract/v1/${id}/verify`),
+  void: (id: string) => http.post<void>(`/contract/v1/${id}/void`),
 };
