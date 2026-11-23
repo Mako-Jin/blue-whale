@@ -71,6 +71,14 @@ whale:
     enabled: true
     auto-init: true
     module-scan-enabled: true
+  # 三维王城概览（S7/T7.7）：观星台屏风读 /twin/overview。
+  # 路径带服务前缀（REQ-ARCH-003：网关不剥前缀）；TTL 30s 对应前端 30s 轮询。
+  # timeout 2s：九次索引 count + 一次七日告警扫描（只取 create_time 列），
+  # 不碰快照与实体树的大字段；超过 2s 说明库已经不正常，早点降级比让屏风转圈强。
+  overview:
+    base-path: /twin/overview
+    ttl: 30s
+    timeout: 2s
   twin:
     # SSE 心跳间隔（秒）：空闲连接按此发注释帧，避免中间代理掐链（对齐 whale-iot 口径）
     stream-heartbeat-seconds: ${WHALE_TWIN_STREAM_HEARTBEAT_SECONDS:30}

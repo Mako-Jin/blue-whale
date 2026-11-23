@@ -174,3 +174,7 @@ whale:
           name: 舆图司
           url: http://bw-map:8100/map/overview
           permission: sys:map:provider:view
+        - nodeKey: guanxing-stage
+          name: 观星台
+          url: http://bw-twin:8089/twin/overview
+          permission: sys:twin:scene
