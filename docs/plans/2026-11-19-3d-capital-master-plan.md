@@ -1420,6 +1420,71 @@
   一条 console 错误）。收尾一律用 `npx tsc --noEmit -p tsconfig.json`。
 - 改了 whale-map 与 whale-monitor 的 yml，**部署时两座容器都要重建镜像**。
 
+**S7 第七批交付说明（2026-11-23，T7.7 观星台 / twin，3D 场景嵌入）**
+
+- **选址**：观星台在正西外城（x/z = -94.00/0.00、r=94、θ=270°、rotationDeg=90、
+  portal=殿心+14×正面法线 → (-80.00, 0.00)、entry `/twin` `sys:twin:scene`），
+  `collider.halfX=6.5 / halfZ=5.0`，33 个节点、`sortNo=33`、`icon: twin`。
+  270° 是网格搜出来的：正西要避开门轴线 ±15°，且屏风/浑天仪落点不许落进邻坊
+  坊域矩形；实测离将作监、营造局两坊墙足迹 1.8~2.7 米（wall≥2.2、bld≥4.2）、
+  与自家屏风 3.6 米、与传送门 4.4 米。
+- **接口**：`GET /twin/overview`（`whale.overview.base-path=/twin/overview`，TTL 30s、
+  超时 2s）：四张 KPI（观星场景 / 星标启用数 / 未恢复告警 / 发布快照）+ 一张
+  **近七日告警**柱图（七根）+ 七级告警条（严重 → 未确认 WARN → 已确认 INFO →
+  空库 INFO → 一座未发布 WARNING → 星标全停 INFO → 近七日无告警 INFO）+ 一个入口
+  （场景台账）。新建 `TwinOverviewStats / StatsService / Provider`
+  （whale-services/whale-twin，:8089，容器 bw-twin）。权限码复用 2D 的
+  `sys:twin:scene`——观星台与孪生场景是同一批人在看。
+- **口径**：九个 `selectCount` 各一次，不写 GROUP BY；场景"停用"没有 status 枚举，
+  按 `总数 - 已发布 - 草稿` 反推并 `max(0, …)` 兜底（脏数据不许出负数）。
+  近七日告警一次 `selectList` 取 `create_time` 在内存按日累加——七个 count
+  换不来什么，表本身不大。`tenantId` 显式传入，缺了直接抛（provider 独立线程，
+  没有 TenantContext，漏了就静默跨租户）。
+- **★ 坑一：`LambdaQueryWrapper.select(Entity::getCreateTime)` 在没有 MyBatis 上下文时
+  直接抛** `can not find lambda cache for this entity [TwinAlert]`——单测里七个用例
+  一起红，报错还看不出是这一行。改成 `new QueryWrapper<TwinAlert>().select("create_time")`
+  才既能在单测里拼 SQL、又能在运行时被租户插件追加条件。
+- **屏风页**：`TWIN_SCENE_PAGE`（`/twin/v1/scenes/page`，七列：场景/编码/状态/实体/
+  未恢复/版本/更新，11 个 `detailFields`，`pageSize: 5`）。状态走**页面级字典**：
+  草稿灰、已发布绿、**停用黄**（停用是主动动作，不是故障，别用红）。入口标签跟
+  概览 `links` 走——没有页配置的入口渲染成禁用标签，e2e 别假设"几页配几个标签"。
+- **★ 坑二：分页参数与舆图司正好相反**。twin 的 `SceneQuery` 是 `current/size`，
+  map 是 `page/size`；屏风页的 `listPath` 由渲染器按 `current/size` 拼，**但
+  `fetchPublishedScene` 是手写的**，一开始照着舆图司抄了 `page=1`，服务端不报错、
+  永远返回第 1 页，屏风上的页码照样翻得动——只有 e2e 断言"请求里带了
+  `status=published` 且 `size=1`"才抓得住。
+- **浑天仪（本坊特殊项）**：新增 `orrery.ts`，殿前立一座直径 3.4 米的铜环天体仪
+  （`ORRERY_RADIUS=1.7`，四道 Torus 铜环 + 天心球 + `coreGlow` 外晕 + 星点组），
+  落点 = 殿心 + 10.0×正面 − 1.6×侧向（-84.00 / 1.60），`y=0.07` 压在地面铺装上。
+  星标只画 `enabled===1` 且坐标可解析的（`[x,y,z]` 与 `{x,y,z}` 两种都认），
+  按包围盒居中并等比缩到 `SKY_RADIUS*2`；**有 alarm 时天心改红**（球体 emissive
+  与外晕颜色一起变，只改一个会露馅）。探针 `__bwwOrrery()` 给 mode/场景/星标
+  点数/三色归类/半径/自转相位/天心色。
+- **★ 坑三：竖光柱从俯视角看只是一条白刺**。第一版给天心配了一道向上的光柱
+  （`CylinderGeometry(0.05, 0.42, 3.4)`），本意"夜里也认得出"，从高机位看它细长
+  发白、像穿模；换成 `Sprite` 加法混合外晕——Sprite 永远面向相机，任何角度都是
+  一团光，而且只多一次绘制。
+- **★ 坑四：共享材质只摘不 dispose**。星点几何与材质是全组共享的（几十颗星才
+  几个 draw call），`clearPoints()` 里若顺手 `material.dispose()`，下一帧就白屏；
+  只 `remove` 不改引用、`dispose()` 里也只放一次 `pedestalGeometry.dispose()`。
+- **★ 坑五（截图误判）：高机位截图里那根"细长白色尖刺"不是浑天仪的几何**。换到
+  平视机位（`x=-89.5, yaw=π/2, pitch=0.12, dist=7`）看浑天仪，柱体根本不存在；
+  那根白刺是**殿前匾额告示牌被侧视成一条白线**——牌面立在殿与浑天仪之间，所以
+  相机绕到另一侧时它就"跑到角色前面"了。**看到可疑几何先换机位再改代码**。
+- **取数策略**：401/超时重试三次（每次 4 秒）；**403 不重试**（权限不会自己长
+  出来）；没有已发布场景就只写"还没有已发布的场景"，**不去问星标**（省一次必然
+  为空的请求），e2e 两侧都有断言。
+- **数枢殿总控在册**：`http://bw-twin:8089/twin/overview`，接入 **27 处**。
+- **验证**：twin 单测 **223 例**（新增 23：provider 16 / stats 7）；monitor 53 例；
+  e2e `world-guanxing-smoke` **74 项全绿**（四牌与提示语、七根柱、页面级字典、
+  `current/size` 正向、`size=1&status=published` 浑天仪请求、星标过滤 8→6 点、
+  三色归类、天心变红、半径 1.7、自转推进、走位实测 4 米、翻页、详情 11 字段、
+  Esc、降级 stale、空盘不请求星标、403 只问一次）；city-smoke 传送门 **19→20**；
+  回归乐坊 59、影戏院 60、清议堂 56、舆图司 68、邮驿 56、传信司 59、屏风页 35
+  全绿；`tsc --noEmit` / lint / check:overview / check-city-layout 通过；八项门禁
+  8/8 rc=0；覆盖率聚合 **行 53.72% / 分支 47.86%**（基线 49.84% / 44.20%）。
+- 改了 whale-twin 与 whale-monitor 的 yml，**部署时两座容器都要重建镜像**。
+
 ### S7 外城 9 处
 
 | 编号 | 任务 | 服务 | 特殊 |
@@ -1430,7 +1495,7 @@
 | T7.4 | [x] 邮驿 | mail | 邮件列表 |
 | T7.5 | [x] 传信司 | im | 会话列表（贴脸模式） |
 | T7.6 | [x] 舆图司 | map | 地面舆图纹理 |
-| T7.7 | [ ] 观星台 | twin | 3D 场景嵌入 |
+| T7.7 | [x] 观星台 | twin | 3D 场景嵌入 |
 | T7.8 | [ ] 智囊院 | agent + assistant | 对话（贴脸模式） |
 | T7.9 | [ ] 文库 | archive | 归档目录 |
 
