@@ -2057,6 +2057,76 @@ export const IM_PAGE: ScreenListPageSpec = {
 };
 
 /**
+ * 场景状态：与后端 {@code TwinScene.status} 一一对应（draft → published ⇄ disabled）。
+ *
+ * <p>已停用给黄灯而不是红灯：停用是主动动作（改之前先停下来），不是故障；
+ * 但它确实"不在运行"，所以也不能给绿灯。草稿翻灰灯——它还没生效。</p>
+ */
+export const TWIN_SCENE_STATUS: Record<string, ScreenStatusStyle> = {
+  draft: { label: '草稿', tone: 'flat' },
+  published: { label: '已发布', tone: 'good' },
+  disabled: { label: '已停用', tone: 'warn' },
+};
+
+/**
+ * 观星台（TWIN）场景台账页（S7 / T7.7）。
+ *
+ * <p><b>为什么只有这一页。</b>孪生的实体树、绑定、告警都挂在某个场景下，
+ * 2D 里没有"跨场景的实体列表"这种读法——要看得先选场景。所以本殿的屏风上
+ * 只排场景台账：它是唯一能独立打开的入口，也是"哪座场景在响"的索引。</p>
+ *
+ * <p>每行随带未恢复告警角标（{@code unresolvedAlerts}），分页接口一次分组查询
+ * 装配好，不必先开全局告警抽屉。状态字典放在<b>页面级</b>：场景状态是字符串枚举，
+ * 列级字典只用于 0/1 这类稳定码，页面级才能让筛选值与渲染共用同一张表——
+ * 筛选项写中文、行里也写中文，两处各维护一份迟早会不一致。</p>
+ *
+ * <p>5 行/页：中部是七根<b>纵向</b>柱图，高度与邮驿的四态柱图差不多，
+ * 但表头多一列"版本"，实测 6 行会把最后一行压到分页条上。</p>
+ */
+export const TWIN_SCENE_PAGE: ScreenListPageSpec = {
+  key: 'twin-scenes',
+  title: '场景台账',
+  listPath: '/twin/v1/scenes/page',
+  detailPath: (id) => `/twin/v1/scenes/${id}`,
+  permission: 'sys:twin:scene',
+  idKey: 'id',
+  keywordParam: 'keyword',
+  searchPlaceholder: '搜索场景名 / 编码…',
+  statusParam: 'status',
+  statuses: [
+    { value: '', label: '全部状态' },
+    { value: 'published', label: '已发布' },
+    { value: 'draft', label: '草稿' },
+    { value: 'disabled', label: '已停用' },
+  ],
+  statusMap: TWIN_SCENE_STATUS,
+  pageSize: 5,
+  columns: [
+    { key: 'name', label: '场景', width: '27%', emptyText: '未名场景' },
+    { key: 'code', label: '编码', width: '21%' },
+    { key: 'status', label: '状态', width: '10%', format: 'status' },
+    { key: 'entityCount', label: '实体', width: '8%', align: 'right' },
+    { key: 'unresolvedAlerts', label: '未恢复', width: '9%', align: 'right' },
+    { key: 'version', label: '版本', width: '7%', align: 'right' },
+    { key: 'updateTime', label: '更新', width: '18%', format: 'datetime' },
+  ],
+  detailFields: [
+    { key: 'name', label: '场景' },
+    { key: 'code', label: '编码' },
+    { key: 'description', label: '描述', emptyText: '未填写' },
+    { key: 'status', label: '状态', format: 'status' },
+    { key: 'entityCount', label: '实体数' },
+    { key: 'unresolvedAlerts', label: '未恢复告警' },
+    { key: 'criticalAlerts', label: '其中严重' },
+    { key: 'unackedAlerts', label: '待确认' },
+    { key: 'version', label: '版本' },
+    { key: 'createTime', label: '创建时间', format: 'datetime' },
+    { key: 'updateTime', label: '更新时间', format: 'datetime' },
+  ],
+  titleKey: 'name',
+};
+
+/**
  * 围栏类型：与后端 {@code MapFence.fenceType} 一一对应。
  *
  * <p>圆形围栏多半是"以某个点为中心的一片"（门店辐射范围），多边形是"按街区划的

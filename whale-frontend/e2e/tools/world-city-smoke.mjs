@@ -106,9 +106,10 @@ const portalItems = await page.evaluate(() => {
   };
 });
 // S1 十二坊 + 数枢殿 = 13；S7 外城逐坊接入：T7.1 乐坊 +1 = 14、T7.2 影戏院 +1 = 15、
-// T7.3 清议堂 +1 = 16、T7.4 邮驿 +1 = 17、T7.5 传信司 +1 = 18、T7.6 舆图司 +1 = 19。
+// T7.3 清议堂 +1 = 16、T7.4 邮驿 +1 = 17、T7.5 传信司 +1 = 18、T7.6 舆图司 +1 = 19、
+// T7.7 观星台 +1 = 20。
 // 写死 9 的那版一直报"实际 13"，写死 13 会报"实际 14"——外城九处继续逐坊 +1。
-ok(portalItems.total === 19, `传送门 19 项（实际 ${portalItems.total}）`);
+ok(portalItems.total === 20, `传送门 20 项（实际 ${portalItems.total}）`);
 /* 判"打开"要看类名/可见性/可点击，不看 opacity：
    软件渲染（swiftshader）下 CSS 过渡能拖到 3s 以上，按 opacity 判会把"已打开"误判成"不可见"。 */
 ok(portalItems.opened && portalItems.visible && portalItems.clickable,
@@ -128,7 +129,7 @@ if (cardsHidden > 0) {
     () => [...document.querySelectorAll('.bww-portal-item')].filter((el) => getComputedStyle(el).visibility !== 'visible').length,
   );
 }
-ok(cardsHidden === 0, `19 张卡片本身可见（隐藏 ${cardsHidden} 张）`);
+ok(cardsHidden === 0, `20 张卡片本身可见（隐藏 ${cardsHidden} 张）`);
 await page.keyboard.press('Escape');
 await page.waitForTimeout(300);
 

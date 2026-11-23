@@ -957,6 +957,41 @@
         "label": "舆图司",
         "subLabel": "MAP · 舆图与疆界"
       }
+    },
+    {
+      "nodeKey": "guanxing-stage",
+      "parentKey": "outer-city",
+      "nodeType": "BUILDING",
+      "name": "观星台",
+      "sub": "TWIN · 星象与孪生",
+      "icon": "twin",
+      "x": -94.0,
+      "z": 0.0,
+      "y": 0,
+      "w": 9,
+      "d": 7,
+      "scale": 0.75,
+      "rotationDeg": 90.0,
+      "roofColor": "#4a4a78",
+      "bodyColor": "#333457",
+      "modelKey": "palace-hall",
+      "collider": {
+        "halfX": 6.5,
+        "halfZ": 5.0
+      },
+      "sortNo": 33,
+      "entry": {
+        "type": "SYSTEM",
+        "path": "/twin",
+        "permission": "sys:twin:scene"
+      },
+      "portal": {
+        "x": -80.0,
+        "z": 0.0,
+        "color": "#c7b3ff",
+        "label": "观星台",
+        "subLabel": "TWIN · 星象与孪生"
+      }
     }
   ]
 }

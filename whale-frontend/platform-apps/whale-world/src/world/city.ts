@@ -86,6 +86,7 @@ import {
   MAIL_PAGE,
   IM_PAGE,
   MAP_FENCE_PAGE,
+  TWIN_SCENE_PAGE,
 } from './screenpages';
 import { createStageScreen, type StageScreenHandle } from './stagescreen';
 import {
@@ -95,6 +96,12 @@ import {
   MAP_GROUND_W,
   type MapGroundHandle,
 } from './mapground';
+import {
+  createOrrery,
+  fetchPublishedScene,
+  fetchSceneMarkers,
+  type OrreryHandle,
+} from './orrery';
 import { createSceneEnv, type SceneEnv } from './env';
 import { createPostFx, type PostFx } from './postfx';
 import { createSky, type SkyState } from './env-sky';
@@ -3898,6 +3905,9 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
       const stagePos = stageScreen.group.position;
       stageScreen.update(dt, Math.hypot(stagePos.x - player.pos.x, stagePos.z - player.pos.z));
     }
+    /* 浑天仪（S7/T7.7 3D 场景嵌入）：三环与星点慢转。与乐坊/影戏院同一处置——
+       只有这一坊需要逐帧，别为九分之一的需求改所有人的调用签名。 */
+    guanxingOrrery?.update(dt);
     updateActors(dt);
     if (!screenBusy && !hallActive) updateCamera(dt);
     updateWhale(dt);
@@ -4050,6 +4060,12 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   /** 舆图司殿前的地面舆图（围栏按真实经纬度缩绘）与它的重试计时器 */
   let yutuGround: MapGroundHandle | null = null;
   let yutuGroundTimer: number | null = null;
+
+  /* 观星台（S7/T7.7）：屏风 + 台前的浑天仪（3D 场景嵌入） */
+  let guanxingScreen: ScreenHandle | null = null;
+  let guanxingPage: ScreenPageHandle | null = null;
+  let guanxingOrrery: OrreryHandle | null = null;
+  let guanxingTimer: number | null = null;
 
   /**
    * 坊的屏风落位：从布局数据现算，不手抄坐标。
@@ -5006,6 +5022,135 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
         });
       }
 
+      /* 观星台（S7/T7.7，外城九处第七处）：场景台账 + 台前的浑天仪。
+
+       选址在正西外城（x/z = -94.00/0.00，θ=270°、rotationDeg=90）：外城环上
+       255°（将作监）与 285°（营造局）两坊之间的空档，与舆图司（240°）同一套
+       落点公式，屏风离两坊墙各 6 米开外。
+
+       本坊的特殊项是"3D 场景嵌入"：台前立一座浑天仪，把已发布场景里的星标按
+       positionJson 等比缩进球体——红的告警、青的热点、金的标签，天心随告警
+       变色。屏风上排的是场景台账（谁在响、哪座没发布），浑天仪演的是"场景长
+       什么样"：表能读出状态，盘能看出告警聚在哪一侧。 */
+      const guanxingPose = districtScreenPose('guanxing-stage');
+      if (guanxingPose) {
+        guanxingScreen = screens.add({
+          id: 'guanxing',
+          position: [guanxingPose.x, 1.55, guanxingPose.z],
+          facing: guanxingPose.facing,
+          size: 'large',
+          title: '观星台 · 场景台账',
+          subtitle: 'TWIN / 星象与孪生',
+          tone: 'idle',
+          mount: (body) => {
+            guanxingPage = mountScreenPage(body, {
+              nodeKey: 'guanxing-stage',
+              overviewPath: '/twin/overview',
+              overviewPermission: 'sys:twin:scene',
+              pages: [TWIN_SCENE_PAGE],
+              getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+              getPermissions: opts.getPermissions,
+              // 题头灯跟业务页状态走：概览陈旧/失败（服务未起、无凭据）时不该还亮绿灯
+              onTone: (tone) => guanxingScreen?.setTone(tone),
+              onTitle: (title, subtitle) => {
+                guanxingScreen?.setTitle(
+                  title ? `${title} · 场景台账` : '观星台 · 场景台账',
+                  subtitle ?? 'TWIN / 星象与孪生',
+                );
+              },
+            });
+            return () => {
+              guanxingPage?.dispose();
+              guanxingPage = null;
+            };
+          },
+        });
+      }
+
+      /* 浑天仪：立在殿心前 10.0 米、偏北 1.6 米——屏风在偏南 2.04 米，
+         两者分列中轴两侧，谁都不挡谁。台基含台阶到 7.4 米、传送门环在 14 米，
+         半径 1.7 的底座落在 8.3~11.7 米之间；离将作监/营造局的坊墙足迹各 1.8 米。
+         取数失败不抛：空盘照转，探针里写明是哪一档失败。 */
+      const guanxingPalace = PALACES.find((item) => item.nodeKey === 'guanxing-stage');
+      if (guanxingPalace) {
+        const guanxingFrontX = Math.sin(guanxingPalace.yaw);
+        const guanxingFrontZ = Math.cos(guanxingPalace.yaw);
+        const guanxingSideX = Math.cos(guanxingPalace.yaw);
+        const guanxingSideZ = -Math.sin(guanxingPalace.yaw);
+        const orrery = createOrrery();
+        /* 环路铺在 y=0.06（中轴御道 0.07），基座再抬 1cm 免得与铺装闪烁 */
+        orrery.group.position.set(
+          guanxingPalace.x + 10.0 * guanxingFrontX - 1.6 * guanxingSideX,
+          0.07,
+          guanxingPalace.z + 10.0 * guanxingFrontZ - 1.6 * guanxingSideZ,
+        );
+        scene.add(orrery.group);
+        guanxingOrrery = orrery;
+        void loadGuanxingOrrery(0);
+      }
+
+      /**
+       * 取已发布场景与它的星标，画到浑天仪上。
+       *
+       * <p><b>两步串行。</b>星标接口必须带 sceneId，所以先取场景列表（只取一条、
+       * 只要已发布），再取那一座的星标。"先进城逛一圈再登录"是常态：首屏那一次
+       * 多半是 401，所以 401/超时都只空盘并隔 4 秒重试，最多三次；403（真没凭据）
+       * 不重试——权限不会自己长出来。重试走计时器而不是循环等待，主循环一帧都不能卡。</p>
+       *
+       * @param attempt 第几次尝试（0 起）
+       */
+      function loadGuanxingOrrery(attempt: number): void {
+        const handle = guanxingOrrery;
+        if (!handle) {
+          return;
+        }
+        const token = debugToken() ?? opts.getToken?.() ?? null;
+        const permissions = typeof opts.getPermissions === 'function' ? opts.getPermissions : undefined;
+        const scheduleRetry = (status: number): void => {
+          if (status === 403 || attempt >= 2) {
+            return;
+          }
+          guanxingTimer = window.setTimeout(() => {
+            guanxingTimer = null;
+            loadGuanxingOrrery(attempt + 1);
+          }, 4000);
+        };
+        void fetchPublishedScene({
+          token,
+          permission: 'sys:twin:scene',
+          permissions,
+          listPath: '/twin/v1/scenes/page',
+        }).then((result) => {
+          /* 期间退出过城或换了句柄：这次结果作废，别往已销毁的仪器上画 */
+          if (!guanxingOrrery || guanxingOrrery !== handle) {
+            return;
+          }
+          if (!result.ok) {
+            handle.setMode(result.status === 403 ? 'denied' : 'error', result.error);
+            scheduleRetry(result.status);
+            return;
+          }
+          const sceneRef = result.scene;
+          if (!sceneRef) {
+            handle.setMode('empty', '还没有已发布的场景');
+            return;
+          }
+          void fetchSceneMarkers(sceneRef.id, { token }).then((markers) => {
+            if (!guanxingOrrery || guanxingOrrery !== handle) {
+              return;
+            }
+            if (!markers.ok) {
+              /* 场景名丢了比空盘更可惜，但"星标取不到"本身就是这一档的结论：
+                 盘上不画半张图，探针里写明原因。 */
+              handle.setMode(markers.status === 403 ? 'denied' : 'error', `星标未取到：${markers.error}`);
+              scheduleRetry(markers.status);
+              return;
+            }
+            handle.setScene(sceneRef, markers.markers);
+          });
+        });
+      }
+
       /* 枢密殿（AUTH）屏风页（S5 / T5.2）：屏风里是登录历史 ——
        谁、什么时候、用什么方式登录，失败了多少次。
 
@@ -5620,6 +5765,8 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
           return chuanxinPage;
         case 'yutu':
           return yutuPage;
+        case 'guanxing':
+          return guanxingPage;
         default:
           return hubuPage;
       }
@@ -5657,6 +5804,7 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
       yutuGround.mesh.getWorldPosition(world);
       return { ...yutuGround.probe(), x: Number(world.x.toFixed(2)), z: Number(world.z.toFixed(2)) };
     };
+    window.__bwwOrrery = () => (guanxingOrrery ? guanxingOrrery.probe() : null);
     /* 天象探针：e2e 无法"看"，只能读强度与可见性——真好不好看仍需人眼 */
     window.__bwwWeather = () => ({
       weather: world.weather,
@@ -5831,6 +5979,14 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     }
     yutuGround?.dispose();
     yutuGround = null;
+    /* 浑天仪同理：先停重试再销毁。它的材质与纹理是共享的（几十颗星只几份），
+       交给 scene.traverse 逐个 dispose 会把共用的贴图一起释放多次。 */
+    if (guanxingTimer !== null) {
+      window.clearTimeout(guanxingTimer);
+      guanxingTimer = null;
+    }
+    guanxingOrrery?.dispose();
+    guanxingOrrery = null;
     playerRig.dispose();
     npcs.dispose();
     channel.dispose();

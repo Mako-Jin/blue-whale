@@ -401,6 +401,22 @@ const PROBES: ProbeSpec[] = [
       },
     ],
   },
+  {
+    // 观星台 = TWIN：S7/T7.7 起读契约 /twin/overview，与屏风上半部四张牌同一份快照。
+    // 牌坊放"场景 + 告警"两格：场景数说明这座观星台管着多少孪生；未恢复告警是
+    // 唯一会变色的那一格——有严重就红、只有预警就黄、全清才绿。
+    nodeKey: 'guanxing-stage',
+    permission: 'sys:twin:scene',
+    url: '/twin/overview',
+    extract: (d) => [
+      { label: '场景', value: formatCount(kpiOf(d, 'scenes')) },
+      {
+        label: '告警',
+        value: formatCount(kpiOf(d, 'alerts')),
+        tone: num(kpiOf(d, 'alerts')) > 0 ? 'warn' : 'good',
+      },
+    ],
+  },
 ];
 
 /* ---------------------------------------------------------------- 持久化 */
